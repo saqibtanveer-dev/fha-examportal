@@ -8,6 +8,7 @@ import type { UserRole } from '@prisma/client';
  * Full provider logic lives in auth.ts.
  */
 export const authConfig = {
+  trustHost: true,
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: '/login' },
   providers: [], // populated in auth.ts (providers need Node runtime deps)
