@@ -11,7 +11,7 @@ type Exam = {
   id: string;
   title: string;
   subject: { code: string };
-  _count: { examSessions: number };
+  _count: { examResults: number };
 };
 
 type Props = { exams: Exam[] };
@@ -36,7 +36,7 @@ export function TeacherResultsClient({ exams }: Props) {
                   <Badge variant="outline">{exam.subject.code}</Badge>
                   <div className="flex items-center gap-1 text-sm text-muted-foreground">
                     <Users className="h-3.5 w-3.5" />
-                    {exam._count.examSessions}
+                    {exam._count.examResults}
                   </div>
                 </div>
                 <CardTitle className="text-base">{exam.title}</CardTitle>

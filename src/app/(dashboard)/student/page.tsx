@@ -10,7 +10,7 @@ export default async function StudentDashboard() {
 
   const [totalExams, completed, pending, avgScore] = await Promise.all([
     prisma.examSession.count({ where: { studentId: userId } }),
-    prisma.examSession.count({ where: { studentId: userId, status: 'GRADED' } }),
+    prisma.examSession.count({ where: { studentId: userId, status: { in: ['SUBMITTED', 'GRADED'] } } }),
     prisma.examSession.count({ where: { studentId: userId, status: { in: ['NOT_STARTED', 'IN_PROGRESS'] } } }),
     prisma.examResult.aggregate({ where: { studentId: userId }, _avg: { percentage: true } }),
   ]);

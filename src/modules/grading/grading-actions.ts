@@ -69,6 +69,9 @@ export async function gradeAnswerAction(
     },
   });
 
+  // Auto-grade any remaining MCQ answers so the session can be fully graded
+  await autoGradeMcqAnswers(answer.sessionId);
+
   // Check if session is now fully graded
   const fullyGraded = await isSessionFullyGraded(answer.sessionId);
   if (fullyGraded) {

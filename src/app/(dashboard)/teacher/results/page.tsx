@@ -12,7 +12,7 @@ export default async function TeacherResultsPage() {
       id: true,
       title: true,
       subject: { select: { code: true } },
-      _count: { select: { examSessions: true } },
+      _count: { select: { examResults: true } },
     },
   });
 

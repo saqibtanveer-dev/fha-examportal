@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { getExamsForStudent } from '@/modules/exams/exam-queries';
 import { prisma } from '@/lib/prisma';
+import { serialize } from '@/utils/serialize';
 import { StudentExamsClient } from './student-exams-client';
 
 export default async function StudentExamsPage() {
@@ -22,5 +23,5 @@ export default async function StudentExamsPage() {
     studentProfile.sectionId ?? '',
   );
 
-  return <StudentExamsClient exams={exams} />;
+  return <StudentExamsClient exams={serialize(exams)} />;
 }

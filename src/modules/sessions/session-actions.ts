@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole, getAuthSession } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
+import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from '@/modules/grading/grading-engine';
 
 type ActionResult = { success: boolean; error?: string; data?: unknown };
 
@@ -106,6 +107,15 @@ export async function submitSessionAction(sessionId: string): Promise<ActionResu
     data: { status: 'SUBMITTED', submittedAt: new Date() },
   });
 
+  // Auto-grade MCQ answers immediately on submission
+  await autoGradeMcqAnswers(sessionId);
+  const fullyGraded = await isSessionFullyGraded(sessionId);
+  if (fullyGraded) {
+    await calculateResult(sessionId);
+  }
+
   revalidatePath('/student/exams');
+  revalidatePath('/student/results');
+  revalidatePath('/teacher/grading');
   return { success: true };
 }

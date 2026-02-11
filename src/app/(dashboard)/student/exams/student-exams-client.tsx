@@ -14,7 +14,7 @@ type ExamItem = {
   id: string;
   title: string;
   duration: number;
-  totalMarks: number | { toNumber(): number } | unknown;
+  totalMarks: number;
   subject: { id: string; name: string; code: string };
   examSessions: { id: string; status: string; attemptNumber: number }[];
   _count: { examQuestions: number };

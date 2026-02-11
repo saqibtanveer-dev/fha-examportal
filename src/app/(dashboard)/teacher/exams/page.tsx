@@ -3,6 +3,7 @@ import { listSubjects } from '@/modules/subjects/subject-queries';
 import { listActiveClasses } from '@/modules/classes/class-queries';
 import { listQuestions } from '@/modules/questions/question-queries';
 import { auth } from '@/lib/auth';
+import { serialize } from '@/utils/serialize';
 import { ExamsPageClient } from './exams-page-client';
 
 type Props = {
@@ -33,7 +34,7 @@ export default async function ExamsPage({ searchParams }: Props) {
 
   return (
     <ExamsPageClient
-      result={result}
+      result={serialize(result)}
       subjects={subjects.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
       classes={classes.map((c) => ({
         id: c.id,

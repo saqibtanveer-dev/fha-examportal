@@ -67,14 +67,8 @@ export async function getStudentSessions(studentId: string) {
 export async function getSessionsForGrading(teacherId: string) {
   return prisma.examSession.findMany({
     where: {
-      status: 'SUBMITTED',
+      status: { in: ['SUBMITTED', 'GRADING'] },
       exam: { createdById: teacherId },
-      studentAnswers: {
-        some: {
-          examQuestion: { question: { type: { in: ['SHORT_ANSWER', 'LONG_ANSWER'] } } },
-          answerGrade: null,
-        },
-      },
     },
     orderBy: { submittedAt: 'asc' },
     include: {

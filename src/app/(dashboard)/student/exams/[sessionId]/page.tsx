@@ -2,6 +2,7 @@ import { auth } from '@/lib/auth';
 import { getSessionById } from '@/modules/sessions/session-queries';
 import { redirect } from 'next/navigation';
 import { ExamTakingView } from '@/modules/sessions/components';
+import { serialize } from '@/utils/serialize';
 
 type Props = { params: Promise<{ sessionId: string }> };
 
@@ -15,5 +16,5 @@ export default async function ExamSessionPage({ params }: Props) {
     redirect(`/student/results/${sessionId}`);
   }
 
-  return <ExamTakingView session={session} />;
+  return <ExamTakingView session={serialize(session)} />;
 }

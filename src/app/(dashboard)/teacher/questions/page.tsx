@@ -1,6 +1,7 @@
 import { listQuestions } from '@/modules/questions/question-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
 import { auth } from '@/lib/auth';
+import { serialize } from '@/utils/serialize';
 import { QuestionsPageClient } from './questions-page-client';
 
 type Props = {
@@ -33,7 +34,7 @@ export default async function QuestionsPage({ searchParams }: Props) {
 
   return (
     <QuestionsPageClient
-      result={result}
+      result={serialize(result)}
       subjects={subjects.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
     />
   );
