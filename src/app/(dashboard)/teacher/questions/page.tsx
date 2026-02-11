@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { listQuestions } from '@/modules/questions/question-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
 import { listTags } from '@/modules/tags/tag-queries';
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 import { serialize } from '@/utils/serialize';
 import { QuestionsPageClient } from './questions-page-client';
 
@@ -18,7 +18,7 @@ type Props = {
 };
 
 export default async function QuestionsPage({ searchParams }: Props) {
-  const session = await auth();
+  const session = await requireRole('TEACHER', 'ADMIN');
   const params = await searchParams;
 
   const page = Math.max(1, parseInt(params.page ?? '1', 10));
@@ -29,7 +29,7 @@ export default async function QuestionsPage({ searchParams }: Props) {
       subjectId: params.subjectId,
       type: params.type as 'MCQ' | 'SHORT_ANSWER' | 'LONG_ANSWER' | undefined,
       difficulty: params.difficulty as 'EASY' | 'MEDIUM' | 'HARD' | undefined,
-      createdById: session?.user.role === 'TEACHER' ? session.user.id : undefined,
+      createdById: session.user.role === 'TEACHER' ? session.user.id : undefined,
     },
   );
 

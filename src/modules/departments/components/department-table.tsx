@@ -98,11 +98,13 @@ export function DepartmentTable({ departments }: Props) {
       </Table>
     </div>
 
-    <EditDepartmentDialog
-      open={!!editingDept}
-      onOpenChange={(open) => !open && setEditingDept(null)}
-      department={editingDept!}
-    />
+    {editingDept && (
+      <EditDepartmentDialog
+        open
+        onOpenChange={(open) => !open && setEditingDept(null)}
+        department={editingDept}
+      />
+    )}
   </>
   );
 }

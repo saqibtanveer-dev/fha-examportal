@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 import { getSessionById } from '@/modules/sessions/session-queries';
 import { redirect } from 'next/navigation';
 import { GradingInterface } from '@/modules/grading/components';
@@ -9,7 +9,7 @@ type Props = { params: Promise<{ sessionId: string }> };
 
 export default async function GradingDetailPage({ params }: Props) {
   const { sessionId } = await params;
-  const authSession = await auth();
+  const authSession = await requireRole('TEACHER', 'ADMIN');
   const session = await getSessionById(sessionId);
 
   if (!session) redirect('/teacher/grading');
@@ -42,7 +42,7 @@ export default async function GradingDetailPage({ params }: Props) {
     <GradingInterface
       sessionId={sessionId}
       answers={answers}
-      graderId={authSession!.user.id}
+      graderId={authSession.user.id}
       studentName={`${session.student.firstName} ${session.student.lastName}`}
     />
   );

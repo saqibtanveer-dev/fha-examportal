@@ -124,11 +124,13 @@ export function ExamGrid({ exams }: Props) {
       ))}
     </div>
 
-    <EditExamDialog
-      open={!!editingExam}
-      onOpenChange={(open) => !open && setEditingExam(null)}
-      exam={editingExam!}
-    />
+    {editingExam && (
+      <EditExamDialog
+        open
+        onOpenChange={(open) => !open && setEditingExam(null)}
+        exam={editingExam}
+      />
+    )}
   </>
   );
 }

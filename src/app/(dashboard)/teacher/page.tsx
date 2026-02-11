@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileQuestion, ClipboardList, PenTool } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 
 async function getTeacherStats(userId: string) {
   const [questionCount, examCount, pendingGrading] = await Promise.all([
@@ -21,8 +21,8 @@ async function getTeacherStats(userId: string) {
 }
 
 export default async function TeacherDashboardPage() {
-  const session = await auth();
-  const stats = await getTeacherStats(session!.user.id);
+  const session = await requireRole('TEACHER', 'ADMIN');
+  const stats = await getTeacherStats(session.user.id);
 
   const cards = [
     { title: 'My Questions', value: stats.questionCount, icon: FileQuestion },

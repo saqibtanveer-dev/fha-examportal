@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 import { getResultsByStudent, getStudentAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, StudentAnalyticsChart } from '@/modules/results/components';
 import { PageHeader, EmptyState } from '@/components/shared';
@@ -8,8 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { serialize } from '@/utils/serialize';
 
 export default async function StudentResultsPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const session = await requireRole('STUDENT');
+  const userId = session.user.id;
 
   const [results, analytics] = await Promise.all([
     getResultsByStudent(userId),

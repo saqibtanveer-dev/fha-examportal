@@ -126,11 +126,13 @@ export function UserTable({ users }: UserTableProps) {
       </Table>
     </div>
 
-    <EditUserDialog
-      open={!!editingUser}
-      onOpenChange={(open) => !open && setEditingUser(null)}
-      user={editingUser!}
-    />
+    {editingUser && (
+      <EditUserDialog
+        open
+        onOpenChange={(open) => !open && setEditingUser(null)}
+        user={editingUser}
+      />
+    )}
   </>
   );
 }

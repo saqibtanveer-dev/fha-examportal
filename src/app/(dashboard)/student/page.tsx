@@ -1,14 +1,14 @@
 export const dynamic = 'force-dynamic';
 
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared';
 import { BookOpen, CheckCircle, Clock, Trophy } from 'lucide-react';
 
 export default async function StudentDashboard() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const session = await requireRole('STUDENT');
+  const userId = session.user.id;
 
   const [totalExams, completed, pending, avgScore] = await Promise.all([
     prisma.examSession.count({ where: { studentId: userId } }),

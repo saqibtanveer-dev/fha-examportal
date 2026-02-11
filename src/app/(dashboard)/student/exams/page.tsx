@@ -1,14 +1,14 @@
 export const dynamic = 'force-dynamic';
 
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 import { getExamsForStudent } from '@/modules/exams/exam-queries';
 import { prisma } from '@/lib/prisma';
 import { serialize } from '@/utils/serialize';
 import { StudentExamsClient } from './student-exams-client';
 
 export default async function StudentExamsPage() {
-  const session = await auth();
-  const userId = session!.user.id;
+  const session = await requireRole('STUDENT');
+  const userId = session.user.id;
 
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId },

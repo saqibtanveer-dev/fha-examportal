@@ -116,11 +116,13 @@ export function ClassGrid({ classes }: Props) {
       ))}
     </div>
 
-    <EditClassDialog
-      open={!!editingClass}
-      onOpenChange={(open) => !open && setEditingClass(null)}
-      classItem={editingClass!}
-    />
+    {editingClass && (
+      <EditClassDialog
+        open
+        onOpenChange={(open) => !open && setEditingClass(null)}
+        classItem={editingClass}
+      />
+    )}
   </>
   );
 }

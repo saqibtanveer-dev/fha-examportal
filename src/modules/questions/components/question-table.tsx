@@ -130,11 +130,13 @@ export function QuestionTable({ questions }: Props) {
       </Table>
     </div>
 
-    <EditQuestionDialog
-      open={!!editingQuestion}
-      onOpenChange={(open) => !open && setEditingQuestion(null)}
-      question={editingQuestion!}
-    />
+    {editingQuestion && (
+      <EditQuestionDialog
+        open
+        onOpenChange={(open) => !open && setEditingQuestion(null)}
+        question={editingQuestion}
+      />
+    )}
   </>
   );
 }

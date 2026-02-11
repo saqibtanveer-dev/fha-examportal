@@ -107,12 +107,14 @@ export function SubjectTable({ subjects, departments }: Props) {
       </Table>
     </div>
 
-    <EditSubjectDialog
-      open={!!editingSubject}
-      onOpenChange={(open) => !open && setEditingSubject(null)}
-      subject={editingSubject!}
-      departments={departments}
-    />
+    {editingSubject && (
+      <EditSubjectDialog
+        open
+        onOpenChange={(open) => !open && setEditingSubject(null)}
+        subject={editingSubject}
+        departments={departments}
+      />
+    )}
   </>
   );
 }

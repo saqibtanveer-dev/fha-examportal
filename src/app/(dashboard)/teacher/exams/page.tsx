@@ -4,7 +4,7 @@ import { listExams } from '@/modules/exams/exam-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
 import { listActiveClasses } from '@/modules/classes/class-queries';
 import { listQuestions } from '@/modules/questions/question-queries';
-import { auth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth-utils';
 import { serialize } from '@/utils/serialize';
 import { ExamsPageClient } from './exams-page-client';
 
@@ -13,7 +13,7 @@ type Props = {
 };
 
 export default async function ExamsPage({ searchParams }: Props) {
-  const session = await auth();
+  const session = await requireRole('TEACHER', 'ADMIN');
   const params = await searchParams;
   const page = Math.max(1, parseInt(params.page ?? '1', 10));
 
@@ -23,14 +23,14 @@ export default async function ExamsPage({ searchParams }: Props) {
       {
         status: params.status as 'DRAFT' | 'PUBLISHED' | 'ACTIVE' | 'COMPLETED' | undefined,
         search: params.search,
-        createdById: session?.user.role === 'TEACHER' ? session.user.id : undefined,
+        createdById: session.user.role === 'TEACHER' ? session.user.id : undefined,
       },
     ),
     listSubjects(),
     listActiveClasses(),
     listQuestions(
       { page: 1, pageSize: 200 },
-      { createdById: session?.user.role === 'TEACHER' ? session.user.id : undefined },
+      { createdById: session.user.role === 'TEACHER' ? session.user.id : undefined },
     ),
   ]);
 
