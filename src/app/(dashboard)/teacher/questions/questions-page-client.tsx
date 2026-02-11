@@ -13,19 +13,27 @@ import {
 } from '@/components/ui/select';
 import { Plus, Search } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/shared';
+import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
 import { QuestionTable, CreateQuestionDialog } from '@/modules/questions/components';
+import { importQuestionsFromCsvAction } from '@/modules/questions/import-actions';
+import { TagManager } from '@/modules/tags/components';
 import type { PaginatedResult } from '@/utils/pagination';
 import type { QuestionWithRelations } from '@/modules/questions/question-queries';
 import type { DeepSerialize } from '@/utils/serialize';
 
+const Q_CSV_SAMPLE =
+  'title,type,difficulty,marks,subjectId,modelAnswer,mcqOptions\n"What is 2+2?",MCQ,EASY,1,<subject-id>,"B","2|*4|6|8"\n"Explain gravity",SHORT_ANSWER,MEDIUM,5,<subject-id>,"Force of attraction",';
+
 type Subject = { id: string; name: string; code: string };
+type TagItem = { id: string; name: string; category: string; _count: { questionTags: number } };
 
 type Props = {
   result: DeepSerialize<PaginatedResult<QuestionWithRelations>>;
   subjects: Subject[];
+  tags: TagItem[];
 };
 
-export function QuestionsPageClient({ result, subjects }: Props) {
+export function QuestionsPageClient({ result, subjects, tags }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -45,9 +53,23 @@ export function QuestionsPageClient({ result, subjects }: Props) {
         description="Create and manage exam questions"
         breadcrumbs={[{ label: 'Teacher', href: '/teacher' }, { label: 'Questions' }]}
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />New Question
-          </Button>
+          <div className="flex gap-2">
+            <CsvImportDialog
+              title="Import Questions"
+              description="Upload a CSV to bulk-create questions."
+              requiredColumns={['title', 'type', 'difficulty', 'marks', 'subjectId']}
+              optionalColumns={['modelAnswer', 'explanation', 'description', 'mcqOptions']}
+              sampleCsv={Q_CSV_SAMPLE}
+              onImport={async (rows) => {
+                const res = await importQuestionsFromCsvAction(rows as any);
+                if (!res.success) throw new Error(res.error);
+                return res.data!;
+              }}
+            />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />New Question
+            </Button>
+          </div>
         }
       />
 
@@ -107,6 +129,8 @@ export function QuestionsPageClient({ result, subjects }: Props) {
       )}
 
       <CreateQuestionDialog open={dialogOpen} onOpenChange={setDialogOpen} subjects={subjects} />
+
+      <TagManager tags={tags} />
     </div>
   );
 }

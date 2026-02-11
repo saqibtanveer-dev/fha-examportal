@@ -10,6 +10,8 @@ type Subject = {
   id: string;
   name: string;
   code: string;
+  description: string | null;
+  departmentId: string;
   isActive: boolean;
   department: { id: string; name: string };
   _count: { questions: number; exams: number };
@@ -42,7 +44,7 @@ export function SubjectsPageClient({ subjects, departments }: Props) {
           action={<Button onClick={() => setDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Add Subject</Button>}
         />
       ) : (
-        <SubjectTable subjects={subjects} />
+        <SubjectTable subjects={subjects} departments={departments} />
       )}
       <CreateSubjectDialog
         open={dialogOpen}

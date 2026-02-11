@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,9 +17,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { deleteDepartmentAction } from '@/modules/departments/department-actions';
+import { EditDepartmentDialog } from './edit-department-dialog';
 import { toast } from 'sonner';
 
 type Department = {
@@ -34,6 +35,7 @@ type Props = { departments: Department[] };
 
 export function DepartmentTable({ departments }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [editingDept, setEditingDept] = useState<Department | null>(null);
   const router = useRouter();
 
   function handleDelete(id: string) {
@@ -49,6 +51,7 @@ export function DepartmentTable({ departments }: Props) {
   }
 
   return (
+  <>
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -77,6 +80,9 @@ export function DepartmentTable({ departments }: Props) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditingDept(dept)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
                       onClick={() => handleDelete(dept.id)}
@@ -91,5 +97,12 @@ export function DepartmentTable({ departments }: Props) {
         </TableBody>
       </Table>
     </div>
+
+    <EditDepartmentDialog
+      open={!!editingDept}
+      onOpenChange={(open) => !open && setEditingDept(null)}
+      department={editingDept!}
+    />
+  </>
   );
 }

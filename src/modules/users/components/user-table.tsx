@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,9 +18,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreHorizontal, Power, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Power, Trash2 } from 'lucide-react';
 import { formatDate } from '@/utils/format';
 import { toggleUserActiveAction, deleteUserAction } from '@/modules/users/user-actions';
+import { EditUserDialog } from './edit-user-dialog';
 import { toast } from 'sonner';
 import type { UserWithProfile } from '@/modules/users/user-queries';
 
@@ -36,6 +37,7 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
 
 export function UserTable({ users }: UserTableProps) {
   const [isPending, startTransition] = useTransition();
+  const [editingUser, setEditingUser] = useState<UserWithProfile | null>(null);
   const router = useRouter();
 
   function handleToggleActive(userId: string) {
@@ -63,6 +65,7 @@ export function UserTable({ users }: UserTableProps) {
   }
 
   return (
+  <>
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -99,6 +102,10 @@ export function UserTable({ users }: UserTableProps) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </DropdownMenuItem>
                     <DropdownMenuItem onClick={() => handleToggleActive(user.id)}>
                       <Power className="mr-2 h-4 w-4" />
                       {user.isActive ? 'Deactivate' : 'Activate'}
@@ -118,5 +125,12 @@ export function UserTable({ users }: UserTableProps) {
         </TableBody>
       </Table>
     </div>
+
+    <EditUserDialog
+      open={!!editingUser}
+      onOpenChange={(open) => !open && setEditingUser(null)}
+      user={editingUser!}
+    />
+  </>
   );
 }

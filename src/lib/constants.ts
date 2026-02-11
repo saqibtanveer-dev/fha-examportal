@@ -44,6 +44,9 @@ export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as 
 export const AI_GRADING_MODEL = 'gpt-4o-mini';
 export const AI_CONFIDENCE_THRESHOLD = 0.7;
 export const AI_MAX_TOKENS = 1024;
+export const AI_AUTO_ACCEPT_THRESHOLD = 0.85;
+export const AI_REVIEW_RECOMMENDED_THRESHOLD = 0.6;
+export const AI_MAX_ANSWER_LENGTH = 4000;
 
 // ============================================
 // Routes
@@ -62,19 +65,27 @@ export const ROUTES = {
     CLASSES: '/admin/classes',
     SUBJECTS: '/admin/subjects',
     DEPARTMENTS: '/admin/departments',
+    NOTIFICATIONS: '/admin/notifications',
     SETTINGS: '/admin/settings',
-    AUDIT_LOGS: '/admin/audit-logs',
+    AUDIT_LOG: '/admin/audit-log',
+    REPORTS: '/admin/reports',
   },
   TEACHER: {
     QUESTIONS: '/teacher/questions',
     EXAMS: '/teacher/exams',
     GRADING: '/teacher/grading',
     RESULTS: '/teacher/results',
+    NOTIFICATIONS: '/teacher/notifications',
   },
   STUDENT: {
     EXAMS: '/student/exams',
     RESULTS: '/student/results',
+    NOTIFICATIONS: '/student/notifications',
   },
+  PROFILE: '/profile',
+  CHANGE_PASSWORD: '/profile/change-password',
+  FORGOT_PASSWORD: '/forgot-password',
+  RESET_PASSWORD: '/reset-password',
 } as const;
 
 // ============================================

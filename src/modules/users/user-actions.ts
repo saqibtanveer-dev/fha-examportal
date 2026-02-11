@@ -6,19 +6,15 @@ import { createUserSchema, type CreateUserInput } from '@/validations/user-schem
 import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { toggleUserActive, softDeleteUser } from './user-queries';
-
-export type ActionResult = {
-  success: boolean;
-  error?: string;
-  data?: unknown;
-};
+import { createAuditLog } from '@/modules/audit/audit-queries';
+import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Create User
 // ============================================
 
-export async function createUserAction(input: CreateUserInput): Promise<ActionResult> {
-  await requireRole('ADMIN');
+export async function createUserAction(input: CreateUserInput): Promise<ActionResult<{ id: string }>> {
+  const session = await requireRole('ADMIN');
 
   const parsed = createUserSchema.safeParse(input);
   if (!parsed.success) {
@@ -38,6 +34,7 @@ export async function createUserAction(input: CreateUserInput): Promise<ActionRe
     data: { email, passwordHash, firstName, lastName, role, phone },
   });
 
+  createAuditLog(session.user.id, 'CREATE_USER', 'USER', user.id, { email, role }).catch(() => {});
   revalidatePath('/admin/users');
   return { success: true, data: { id: user.id } };
 }
@@ -47,11 +44,12 @@ export async function createUserAction(input: CreateUserInput): Promise<ActionRe
 // ============================================
 
 export async function toggleUserActiveAction(userId: string): Promise<ActionResult> {
-  await requireRole('ADMIN');
+  const session = await requireRole('ADMIN');
 
   const user = await toggleUserActive(userId);
   if (!user) return { success: false, error: 'User not found' };
 
+  createAuditLog(session.user.id, 'TOGGLE_USER_ACTIVE', 'USER', userId, { isActive: user.isActive }).catch(() => {});
   revalidatePath('/admin/users');
   return { success: true };
 }
@@ -61,9 +59,10 @@ export async function toggleUserActiveAction(userId: string): Promise<ActionResu
 // ============================================
 
 export async function deleteUserAction(userId: string): Promise<ActionResult> {
-  await requireRole('ADMIN');
+  const session = await requireRole('ADMIN');
 
   await softDeleteUser(userId);
+  createAuditLog(session.user.id, 'DELETE_USER', 'USER', userId).catch(() => {});
   revalidatePath('/admin/users');
   return { success: true };
 }

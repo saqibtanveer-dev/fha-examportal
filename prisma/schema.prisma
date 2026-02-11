@@ -392,18 +392,22 @@ model ExamClassAssignment {
 // ============================================
 
 model ExamSession {
-  id            String        @id @default(uuid())
-  examId        String
-  studentId     String
-  attemptNumber Int           @default(1)
-  status        SessionStatus @default(NOT_STARTED)
-  startedAt     DateTime?
-  submittedAt   DateTime?
-  timeSpent     Int?
-  ipAddress     String?
-  userAgent     String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id               String        @id @default(uuid())
+  examId           String
+  studentId        String
+  attemptNumber    Int           @default(1)
+  status           SessionStatus @default(NOT_STARTED)
+  startedAt        DateTime?
+  submittedAt      DateTime?
+  timeSpent        Int?
+  ipAddress        String?
+  userAgent        String?
+  tabSwitchCount   Int           @default(0)
+  fullscreenExits  Int           @default(0)
+  copyPasteAttempts Int          @default(0)
+  isFlagged        Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
   exam           Exam            @relation(fields: [examId], references: [id])
   student        User            @relation(fields: [studentId], references: [id])
@@ -540,4 +544,19 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
+}
+
+// ============================================
+// PASSWORD RESET
+// ============================================
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  email     String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
 }

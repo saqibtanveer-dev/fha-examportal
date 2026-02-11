@@ -1,6 +1,3 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
+// Re-export cn from @/lib/utils to avoid duplication.
+// shadcn components use @/lib/utils, custom components use @/utils/cn.
+export { cn } from '@/lib/utils';

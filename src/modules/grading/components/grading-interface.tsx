@@ -10,14 +10,22 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
 import { gradeAnswerAction } from '@/modules/grading/grading-actions';
+import { approveAiGradeAction } from '@/modules/grading/ai-grading-actions';
 import { toast } from 'sonner';
-import { CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight, Brain, Shield } from 'lucide-react';
 
 type Answer = {
   id: string;
   answer: string;
   question: { id: string; title: string; marks: number; type: string; correctAnswer: string | null };
-  answerGrade: { marksAwarded: number; feedback: string | null } | null;
+  answerGrade: {
+    id: string;
+    marksAwarded: number;
+    feedback: string | null;
+    gradedBy: string;
+    aiConfidence: number | string | null;
+    isReviewed: boolean;
+  } | null;
 };
 
 type Props = {
@@ -51,6 +59,18 @@ export function GradingInterface({ sessionId, answers, graderId, studentName }: 
         router.refresh();
       } else {
         toast.error(result.error ?? 'Failed');
+      }
+    });
+  }
+
+  function handleApproveAi(gradeId: string) {
+    startTransition(async () => {
+      const result = await approveAiGradeAction(gradeId);
+      if (result.success) {
+        toast.success('AI grade approved');
+        router.refresh();
+      } else {
+        toast.error(result.error ?? 'Failed to approve');
       }
     });
   }
@@ -91,10 +111,11 @@ export function GradingInterface({ sessionId, answers, graderId, studentName }: 
           )}
 
           {current.answerGrade ? (
-            <div className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-4 w-4" />
-              <span>Graded: {String(current.answerGrade.marksAwarded)} marks</span>
-            </div>
+            <GradeDisplay
+              grade={current.answerGrade}
+              isPending={isPending}
+              onApprove={() => handleApproveAi(current.answerGrade!.id)}
+            />
           ) : (
             <div className="space-y-3">
               <div className="flex gap-3">
@@ -136,6 +157,71 @@ export function GradingInterface({ sessionId, answers, graderId, studentName }: 
           Next<ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       </div>
+    </div>
+  );
+}
+
+/* ─── Grade Display with AI indicator ─── */
+
+function GradeDisplay({
+  grade,
+  isPending,
+  onApprove,
+}: {
+  grade: NonNullable<Answer['answerGrade']>;
+  isPending: boolean;
+  onApprove: () => void;
+}) {
+  const isAi = grade.gradedBy === 'AI';
+  const confidence = grade.aiConfidence != null ? Number(grade.aiConfidence) : null;
+
+  const confidenceColor =
+    confidence != null
+      ? confidence >= 0.85
+        ? 'text-green-600'
+        : confidence >= 0.6
+          ? 'text-yellow-600'
+          : 'text-red-600'
+      : '';
+
+  return (
+    <div className="space-y-2 rounded-md border p-3">
+      <div className="flex items-center gap-2">
+        {isAi ? (
+          <Brain className="h-4 w-4 text-purple-500" />
+        ) : (
+          <CheckCircle className="h-4 w-4 text-green-600" />
+        )}
+        <span className="font-medium">
+          {String(grade.marksAwarded)} marks
+        </span>
+        <Badge variant="outline" className="text-xs">
+          {grade.gradedBy}
+        </Badge>
+        {confidence != null && (
+          <span className={`text-xs ${confidenceColor}`}>
+            {Math.round(confidence * 100)}% confidence
+          </span>
+        )}
+        {isAi && grade.isReviewed && (
+          <Badge variant="secondary" className="text-xs">
+            <Shield className="mr-1 h-3 w-3" /> Reviewed
+          </Badge>
+        )}
+      </div>
+
+      {grade.feedback && (
+        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+          {grade.feedback}
+        </p>
+      )}
+
+      {isAi && !grade.isReviewed && (
+        <Button size="sm" variant="outline" onClick={onApprove} disabled={isPending}>
+          {isPending ? <Spinner size="sm" className="mr-1" /> : <Shield className="mr-1 h-3.5 w-3.5" />}
+          Approve AI Grade
+        </Button>
+      )}
     </div>
   );
 }

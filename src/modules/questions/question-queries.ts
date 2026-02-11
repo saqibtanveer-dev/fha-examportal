@@ -78,3 +78,25 @@ export async function getQuestionById(id: string): Promise<QuestionWithRelations
     },
   });
 }
+
+// ============================================
+// Light list for exam question picker
+// ============================================
+
+export async function getQuestionsForPicker(subjectId?: string) {
+  return prisma.question.findMany({
+    where: {
+      deletedAt: null,
+      isActive: true,
+      ...(subjectId ? { subjectId } : {}),
+    },
+    select: {
+      id: true,
+      title: true,
+      type: true,
+      difficulty: true,
+      marks: true,
+    },
+    orderBy: { title: 'asc' },
+  });
+}

@@ -21,6 +21,20 @@ export async function getResultsByStudent(studentId: string): Promise<ResultWith
   });
 }
 
+export async function getStudentResultDetail(resultId: string, studentId: string) {
+  return prisma.examResult.findUnique({
+    where: { id: resultId, studentId },
+    include: {
+      exam: {
+        select: { title: true, totalMarks: true, passingMarks: true, duration: true },
+      },
+      session: {
+        select: { startedAt: true, submittedAt: true, status: true },
+      },
+    },
+  });
+}
+
 export async function getResultsByExam(examId: string): Promise<ResultWithDetails[]> {
   return prisma.examResult.findMany({
     where: { examId },

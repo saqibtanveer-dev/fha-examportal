@@ -4,8 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
-
-type ActionResult = { success: boolean; error?: string };
+import { createAuditLog } from '@/modules/audit/audit-queries';
+import type { ActionResult } from '@/types/action-result';
 
 const updateSettingsSchema = z.object({
   schoolName: z.string().min(1).max(200),
@@ -18,7 +18,7 @@ const updateSettingsSchema = z.object({
 });
 
 export async function updateSettingsAction(input: unknown): Promise<ActionResult> {
-  await requireRole('ADMIN');
+  const session = await requireRole('ADMIN');
 
   const parsed = updateSettingsSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -33,6 +33,7 @@ export async function updateSettingsAction(input: unknown): Promise<ActionResult
     });
   }
 
+  createAuditLog(session.user.id, 'UPDATE_SETTINGS', 'SETTINGS', 'global', parsed.data).catch(() => {});
   revalidatePath('/admin/settings');
   return { success: true };
 }

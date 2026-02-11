@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic';
 import { getResultsByExam, getExamAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, ExamAnalyticsChart } from '@/modules/results/components';
 import { PageHeader, EmptyState } from '@/components/shared';
+import { ExportCsvButton } from '@/components/shared/export-csv-button';
+import { exportExamResultsAction } from '@/modules/results/export-actions';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { serialize } from '@/utils/serialize';
@@ -33,6 +35,12 @@ export default async function ExamResultsPage({ params }: Props) {
           { label: 'Results', href: '/teacher/results' },
           { label: exam.title },
         ]}
+        actions={
+          <ExportCsvButton
+            filename={`results-${exam.title}`}
+            onExport={() => exportExamResultsAction(examId)}
+          />
+        }
       />
 
       {!analytics || results.length === 0 ? (

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { DEFAULT_GRADING_SCALE } from '@/lib/constants';
 
 /**
  * Auto-grade all MCQ answers in a session.
@@ -63,6 +64,16 @@ export async function isSessionFullyGraded(sessionId: string): Promise<boolean> 
 }
 
 /**
+ * Derive letter grade from percentage using the default grading scale.
+ */
+function deriveGrade(percentage: number): string {
+  const entry = DEFAULT_GRADING_SCALE.find(
+    (g) => percentage >= g.minPercentage && percentage <= g.maxPercentage,
+  );
+  return entry?.grade ?? 'F';
+}
+
+/**
  * Calculate and save exam result from graded answers.
  */
 export async function calculateResult(sessionId: string) {
@@ -85,6 +96,7 @@ export async function calculateResult(sessionId: string) {
   const passingMarks = Number(session.exam.passingMarks);
   const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
   const isPassed = obtainedMarks >= passingMarks;
+  const grade = deriveGrade(percentage);
 
   const result = await prisma.examResult.upsert({
     where: { sessionId },
@@ -96,12 +108,14 @@ export async function calculateResult(sessionId: string) {
       totalMarks,
       percentage,
       isPassed,
+      grade,
     },
     update: {
       obtainedMarks,
       totalMarks,
       percentage,
       isPassed,
+      grade,
     },
   });
 

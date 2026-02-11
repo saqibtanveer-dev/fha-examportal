@@ -26,6 +26,7 @@ export function ResultsTable({ results }: Props) {
             <TableHead>Subject</TableHead>
             <TableHead className="text-center">Marks</TableHead>
             <TableHead className="text-center">Percentage</TableHead>
+            <TableHead className="text-center">Grade</TableHead>
             <TableHead className="text-center">Status</TableHead>
             <TableHead>Date</TableHead>
           </TableRow>
@@ -42,6 +43,13 @@ export function ResultsTable({ results }: Props) {
               </TableCell>
               <TableCell className="text-center font-medium">
                 {formatPercentage(Number(r.percentage))}
+              </TableCell>
+              <TableCell className="text-center">
+                {r.grade ? (
+                  <Badge variant="secondary">{r.grade}</Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell className="text-center">
                 <Badge variant={r.isPassed ? 'default' : 'destructive'}>

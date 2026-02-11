@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -18,23 +18,30 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { deleteSubjectAction } from '@/modules/subjects/subject-actions';
+import { EditSubjectDialog } from './edit-subject-dialog';
 import { toast } from 'sonner';
 
 type Subject = {
   id: string;
   name: string;
   code: string;
+  description: string | null;
+  departmentId: string;
   isActive: boolean;
   department: { id: string; name: string };
   _count: { questions: number; exams: number };
 };
 
-type Props = { subjects: Subject[] };
+type Props = {
+  subjects: Subject[];
+  departments: { id: string; name: string }[];
+};
 
-export function SubjectTable({ subjects }: Props) {
+export function SubjectTable({ subjects, departments }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const router = useRouter();
 
   function handleDelete(id: string) {
@@ -50,6 +57,7 @@ export function SubjectTable({ subjects }: Props) {
   }
 
   return (
+  <>
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -84,6 +92,9 @@ export function SubjectTable({ subjects }: Props) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditingSubject(subj)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </DropdownMenuItem>
                     <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(subj.id)}>
                       <Trash2 className="mr-2 h-4 w-4" />Delete
                     </DropdownMenuItem>
@@ -95,5 +106,13 @@ export function SubjectTable({ subjects }: Props) {
         </TableBody>
       </Table>
     </div>
+
+    <EditSubjectDialog
+      open={!!editingSubject}
+      onOpenChange={(open) => !open && setEditingSubject(null)}
+      subject={editingSubject!}
+      departments={departments}
+    />
+  </>
   );
 }

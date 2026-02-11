@@ -64,6 +64,31 @@ export async function getExamById(id: string): Promise<ExamWithRelations | null>
   });
 }
 
+export async function getExamDetail(id: string) {
+  return prisma.exam.findUnique({
+    where: { id, deletedAt: null },
+    include: {
+      subject: true,
+      createdBy: { select: { firstName: true, lastName: true } },
+      examQuestions: {
+        include: {
+          question: {
+            select: { id: true, title: true, type: true, difficulty: true, marks: true },
+          },
+        },
+        orderBy: { sortOrder: 'asc' },
+      },
+      examClassAssignments: {
+        include: {
+          class: { select: { name: true } },
+          section: { select: { name: true } },
+        },
+      },
+      _count: { select: { examSessions: true } },
+    },
+  });
+}
+
 export async function getExamsForStudent(studentId: string, classId: string, sectionId: string) {
   return prisma.exam.findMany({
     where: {

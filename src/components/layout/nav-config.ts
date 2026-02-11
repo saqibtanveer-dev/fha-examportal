@@ -46,7 +46,9 @@ export const adminNavigation: NavGroup[] = [
   {
     title: 'System',
     items: [
-      { label: 'Audit Logs', href: ROUTES.ADMIN.AUDIT_LOGS, icon: ScrollText },
+      { label: 'Reports', href: ROUTES.ADMIN.REPORTS, icon: BarChart3 },
+      { label: 'Notifications', href: ROUTES.ADMIN.NOTIFICATIONS, icon: Bell },
+      { label: 'Audit Logs', href: ROUTES.ADMIN.AUDIT_LOG, icon: ScrollText },
       { label: 'Settings', href: ROUTES.ADMIN.SETTINGS, icon: Settings },
     ],
   },
@@ -68,6 +70,12 @@ export const teacherNavigation: NavGroup[] = [
       { label: 'Results', href: ROUTES.TEACHER.RESULTS, icon: BarChart3 },
     ],
   },
+  {
+    title: 'Account',
+    items: [
+      { label: 'Notifications', href: ROUTES.TEACHER.NOTIFICATIONS, icon: Bell },
+    ],
+  },
 ];
 
 export const studentNavigation: NavGroup[] = [
@@ -82,6 +90,12 @@ export const studentNavigation: NavGroup[] = [
     items: [
       { label: 'My Exams', href: ROUTES.STUDENT.EXAMS, icon: ClipboardList },
       { label: 'My Results', href: ROUTES.STUDENT.RESULTS, icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Account',
+    items: [
+      { label: 'Notifications', href: ROUTES.STUDENT.NOTIFICATIONS, icon: Bell },
     ],
   },
 ];

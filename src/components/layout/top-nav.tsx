@@ -22,10 +22,11 @@ type TopNavProps = {
     role: string;
   };
   sidebarCollapsed: boolean;
+  notificationCount?: number;
   onSignOut: () => void;
 };
 
-export function TopNav({ user, sidebarCollapsed, onSignOut }: TopNavProps) {
+export function TopNav({ user, sidebarCollapsed, notificationCount = 0, onSignOut }: TopNavProps) {
   return (
     <header
       className={cn(
@@ -41,9 +42,11 @@ export function TopNav({ user, sidebarCollapsed, onSignOut }: TopNavProps) {
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
-            0
-          </span>
+          {notificationCount > 0 && (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </span>
+          )}
         </Button>
 
         {/* User Menu */}

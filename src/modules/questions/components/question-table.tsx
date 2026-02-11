@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -14,12 +16,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2 } from 'lucide-react';
-import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { Copy, MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { deleteQuestionAction } from '@/modules/questions/question-actions';
+import { duplicateQuestionAction } from '@/modules/questions/update-question-actions';
+import { EditQuestionDialog } from './edit-question-dialog';
 import { toast } from 'sonner';
 import { truncate } from '@/utils/format';
 import type { QuestionWithRelations } from '@/modules/questions/question-queries';
@@ -41,6 +44,7 @@ type Props = { questions: DeepSerialize<QuestionWithRelations>[] };
 
 export function QuestionTable({ questions }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [editingQuestion, setEditingQuestion] = useState<DeepSerialize<QuestionWithRelations> | null>(null);
   const router = useRouter();
 
   function handleDelete(id: string) {
@@ -55,7 +59,20 @@ export function QuestionTable({ questions }: Props) {
     });
   }
 
+  function handleDuplicate(id: string) {
+    startTransition(async () => {
+      const result = await duplicateQuestionAction(id);
+      if (result.success) {
+        toast.success('Question duplicated');
+        router.refresh();
+      } else {
+        toast.error(result.error ?? 'Failed');
+      }
+    });
+  }
+
   return (
+  <>
     <div className="rounded-md border">
       <Table>
         <TableHeader>
@@ -94,6 +111,13 @@ export function QuestionTable({ questions }: Props) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditingQuestion(q)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleDuplicate(q.id)}>
+                      <Copy className="mr-2 h-4 w-4" />Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
                     <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(q.id)}>
                       <Trash2 className="mr-2 h-4 w-4" />Delete
                     </DropdownMenuItem>
@@ -105,5 +129,12 @@ export function QuestionTable({ questions }: Props) {
         </TableBody>
       </Table>
     </div>
+
+    <EditQuestionDialog
+      open={!!editingQuestion}
+      onOpenChange={(open) => !open && setEditingQuestion(null)}
+      question={editingQuestion!}
+    />
+  </>
   );
 }

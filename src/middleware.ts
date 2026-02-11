@@ -3,13 +3,18 @@ import { authConfig } from '@/lib/auth.config';
 import { NextResponse } from 'next/server';
 
 const LOGIN = '/login';
+
 const roleRouteMap: Record<string, string> = {
   ADMIN: '/admin',
   TEACHER: '/teacher',
   STUDENT: '/student',
 };
 
+/** Routes accessible without authentication */
 const publicRoutes = [LOGIN, '/api/auth'];
+
+/** Routes accessible by ANY authenticated user regardless of role */
+const sharedAuthRoutes = ['/profile', '/api'];
 
 const { auth } = NextAuth(authConfig);
 
@@ -35,9 +40,13 @@ export default auth((req) => {
     if (dashboard) return NextResponse.redirect(new URL(dashboard, req.url));
   }
 
+  // Allow shared authenticated routes (profile, API)
+  const isShared = sharedAuthRoutes.some((route) => pathname.startsWith(route));
+  if (isShared) return NextResponse.next();
+
   // Enforce role-based route access
   const allowedPrefix = roleRouteMap[role];
-  if (allowedPrefix && !pathname.startsWith(allowedPrefix) && !pathname.startsWith('/api')) {
+  if (allowedPrefix && !pathname.startsWith(allowedPrefix)) {
     return NextResponse.redirect(new URL(allowedPrefix, req.url));
   }
 

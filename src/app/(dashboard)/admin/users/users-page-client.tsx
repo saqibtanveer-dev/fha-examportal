@@ -13,9 +13,15 @@ import {
 } from '@/components/ui/select';
 import { Plus, Search } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/shared';
+import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
 import { UserTable, CreateUserDialog } from '@/modules/users/components';
+import { importUsersFromCsvAction } from '@/modules/users/import-actions';
 import type { PaginatedResult } from '@/utils/pagination';
 import type { UserWithProfile } from '@/modules/users/user-queries';
+
+const USER_CSV_SAMPLE =
+  'email,firstName,lastName,role,phone,password\njohn@school.com,John,Doe,STUDENT,03001234567,Temp@1234\njane@school.com,Jane,Smith,TEACHER,,';
+
 
 type Props = {
   result: PaginatedResult<UserWithProfile>;
@@ -46,10 +52,24 @@ export function UsersPageClient({ result }: Props) {
         description="Manage admins, teachers, and students"
         breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Users' }]}
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add User
-          </Button>
+          <div className="flex gap-2">
+            <CsvImportDialog
+              title="Import Users"
+              description="Upload a CSV file to bulk-create users."
+              requiredColumns={['email', 'firstName', 'lastName', 'role']}
+              optionalColumns={['phone', 'password']}
+              sampleCsv={USER_CSV_SAMPLE}
+              onImport={async (rows) => {
+                const res = await importUsersFromCsvAction(rows as any);
+                if (!res.success) throw new Error(res.error);
+                return res.data!;
+              }}
+            />
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add User
+            </Button>
+          </div>
         }
       />
 

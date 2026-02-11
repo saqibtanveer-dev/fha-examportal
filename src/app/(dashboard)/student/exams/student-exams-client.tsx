@@ -1,14 +1,12 @@
 'use client';
 
-import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader, EmptyState, Spinner } from '@/components/shared';
-import { startSessionAction } from '@/modules/sessions/session-actions';
-import { toast } from 'sonner';
+import { PageHeader, EmptyState } from '@/components/shared';
 import { Play, CheckCircle, Clock } from 'lucide-react';
+import Link from 'next/link';
 
 type ExamItem = {
   id: string;
@@ -23,20 +21,7 @@ type ExamItem = {
 type Props = { exams: ExamItem[] };
 
 export function StudentExamsClient({ exams }: Props) {
-  const [isPending, startTransition] = useTransition();
   const router = useRouter();
-
-  function handleStart(examId: string) {
-    startTransition(async () => {
-      const result = await startSessionAction(examId);
-      if (result.success && result.data) {
-        const data = result.data as { sessionId: string };
-        router.push(`/student/exams/${data.sessionId}`);
-      } else {
-        toast.error(result.error ?? 'Failed to start');
-      }
-    });
-  }
 
   return (
     <div className="space-y-6">
@@ -84,9 +69,11 @@ export function StudentExamsClient({ exams }: Props) {
                       Completed
                     </Button>
                   ) : (
-                    <Button className="w-full" onClick={() => handleStart(exam.id)} disabled={isPending}>
-                      {isPending ? <Spinner size="sm" className="mr-2" /> : <Play className="mr-2 h-4 w-4" />}
-                      Start Exam
+                    <Button className="w-full" asChild>
+                      <Link href={`/student/exams/${exam.id}/start`}>
+                        <Play className="mr-2 h-4 w-4" />
+                        Start Exam
+                      </Link>
                     </Button>
                   )}
                 </CardContent>

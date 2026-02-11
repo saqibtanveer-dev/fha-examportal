@@ -8,15 +8,16 @@ import {
   type CreateExamInput,
   type UpdateExamInput,
 } from '@/validations/exam-schemas';
+import { createBulkNotifications } from '@/modules/notifications/notification-queries';
 import { revalidatePath } from 'next/cache';
-
-type ActionResult = { success: boolean; error?: string; data?: unknown };
+import { createAuditLog } from '@/modules/audit/audit-queries';
+import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Create Exam
 // ============================================
 
-export async function createExamAction(input: CreateExamInput): Promise<ActionResult> {
+export async function createExamAction(input: CreateExamInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const parsed = createExamSchema.safeParse(input);
@@ -44,6 +45,7 @@ export async function createExamAction(input: CreateExamInput): Promise<ActionRe
     },
   });
 
+  createAuditLog(session.user.id, 'CREATE_EXAM', 'EXAM', exam.id, { title: examData.title }).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true, data: { id: exam.id } };
 }
@@ -53,7 +55,7 @@ export async function createExamAction(input: CreateExamInput): Promise<ActionRe
 // ============================================
 
 export async function updateExamAction(id: string, input: UpdateExamInput): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+  const session = await requireRole('TEACHER', 'ADMIN');
 
   const exam = await prisma.exam.findUnique({ where: { id } });
   if (!exam) return { success: false, error: 'Exam not found' };
@@ -63,6 +65,7 @@ export async function updateExamAction(id: string, input: UpdateExamInput): Prom
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   await prisma.exam.update({ where: { id }, data: parsed.data });
+  createAuditLog(session.user.id, 'UPDATE_EXAM', 'EXAM', id, parsed.data).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true };
 }
@@ -72,7 +75,7 @@ export async function updateExamAction(id: string, input: UpdateExamInput): Prom
 // ============================================
 
 export async function publishExamAction(id: string): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+  const session = await requireRole('TEACHER', 'ADMIN');
 
   const exam = await prisma.exam.findUnique({
     where: { id },
@@ -85,6 +88,25 @@ export async function publishExamAction(id: string): Promise<ActionResult> {
   if (exam.examClassAssignments.length === 0) return { success: false, error: 'Assign to classes first' };
 
   await prisma.exam.update({ where: { id }, data: { status: 'PUBLISHED' } });
+
+  // Notify students in assigned classes
+  const classIds = exam.examClassAssignments.map((a) => a.classId);
+  const students = await prisma.studentProfile.findMany({
+    where: { classId: { in: classIds } },
+    select: { userId: true },
+  });
+  const studentIds = students.map((s) => s.userId);
+  if (studentIds.length > 0) {
+    await createBulkNotifications(
+      studentIds,
+      'EXAM_ASSIGNED',
+      'New Exam Assigned',
+      `Exam "${exam.title}" has been published. Check your dashboard.`,
+      '/student/exams',
+    );
+  }
+
+  createAuditLog(session.user.id, 'PUBLISH_EXAM', 'EXAM', id).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true };
 }
@@ -94,12 +116,13 @@ export async function publishExamAction(id: string): Promise<ActionResult> {
 // ============================================
 
 export async function deleteExamAction(id: string): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+  const session = await requireRole('TEACHER', 'ADMIN');
 
   const sessions = await prisma.examSession.count({ where: { examId: id } });
   if (sessions > 0) return { success: false, error: 'Cannot delete exam with sessions' };
 
   await prisma.exam.update({ where: { id }, data: { deletedAt: new Date() } });
+  createAuditLog(session.user.id, 'DELETE_EXAM', 'EXAM', id).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true };
 }

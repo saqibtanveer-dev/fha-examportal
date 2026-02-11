@@ -27,7 +27,14 @@ export default async function GradingDetailPage({ params }: Props) {
         correctAnswer: a.examQuestion.question.modelAnswer,
       },
       answerGrade: a.answerGrade
-        ? { marksAwarded: Number(a.answerGrade.marksAwarded), feedback: a.answerGrade.feedback }
+        ? {
+            id: a.answerGrade.id,
+            marksAwarded: Number(a.answerGrade.marksAwarded),
+            feedback: a.answerGrade.feedback,
+            gradedBy: a.answerGrade.gradedBy,
+            aiConfidence: a.answerGrade.aiConfidence != null ? Number(a.answerGrade.aiConfidence) : null,
+            isReviewed: a.answerGrade.isReviewed,
+          }
         : null,
     }));
 

@@ -7,10 +7,11 @@ import { logoutAction } from '@/app/(public)/login/actions';
 
 type Props = {
   user: { firstName: string; lastName: string; email: string; role: string };
+  notificationCount?: number;
   children: React.ReactNode;
 };
 
-export function StudentShell({ user, children }: Props) {
+export function StudentShell({ user, notificationCount, children }: Props) {
   const router = useRouter();
   const navigation = getNavigationByRole('STUDENT');
 
@@ -21,7 +22,7 @@ export function StudentShell({ user, children }: Props) {
   }
 
   return (
-    <DashboardShell navigation={navigation} user={user} onSignOut={handleSignOut}>
+    <DashboardShell navigation={navigation} user={user} notificationCount={notificationCount} onSignOut={handleSignOut}>
       {children}
     </DashboardShell>
   );

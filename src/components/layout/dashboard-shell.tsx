@@ -14,6 +14,7 @@ type DashboardShellProps = {
     email: string;
     role: string;
   };
+  notificationCount?: number;
   onSignOut: () => void;
   children: React.ReactNode;
 };
@@ -21,6 +22,7 @@ type DashboardShellProps = {
 export function DashboardShell({
   navigation,
   user,
+  notificationCount,
   onSignOut,
   children,
 }: DashboardShellProps) {
@@ -36,6 +38,7 @@ export function DashboardShell({
       <TopNav
         user={user}
         sidebarCollapsed={collapsed}
+        notificationCount={notificationCount}
         onSignOut={onSignOut}
       />
       <main

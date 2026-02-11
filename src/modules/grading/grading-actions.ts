@@ -4,15 +4,32 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from './grading-engine';
+import { createNotification } from '@/modules/notifications/notification-queries';
+import { createAuditLog } from '@/modules/audit/audit-queries';
+import type { ActionResult } from '@/types/action-result';
 
-type ActionResult = { success: boolean; error?: string; data?: unknown };
+/** Notify student when their session is fully graded */
+async function notifyStudentIfGraded(sessionId: string) {
+  const session = await prisma.examSession.findUnique({
+    where: { id: sessionId },
+    include: { exam: { select: { title: true } } },
+  });
+  if (!session) return;
+  await createNotification(
+    session.studentId,
+    'RESULT_PUBLISHED',
+    'Result Available',
+    `Your result for "${session.exam.title}" is now available.`,
+    '/student/results',
+  );
+}
 
 // ============================================
 // Auto-grade MCQs for a session
 // ============================================
 
-export async function autoGradeSessionAction(sessionId: string): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+export async function autoGradeSessionAction(sessionId: string): Promise<ActionResult<{ mcqMarks: number; fullyGraded: boolean }>> {
+  const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const session = await prisma.examSession.findUnique({ where: { id: sessionId } });
   if (!session) return { success: false, error: 'Session not found' };
@@ -23,8 +40,10 @@ export async function autoGradeSessionAction(sessionId: string): Promise<ActionR
 
   if (fullyGraded) {
     await calculateResult(sessionId);
+    await notifyStudentIfGraded(sessionId);
   }
 
+  createAuditLog(authSession.user.id, 'AUTO_GRADE_SESSION', 'EXAM_SESSION', sessionId, { mcqMarks, fullyGraded }).catch(() => {});
   revalidatePath('/teacher/grading');
   return { success: true, data: { mcqMarks, fullyGraded } };
 }
@@ -39,7 +58,7 @@ export async function gradeAnswerAction(
   feedback: string,
   graderId: string,
 ): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+  const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const answer = await prisma.studentAnswer.findUnique({
     where: { id: answerId },
@@ -76,8 +95,10 @@ export async function gradeAnswerAction(
   const fullyGraded = await isSessionFullyGraded(answer.sessionId);
   if (fullyGraded) {
     await calculateResult(answer.sessionId);
+    await notifyStudentIfGraded(answer.sessionId);
   }
 
+  createAuditLog(authSession.user.id, 'GRADE_ANSWER', 'ANSWER', answerId, { marksAwarded, feedback }).catch(() => {});
   revalidatePath('/teacher/grading');
   return { success: true };
 }
@@ -86,8 +107,8 @@ export async function gradeAnswerAction(
 // Batch auto-grade all submitted sessions for an exam
 // ============================================
 
-export async function batchAutoGradeAction(examId: string): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+export async function batchAutoGradeAction(examId: string): Promise<ActionResult<{ totalSessions: number; fullyGraded: number }>> {
+  const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const sessions = await prisma.examSession.findMany({
     where: { examId, status: 'SUBMITTED' },
@@ -99,10 +120,12 @@ export async function batchAutoGradeAction(examId: string): Promise<ActionResult
     const fullyGraded = await isSessionFullyGraded(session.id);
     if (fullyGraded) {
       await calculateResult(session.id);
+      await notifyStudentIfGraded(session.id);
       graded++;
     }
   }
 
+  createAuditLog(authSession.user.id, 'BATCH_AUTO_GRADE', 'EXAM', examId, { totalSessions: sessions.length, fullyGraded: graded }).catch(() => {});
   revalidatePath('/teacher/grading');
   return { success: true, data: { totalSessions: sessions.length, fullyGraded: graded } };
 }

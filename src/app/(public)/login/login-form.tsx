@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,7 +62,16 @@ export function LoginForm() {
             />
           </div>
           <div className="space-y-2">
+          <div className="flex items-center justify-between">
             <Label htmlFor="password">Password</Label>
+            <Link
+              href="/login/forgot-password"
+              className="text-xs text-muted-foreground hover:text-primary"
+              tabIndex={-1}
+            >
+              Forgot password?
+            </Link>
+          </div>
             <div className="relative">
               <Input
                 id="password"

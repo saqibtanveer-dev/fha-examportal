@@ -1,12 +1,13 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, Users } from 'lucide-react';
+import { Pencil, Trash2, Users } from 'lucide-react';
 import { deleteClassAction, deleteSectionAction } from '@/modules/classes/class-actions';
+import { EditClassDialog } from './edit-class-dialog';
 import { toast } from 'sonner';
 
 type Section = {
@@ -28,6 +29,7 @@ type Props = { classes: ClassItem[] };
 
 export function ClassGrid({ classes }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
   const router = useRouter();
 
   function handleDeleteClass(id: string) {
@@ -55,6 +57,7 @@ export function ClassGrid({ classes }: Props) {
   }
 
   return (
+  <>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {classes.map((cls) => (
         <Card key={cls.id}>
@@ -62,6 +65,15 @@ export function ClassGrid({ classes }: Props) {
             <CardTitle className="text-lg">{cls.name}</CardTitle>
             <div className="flex items-center gap-2">
               <Badge variant="secondary">Grade {cls.grade}</Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setEditingClass(cls)}
+                disabled={isPending}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"
@@ -103,5 +115,12 @@ export function ClassGrid({ classes }: Props) {
         </Card>
       ))}
     </div>
+
+    <EditClassDialog
+      open={!!editingClass}
+      onOpenChange={(open) => !open && setEditingClass(null)}
+      classItem={editingClass!}
+    />
+  </>
   );
 }

@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { passwordSchema } from './password-schemas';
 
 // ============================================
 // Auth Schemas
@@ -17,7 +18,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 export const createUserSchema = z.object({
   email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
+  password: passwordSchema,
   firstName: z.string().min(1, 'First name is required').max(100),
   lastName: z.string().min(1, 'Last name is required').max(100),
   role: z.enum(['ADMIN', 'TEACHER', 'STUDENT']),

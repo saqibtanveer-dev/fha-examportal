@@ -4,14 +4,13 @@ import { prisma } from '@/lib/prisma';
 import { requireRole, getAuthSession } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from '@/modules/grading/grading-engine';
-
-type ActionResult = { success: boolean; error?: string; data?: unknown };
+import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Start Exam Session
 // ============================================
 
-export async function startSessionAction(examId: string): Promise<ActionResult> {
+export async function startSessionAction(examId: string): Promise<ActionResult<{ sessionId: string }>> {
   const session = await requireRole('STUDENT');
   const userId = session.user.id;
 

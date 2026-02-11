@@ -10,9 +10,21 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/shared';
 import { submitAnswerAction, submitSessionAction } from '@/modules/sessions/session-actions';
+import { useAntiCheat } from '@/modules/sessions/hooks/use-anti-cheat';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, ChevronRight, Clock, Send } from 'lucide-react';
+import { Flag, ChevronLeft, ChevronRight, Clock, Send, ShieldAlert } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import type { SessionWithDetails } from '@/modules/sessions/session-queries';
 import type { DeepSerialize } from '@/utils/serialize';
 
@@ -23,7 +35,24 @@ export function ExamTakingView({ session }: Props) {
   const [isPending, startTransition] = useTransition();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, { answer: string; optionId?: string | null }>>({});
+  const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
   const [timeLeft, setTimeLeft] = useState(session.exam.duration * 60);
+  const [violationWarning, setViolationWarning] = useState('');
+
+  // Anti-cheating measures
+  useAntiCheat({
+    sessionId: session.id,
+    enabled: true,
+    onViolation: (type, count) => {
+      if (type === 'TAB_SWITCH') {
+        setViolationWarning(`Warning: Tab switch detected (${count}). This is being recorded.`);
+        toast.warning(`Tab switch detected (${count}x). Activity is monitored.`);
+      } else if (type === 'COPY_PASTE') {
+        toast.warning('Copy/paste is not allowed during the exam.');
+      }
+      setTimeout(() => setViolationWarning(''), 5000);
+    },
+  });
 
   const questions = session.exam.examQuestions;
   const current = questions[currentIndex];
@@ -62,6 +91,15 @@ export function ExamTakingView({ session }: Props) {
     });
   }
 
+  function toggleReview(examQuestionId: string) {
+    setMarkedForReview((prev) => {
+      const next = new Set(prev);
+      if (next.has(examQuestionId)) next.delete(examQuestionId);
+      else next.add(examQuestionId);
+      return next;
+    });
+  }
+
   function handleSubmit() {
     startTransition(async () => {
       const result = await submitSessionAction(session.id);
@@ -93,11 +131,37 @@ export function ExamTakingView({ session }: Props) {
           <div className={`flex items-center gap-1 font-mono text-sm ${timeLeft < 300 ? 'text-destructive font-bold' : ''}`}>
             <Clock className="h-4 w-4" />{formatTime(timeLeft)}
           </div>
-          <Button variant="destructive" size="sm" onClick={handleSubmit} disabled={isPending}>
-            <Send className="mr-1 h-3.5 w-3.5" />Submit
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={isPending}>
+                <Send className="mr-1 h-3.5 w-3.5" />Submit
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Submit Exam?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You answered {answeredCount} of {totalQuestions} questions.
+                  {markedForReview.size > 0 && ` ${markedForReview.size} marked for review.`}
+                  {' '}This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Continue Exam</AlertDialogCancel>
+                <AlertDialogAction onClick={handleSubmit}>Submit Now</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
+
+      {/* Anti-cheat warning */}
+      {violationWarning && (
+        <div className="flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <ShieldAlert className="h-4 w-4 shrink-0" />
+          {violationWarning}
+        </div>
+      )}
 
       <Progress value={(answeredCount / totalQuestions) * 100} />
 
@@ -105,8 +169,24 @@ export function ExamTakingView({ session }: Props) {
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
-            <Badge variant="outline">Q{currentIndex + 1} / {totalQuestions}</Badge>
-            <Badge variant="secondary">{String(current.marks)} marks</Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline">Q{currentIndex + 1} / {totalQuestions}</Badge>
+              {markedForReview.has(current.id) && (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-800">Flagged</Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => toggleReview(current.id)}
+                className={markedForReview.has(current.id) ? 'text-amber-600' : ''}
+              >
+                <Flag className="mr-1 h-3.5 w-3.5" />
+                {markedForReview.has(current.id) ? 'Unflag' : 'Flag for Review'}
+              </Button>
+              <Badge variant="secondary">{String(current.marks)} marks</Badge>
+            </div>
           </div>
           <CardTitle className="text-lg">{q.title}</CardTitle>
         </CardHeader>
@@ -154,6 +234,7 @@ export function ExamTakingView({ session }: Props) {
               onClick={() => setCurrentIndex(i)}
               className={`h-7 w-7 rounded text-xs font-medium transition-colors ${
                 i === currentIndex ? 'bg-primary text-primary-foreground' :
+                markedForReview.has(eq.id) ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' :
                 answers[eq.id] ? 'bg-green-100 text-green-800' : 'bg-muted'
               }`}
             >

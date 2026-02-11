@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useTransition } from 'react';
+import { useRouter } from 'next/navigation';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,10 +11,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Trash2, Send, Clock, FileQuestion, Users } from 'lucide-react';
-import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { MoreHorizontal, Pencil, Trash2, Send, Clock, FileQuestion, Users } from 'lucide-react';
 import { publishExamAction, deleteExamAction } from '@/modules/exams/exam-actions';
+import { EditExamDialog } from './edit-exam-dialog';
 import { toast } from 'sonner';
 import { formatDate, formatDuration } from '@/utils/format';
 import type { ExamWithRelations } from '@/modules/exams/exam-queries';
@@ -30,6 +31,7 @@ type Props = { exams: DeepSerialize<ExamWithRelations>[] };
 
 export function ExamGrid({ exams }: Props) {
   const [isPending, startTransition] = useTransition();
+  const [editingExam, setEditingExam] = useState<DeepSerialize<ExamWithRelations> | null>(null);
   const router = useRouter();
 
   function handlePublish(id: string) {
@@ -57,6 +59,7 @@ export function ExamGrid({ exams }: Props) {
   }
 
   return (
+  <>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {exams.map((exam) => (
         <Card key={exam.id}>
@@ -76,6 +79,11 @@ export function ExamGrid({ exams }: Props) {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  {exam.status === 'DRAFT' && (
+                    <DropdownMenuItem onClick={() => setEditingExam(exam)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </DropdownMenuItem>
+                  )}
                   {exam.status === 'DRAFT' && (
                     <DropdownMenuItem onClick={() => handlePublish(exam.id)}>
                       <Send className="mr-2 h-4 w-4" />Publish
@@ -115,5 +123,12 @@ export function ExamGrid({ exams }: Props) {
         </Card>
       ))}
     </div>
+
+    <EditExamDialog
+      open={!!editingExam}
+      onOpenChange={(open) => !open && setEditingExam(null)}
+      exam={editingExam!}
+    />
+  </>
   );
 }

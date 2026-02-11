@@ -12,10 +12,11 @@ type AdminShellProps = {
     email: string;
     role: string;
   };
+  notificationCount?: number;
   children: React.ReactNode;
 };
 
-export function AdminShell({ user, children }: AdminShellProps) {
+export function AdminShell({ user, notificationCount, children }: AdminShellProps) {
   const router = useRouter();
   const navigation = getNavigationByRole('ADMIN');
 
@@ -26,7 +27,7 @@ export function AdminShell({ user, children }: AdminShellProps) {
   }
 
   return (
-    <DashboardShell navigation={navigation} user={user} onSignOut={handleSignOut}>
+    <DashboardShell navigation={navigation} user={user} notificationCount={notificationCount} onSignOut={handleSignOut}>
       {children}
     </DashboardShell>
   );

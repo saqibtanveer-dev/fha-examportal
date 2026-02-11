@@ -5,14 +5,14 @@ import { requireRole } from '@/lib/auth-utils';
 import { auth } from '@/lib/auth';
 import { createQuestionSchema, type CreateQuestionInput } from '@/validations/question-schemas';
 import { revalidatePath } from 'next/cache';
-
-type ActionResult = { success: boolean; error?: string; data?: unknown };
+import { createAuditLog } from '@/modules/audit/audit-queries';
+import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Create Question
 // ============================================
 
-export async function createQuestionAction(input: CreateQuestionInput): Promise<ActionResult> {
+export async function createQuestionAction(input: CreateQuestionInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const parsed = createQuestionSchema.safeParse(input);
@@ -34,6 +34,7 @@ export async function createQuestionAction(input: CreateQuestionInput): Promise<
     },
   });
 
+  createAuditLog(session.user.id, 'CREATE_QUESTION', 'QUESTION', question.id, { subjectId: questionData.subjectId, type: questionData.type }).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true, data: { id: question.id } };
 }
@@ -70,6 +71,7 @@ export async function deleteQuestionAction(id: string): Promise<ActionResult> {
     data: { deletedAt: new Date(), isActive: false },
   });
 
+  createAuditLog(session.user.id, 'DELETE_QUESTION', 'QUESTION', id).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true };
 }
@@ -79,7 +81,7 @@ export async function deleteQuestionAction(id: string): Promise<ActionResult> {
 // ============================================
 
 export async function toggleQuestionActiveAction(id: string): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+  const session = await requireRole('TEACHER', 'ADMIN');
 
   const question = await prisma.question.findUnique({ where: { id } });
   if (!question) return { success: false, error: 'Question not found' };
@@ -89,6 +91,7 @@ export async function toggleQuestionActiveAction(id: string): Promise<ActionResu
     data: { isActive: !question.isActive },
   });
 
+  createAuditLog(session.user.id, 'TOGGLE_QUESTION_ACTIVE', 'QUESTION', id, { isActive: !question.isActive }).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true };
 }

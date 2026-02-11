@@ -2,6 +2,7 @@ export const dynamic = 'force-dynamic';
 
 import { listQuestions } from '@/modules/questions/question-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
+import { listTags } from '@/modules/tags/tag-queries';
 import { auth } from '@/lib/auth';
 import { serialize } from '@/utils/serialize';
 import { QuestionsPageClient } from './questions-page-client';
@@ -32,12 +33,13 @@ export default async function QuestionsPage({ searchParams }: Props) {
     },
   );
 
-  const subjects = await listSubjects();
+  const [subjects, tags] = await Promise.all([listSubjects(), listTags()]);
 
   return (
     <QuestionsPageClient
       result={serialize(result)}
       subjects={subjects.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+      tags={tags.map((t) => ({ id: t.id, name: t.name, category: t.category, _count: t._count }))}
     />
   );
 }
