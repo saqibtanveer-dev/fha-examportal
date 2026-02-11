@@ -1,13 +1,17 @@
-import { auth } from '@/lib/auth';
-import { ROUTES } from '@/lib/constants';
+import NextAuth from 'next-auth';
+import { authConfig } from '@/lib/auth.config';
 import { NextResponse } from 'next/server';
 
-const publicRoutes = [ROUTES.LOGIN, '/api/auth'];
+const LOGIN = '/login';
 const roleRouteMap: Record<string, string> = {
   ADMIN: '/admin',
   TEACHER: '/teacher',
   STUDENT: '/student',
 };
+
+const publicRoutes = [LOGIN, '/api/auth'];
+
+const { auth } = NextAuth(authConfig);
 
 export default auth((req) => {
   const { pathname } = req.nextUrl;
@@ -18,7 +22,7 @@ export default auth((req) => {
 
   // If not authenticated => redirect to login
   if (!req.auth?.user) {
-    const loginUrl = new URL(ROUTES.LOGIN, req.url);
+    const loginUrl = new URL(LOGIN, req.url);
     loginUrl.searchParams.set('callbackUrl', pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -27,15 +31,14 @@ export default auth((req) => {
 
   // Root / => redirect to role dashboard
   if (pathname === '/') {
-    const dashboard = ROUTES.DASHBOARD[role as keyof typeof ROUTES.DASHBOARD];
-    return NextResponse.redirect(new URL(dashboard, req.url));
+    const dashboard = roleRouteMap[role];
+    if (dashboard) return NextResponse.redirect(new URL(dashboard, req.url));
   }
 
   // Enforce role-based route access
   const allowedPrefix = roleRouteMap[role];
   if (allowedPrefix && !pathname.startsWith(allowedPrefix) && !pathname.startsWith('/api')) {
-    const dashboard = ROUTES.DASHBOARD[role as keyof typeof ROUTES.DASHBOARD];
-    return NextResponse.redirect(new URL(dashboard, req.url));
+    return NextResponse.redirect(new URL(allowedPrefix, req.url));
   }
 
   return NextResponse.next();
