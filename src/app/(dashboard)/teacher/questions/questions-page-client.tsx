@@ -16,11 +16,12 @@ import { PageHeader, EmptyState } from '@/components/shared';
 import { QuestionTable, CreateQuestionDialog } from '@/modules/questions/components';
 import type { PaginatedResult } from '@/utils/pagination';
 import type { QuestionWithRelations } from '@/modules/questions/question-queries';
+import type { DeepSerialize } from '@/utils/serialize';
 
 type Subject = { id: string; name: string; code: string };
 
 type Props = {
-  result: PaginatedResult<QuestionWithRelations>;
+  result: DeepSerialize<PaginatedResult<QuestionWithRelations>>;
   subjects: Subject[];
 };
 

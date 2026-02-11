@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { auth } from '@/lib/auth';
 import { getExamsForStudent } from '@/modules/exams/exam-queries';
 import { prisma } from '@/lib/prisma';

@@ -22,12 +22,14 @@ export async function listAuditLogs(params: PaginationParams, filters?: { userId
   return buildPaginatedResult(data, totalCount, params);
 }
 
+import type { Prisma } from '@prisma/client';
+
 export async function createAuditLog(
   userId: string,
   action: string,
   entityType: string,
   entityId: string,
-  metadata?: Record<string, unknown>,
+  metadata?: Prisma.InputJsonValue,
   ipAddress?: string,
 ) {
   return prisma.auditLog.create({

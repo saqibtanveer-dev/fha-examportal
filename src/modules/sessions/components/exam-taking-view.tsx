@@ -14,8 +14,9 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { ChevronLeft, ChevronRight, Clock, Send } from 'lucide-react';
 import type { SessionWithDetails } from '@/modules/sessions/session-queries';
+import type { DeepSerialize } from '@/utils/serialize';
 
-type Props = { session: SessionWithDetails };
+type Props = { session: DeepSerialize<SessionWithDetails> };
 
 export function ExamTakingView({ session }: Props) {
   const router = useRouter();

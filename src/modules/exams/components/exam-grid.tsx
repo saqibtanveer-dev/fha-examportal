@@ -16,6 +16,7 @@ import { publishExamAction, deleteExamAction } from '@/modules/exams/exam-action
 import { toast } from 'sonner';
 import { formatDate, formatDuration } from '@/utils/format';
 import type { ExamWithRelations } from '@/modules/exams/exam-queries';
+import type { DeepSerialize } from '@/utils/serialize';
 
 const statusColors: Record<string, string> = {
   DRAFT: 'bg-gray-100 text-gray-800',
@@ -25,7 +26,7 @@ const statusColors: Record<string, string> = {
   ARCHIVED: 'bg-gray-200 text-gray-600',
 };
 
-type Props = { exams: ExamWithRelations[] };
+type Props = { exams: DeepSerialize<ExamWithRelations>[] };
 
 export function ExamGrid({ exams }: Props) {
   const [isPending, startTransition] = useTransition();

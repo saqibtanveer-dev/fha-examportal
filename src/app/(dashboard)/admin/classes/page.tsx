@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { listClasses } from '@/modules/classes/class-queries';
 import { ClassesPageClient } from './classes-page-client';
 

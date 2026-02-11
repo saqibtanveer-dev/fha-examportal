@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { listUsers } from '@/modules/users/user-queries';
 import { UsersPageClient } from './users-page-client';
 

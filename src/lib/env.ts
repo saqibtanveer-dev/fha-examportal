@@ -3,10 +3,10 @@ import { z } from 'zod/v4';
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   AUTH_SECRET: z.string().min(1, 'AUTH_SECRET is required'),
-  AUTH_URL: z.string().url('AUTH_URL must be a valid URL'),
+  AUTH_URL: z.string().url('AUTH_URL must be a valid URL').optional(),
   OPENAI_API_KEY: z.string().optional(),
-  NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL'),
-  ADMIN_INITIAL_PASSWORD: z.string().min(8, 'ADMIN_INITIAL_PASSWORD must be at least 8 chars'),
+  NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL').optional(),
+  ADMIN_INITIAL_PASSWORD: z.string().min(8, 'ADMIN_INITIAL_PASSWORD must be at least 8 chars').optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 });
 

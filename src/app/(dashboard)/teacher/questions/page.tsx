@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { listQuestions } from '@/modules/questions/question-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
 import { auth } from '@/lib/auth';

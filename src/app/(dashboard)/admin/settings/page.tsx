@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { getSchoolSettings } from '@/modules/settings/settings-queries';
 import { SettingsForm } from './settings-form';
 

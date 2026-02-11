@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { auth } from '@/lib/auth';
 import { getResultsByStudent, getStudentAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, StudentAnalyticsChart } from '@/modules/results/components';

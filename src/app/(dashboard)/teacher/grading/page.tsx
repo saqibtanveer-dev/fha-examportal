@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { auth } from '@/lib/auth';
 import { getSessionsForGrading } from '@/modules/sessions/session-queries';
 import { GradingPageClient } from './grading-page-client';

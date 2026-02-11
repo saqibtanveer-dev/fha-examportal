@@ -16,13 +16,14 @@ import { PageHeader, EmptyState } from '@/components/shared';
 import { ExamGrid, CreateExamDialog } from '@/modules/exams/components';
 import type { PaginatedResult } from '@/utils/pagination';
 import type { ExamWithRelations } from '@/modules/exams/exam-queries';
+import type { DeepSerialize } from '@/utils/serialize';
 
 type Subject = { id: string; name: string; code: string };
 type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
 type QuestionItem = { id: string; title: string; marks: number; type: string };
 
 type Props = {
-  result: PaginatedResult<ExamWithRelations>;
+  result: DeepSerialize<PaginatedResult<ExamWithRelations>>;
   subjects: Subject[];
   classes: ClassItem[];
   questions: QuestionItem[];

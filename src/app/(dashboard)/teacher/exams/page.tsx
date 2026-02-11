@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { listExams } from '@/modules/exams/exam-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
 import { listActiveClasses } from '@/modules/classes/class-queries';

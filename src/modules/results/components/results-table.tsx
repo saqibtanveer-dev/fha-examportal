@@ -12,8 +12,9 @@ import {
 } from '@/components/ui/table';
 import { formatPercentage, formatDate } from '@/utils/format';
 import type { ResultWithDetails } from '@/modules/results/result-queries';
+import type { DeepSerialize } from '@/utils/serialize';
 
-type Props = { results: ResultWithDetails[] };
+type Props = { results: DeepSerialize<ResultWithDetails>[] };
 
 export function ResultsTable({ results }: Props) {
   return (

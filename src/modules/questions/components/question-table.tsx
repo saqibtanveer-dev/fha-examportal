@@ -23,6 +23,7 @@ import { deleteQuestionAction } from '@/modules/questions/question-actions';
 import { toast } from 'sonner';
 import { truncate } from '@/utils/format';
 import type { QuestionWithRelations } from '@/modules/questions/question-queries';
+import type { DeepSerialize } from '@/utils/serialize';
 
 const difficultyColors: Record<string, string> = {
   EASY: 'bg-green-100 text-green-800',
@@ -36,7 +37,7 @@ const typeLabels: Record<string, string> = {
   LONG_ANSWER: 'Long',
 };
 
-type Props = { questions: QuestionWithRelations[] };
+type Props = { questions: DeepSerialize<QuestionWithRelations>[] };
 
 export function QuestionTable({ questions }: Props) {
   const [isPending, startTransition] = useTransition();

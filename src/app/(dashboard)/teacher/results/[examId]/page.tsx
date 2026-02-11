@@ -1,8 +1,11 @@
+export const dynamic = 'force-dynamic';
+
 import { getResultsByExam, getExamAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, ExamAnalyticsChart } from '@/modules/results/components';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
+import { serialize } from '@/utils/serialize';
 
 type Props = { params: Promise<{ examId: string }> };
 
@@ -37,7 +40,7 @@ export default async function ExamResultsPage({ params }: Props) {
       ) : (
         <>
           <ExamAnalyticsChart analytics={analytics} />
-          <ResultsTable results={results} />
+          <ResultsTable results={serialize(results)} />
         </>
       )}
     </div>
