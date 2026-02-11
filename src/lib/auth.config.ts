@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from 'next-auth';
 import type { UserRole } from '@prisma/client';
+// line to triger fake update
 
 /**
  * Lightweight auth config — NO Prisma, NO bcrypt.
