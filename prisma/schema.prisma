@@ -1,0 +1,543 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum QuestionType {
+  MCQ
+  SHORT_ANSWER
+  LONG_ANSWER
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum TagCategory {
+  TOPIC
+  DIFFICULTY
+  BLOOM_LEVEL
+  CUSTOM
+}
+
+enum ExamType {
+  QUIZ
+  MIDTERM
+  FINAL
+  PRACTICE
+  CUSTOM
+}
+
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum SessionStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  TIMED_OUT
+  GRADING
+  GRADED
+}
+
+enum ShowResultAfter {
+  IMMEDIATELY
+  AFTER_DEADLINE
+  MANUAL
+}
+
+enum GradedBy {
+  SYSTEM
+  AI
+  TEACHER
+}
+
+enum NotificationType {
+  EXAM_ASSIGNED
+  EXAM_REMINDER
+  RESULT_PUBLISHED
+  GRADE_REVIEWED
+  SYSTEM
+}
+
+// ============================================
+// USER TABLES
+// ============================================
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         UserRole
+  phone        String?
+  avatarUrl    String?
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  studentProfile StudentProfile?
+  teacherProfile TeacherProfile?
+  questions      Question[]
+  examsCreated   Exam[]
+  examSessions   ExamSession[]
+  answerGrades   AnswerGrade[]    @relation("GraderUser")
+  examResults    ExamResult[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+
+  @@index([role])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+model StudentProfile {
+  id              String    @id @default(uuid())
+  userId          String    @unique
+  rollNumber      String
+  registrationNo  String    @unique
+  classId         String
+  sectionId       String
+  guardianName    String?
+  guardianPhone   String?
+  dateOfBirth     DateTime?
+  gender          Gender?
+  enrollmentDate  DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id])
+  section Section @relation(fields: [sectionId], references: [id])
+
+  @@index([classId])
+  @@index([sectionId])
+  @@index([rollNumber])
+}
+
+model TeacherProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  employeeId     String   @unique
+  qualification  String?
+  specialization String?
+  joiningDate    DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacherSubjects TeacherSubject[]
+}
+
+// ============================================
+// ORGANIZATION TABLES
+// ============================================
+
+model Department {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjects Subject[]
+}
+
+model Subject {
+  id           String   @id @default(uuid())
+  name         String
+  code         String   @unique
+  departmentId String
+  description  String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  department      Department       @relation(fields: [departmentId], references: [id])
+  teacherSubjects TeacherSubject[]
+  questions       Question[]
+  exams           Exam[]
+
+  @@index([departmentId])
+}
+
+model TeacherSubject {
+  id        String   @id @default(uuid())
+  teacherId String
+  subjectId String
+  createdAt DateTime @default(now())
+
+  teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+}
+
+model Class {
+  id        String   @id @default(uuid())
+  name      String
+  grade     Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sections             Section[]
+  students             StudentProfile[]
+  examClassAssignments ExamClassAssignment[]
+
+  @@index([grade])
+}
+
+model Section {
+  id        String   @id @default(uuid())
+  name      String
+  classId   String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  class                Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  students             StudentProfile[]
+  examClassAssignments ExamClassAssignment[]
+
+  @@unique([classId, name])
+  @@index([classId])
+}
+
+// ============================================
+// QUESTION BANK TABLES
+// ============================================
+
+model Tag {
+  id        String      @id @default(uuid())
+  name      String      @unique
+  category  TagCategory
+  createdAt DateTime    @default(now())
+
+  questionTags QuestionTag[]
+
+  @@index([category])
+}
+
+model Question {
+  id            String       @id @default(uuid())
+  subjectId     String
+  createdById   String
+  type          QuestionType
+  title         String
+  description   String?
+  imageUrl      String?
+  difficulty    Difficulty
+  marks         Decimal
+  expectedTime  Int?
+  modelAnswer   String?
+  gradingRubric Json?
+  explanation   String?
+  isActive      Boolean      @default(true)
+  usageCount    Int          @default(0)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  deletedAt     DateTime?
+
+  subject       Subject       @relation(fields: [subjectId], references: [id])
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  mcqOptions    McqOption[]
+  questionTags  QuestionTag[]
+  examQuestions ExamQuestion[]
+
+  @@index([subjectId])
+  @@index([createdById])
+  @@index([type])
+  @@index([difficulty])
+  @@index([isActive])
+  @@index([deletedAt])
+}
+
+model McqOption {
+  id         String   @id @default(uuid())
+  questionId String
+  label      String
+  text       String
+  imageUrl   String?
+  isCorrect  Boolean  @default(false)
+  sortOrder  Int
+  createdAt  DateTime @default(now())
+
+  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  studentAnswers StudentAnswer[] @relation("SelectedOption")
+
+  @@unique([questionId, label])
+  @@index([questionId])
+}
+
+model QuestionTag {
+  id         String   @id @default(uuid())
+  questionId String
+  tagId      String
+  createdAt  DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([questionId, tagId])
+}
+
+// ============================================
+// EXAM TABLES
+// ============================================
+
+model Exam {
+  id               String          @id @default(uuid())
+  title            String
+  description      String?
+  subjectId        String
+  createdById      String
+  type             ExamType
+  status           ExamStatus      @default(DRAFT)
+  totalMarks       Decimal
+  passingMarks     Decimal
+  duration         Int
+  scheduledStartAt DateTime?
+  scheduledEndAt   DateTime?
+  instructions     String?
+  shuffleQuestions Boolean         @default(false)
+  showResultAfter  ShowResultAfter @default(IMMEDIATELY)
+  allowReview      Boolean         @default(true)
+  maxAttempts      Int             @default(1)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  deletedAt        DateTime?
+
+  subject              Subject              @relation(fields: [subjectId], references: [id])
+  createdBy            User                 @relation(fields: [createdById], references: [id])
+  examQuestions        ExamQuestion[]
+  examClassAssignments ExamClassAssignment[]
+  examSessions         ExamSession[]
+  examResults          ExamResult[]
+
+  @@index([subjectId])
+  @@index([createdById])
+  @@index([status])
+  @@index([scheduledStartAt])
+  @@index([scheduledEndAt])
+}
+
+model ExamQuestion {
+  id         String   @id @default(uuid())
+  examId     String
+  questionId String
+  sortOrder  Int
+  marks      Decimal
+  isRequired Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  exam           Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question       Question        @relation(fields: [questionId], references: [id])
+  studentAnswers StudentAnswer[]
+
+  @@unique([examId, sortOrder])
+  @@index([examId])
+  @@index([questionId])
+}
+
+model ExamClassAssignment {
+  id        String   @id @default(uuid())
+  examId    String
+  classId   String
+  sectionId String?
+  createdAt DateTime @default(now())
+
+  exam    Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  class   Class    @relation(fields: [classId], references: [id])
+  section Section? @relation(fields: [sectionId], references: [id])
+
+  @@unique([examId, classId, sectionId])
+  @@index([examId])
+  @@index([classId])
+}
+
+// ============================================
+// EXAM SESSION TABLES
+// ============================================
+
+model ExamSession {
+  id            String        @id @default(uuid())
+  examId        String
+  studentId     String
+  attemptNumber Int           @default(1)
+  status        SessionStatus @default(NOT_STARTED)
+  startedAt     DateTime?
+  submittedAt   DateTime?
+  timeSpent     Int?
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  exam           Exam            @relation(fields: [examId], references: [id])
+  student        User            @relation(fields: [studentId], references: [id])
+  studentAnswers StudentAnswer[]
+  examResult     ExamResult?
+
+  @@unique([examId, studentId, attemptNumber])
+  @@index([status])
+}
+
+model StudentAnswer {
+  id                String    @id @default(uuid())
+  sessionId         String
+  examQuestionId    String
+  answerText        String?
+  selectedOptionId  String?
+  isMarkedForReview Boolean   @default(false)
+  answeredAt        DateTime?
+  timeSpent         Int?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  session        ExamSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  examQuestion   ExamQuestion @relation(fields: [examQuestionId], references: [id])
+  selectedOption McqOption?   @relation("SelectedOption", fields: [selectedOptionId], references: [id])
+  answerGrade    AnswerGrade?
+
+  @@unique([sessionId, examQuestionId])
+  @@index([sessionId])
+  @@index([examQuestionId])
+}
+
+// ============================================
+// GRADING TABLES
+// ============================================
+
+model AnswerGrade {
+  id               String   @id @default(uuid())
+  studentAnswerId  String   @unique
+  gradedBy         GradedBy
+  graderId         String?
+  marksAwarded     Decimal
+  maxMarks         Decimal
+  feedback         String?
+  aiConfidence     Decimal?
+  aiModelUsed      String?
+  aiPromptTokens   Int?
+  aiResponseTokens Int?
+  isReviewed       Boolean  @default(false)
+  reviewedAt       DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  studentAnswer StudentAnswer @relation(fields: [studentAnswerId], references: [id], onDelete: Cascade)
+  grader        User?         @relation("GraderUser", fields: [graderId], references: [id])
+
+  @@index([gradedBy])
+  @@index([isReviewed])
+}
+
+model ExamResult {
+  id            String    @id @default(uuid())
+  sessionId     String    @unique
+  examId        String
+  studentId     String
+  totalMarks    Decimal
+  obtainedMarks Decimal
+  percentage    Decimal
+  grade         String?
+  isPassed      Boolean
+  rank          Int?
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  session ExamSession @relation(fields: [sessionId], references: [id])
+  exam    Exam        @relation(fields: [examId], references: [id])
+  student User        @relation(fields: [studentId], references: [id])
+
+  @@index([examId])
+  @@index([studentId])
+}
+
+// ============================================
+// SYSTEM TABLES
+// ============================================
+
+model SchoolSettings {
+  id           String   @id @default(uuid())
+  schoolName   String
+  schoolLogo   String?
+  address      String?
+  phone        String?
+  email        String?
+  website      String?
+  gradingScale Json
+  timezone     String   @default("Asia/Karachi")
+  academicYear String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  metadata   Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([entityType])
+  @@index([entityId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  actionUrl String?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
