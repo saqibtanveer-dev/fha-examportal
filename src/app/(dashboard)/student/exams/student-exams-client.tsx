@@ -61,7 +61,7 @@ export function StudentExamsClient({ exams }: Props) {
                     {exam._count.examQuestions} questions &middot; {exam.duration} min &middot; {String(exam.totalMarks)} marks
                   </div>
                   {activeSession ? (
-                    <Button className="w-full" onClick={() => router.push(`/student/exams/${activeSession.id}`)}>
+                    <Button className="w-full" onClick={() => router.push(`/student/exams/sessions/${activeSession.id}`)}>
                       Continue Exam
                     </Button>
                   ) : completedSession ? (

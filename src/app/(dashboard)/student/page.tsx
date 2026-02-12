@@ -4,24 +4,69 @@ import { requireRole } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared';
-import { BookOpen, CheckCircle, Clock, Trophy } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Trophy, FileText } from 'lucide-react';
 
 export default async function StudentDashboard() {
   const session = await requireRole('STUDENT');
   const userId = session.user.id;
 
-  const [totalExams, completed, pending, avgScore] = await Promise.all([
-    prisma.examSession.count({ where: { studentId: userId } }),
+  const studentProfile = await prisma.studentProfile.findUnique({
+    where: { userId },
+    select: { classId: true, sectionId: true },
+  });
+
+  const [completed, inProgress, avgScore, availableExams, attemptedExamIds] = await Promise.all([
     prisma.examSession.count({ where: { studentId: userId, status: { in: ['SUBMITTED', 'GRADED'] } } }),
     prisma.examSession.count({ where: { studentId: userId, status: { in: ['NOT_STARTED', 'IN_PROGRESS'] } } }),
     prisma.examResult.aggregate({ where: { studentId: userId }, _avg: { percentage: true } }),
+    // Count all exams assigned to the student's class
+    studentProfile?.classId
+      ? prisma.exam.count({
+          where: {
+            deletedAt: null,
+            status: { in: ['PUBLISHED', 'ACTIVE'] },
+            examClassAssignments: {
+              some: {
+                classId: studentProfile.classId,
+                OR: [{ sectionId: null }, { sectionId: studentProfile.sectionId ?? undefined }],
+              },
+            },
+          },
+        })
+      : Promise.resolve(0),
+    // Get IDs of exams student has already attempted
+    prisma.examSession.findMany({
+      where: { studentId: userId },
+      select: { examId: true },
+      distinct: ['examId'],
+    }),
   ]);
 
+  // Count exams assigned to student but never attempted
+  const attemptedIds = new Set(attemptedExamIds.map((s) => s.examId));
+  let newExams = 0;
+  if (studentProfile?.classId) {
+    const assignedExams = await prisma.exam.findMany({
+      where: {
+        deletedAt: null,
+        status: { in: ['PUBLISHED', 'ACTIVE'] },
+        examClassAssignments: {
+          some: {
+            classId: studentProfile.classId,
+            OR: [{ sectionId: null }, { sectionId: studentProfile.sectionId ?? undefined }],
+          },
+        },
+      },
+      select: { id: true },
+    });
+    newExams = assignedExams.filter((e) => !attemptedIds.has(e.id)).length;
+  }
+
   const stats = [
-    { label: 'Total Exams', value: totalExams, icon: BookOpen },
-    { label: 'Completed', value: completed, icon: CheckCircle },
-    { label: 'Pending', value: pending, icon: Clock },
-    { label: 'Avg Score', value: `${(avgScore._avg.percentage ?? 0).toFixed(1)}%`, icon: Trophy },
+    { label: 'New Exams', value: newExams, icon: FileText, description: 'Not yet attempted' },
+    { label: 'In Progress', value: inProgress, icon: Clock, description: 'Started but not submitted' },
+    { label: 'Completed', value: completed, icon: CheckCircle, description: 'Submitted / Graded' },
+    { label: 'Avg Score', value: `${(avgScore._avg.percentage ?? 0).toFixed(1)}%`, icon: Trophy, description: 'Overall average' },
   ];
 
   return (
@@ -36,6 +81,7 @@ export default async function StudentDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{s.value}</div>
+              <p className="text-xs text-muted-foreground">{s.description}</p>
             </CardContent>
           </Card>
         ))}

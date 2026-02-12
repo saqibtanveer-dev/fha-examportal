@@ -32,7 +32,7 @@ export default async function ExamInstructionsPage({ params }: Props) {
   });
 
   if (existingSession) {
-    redirect(`/student/exams/${existingSession.id}`);
+    redirect(`/student/exams/sessions/${existingSession.id}`);
   }
 
   return <ExamInstructionsClient exam={serialize(exam)} />;

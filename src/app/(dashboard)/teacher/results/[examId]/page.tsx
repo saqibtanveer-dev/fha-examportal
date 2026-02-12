@@ -2,12 +2,11 @@ export const dynamic = 'force-dynamic';
 
 import { getResultsByExam, getExamAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, ExamAnalyticsChart } from '@/modules/results/components';
-import { PageHeader, EmptyState } from '@/components/shared';
-import { ExportCsvButton } from '@/components/shared/export-csv-button';
-import { exportExamResultsAction } from '@/modules/results/export-actions';
+import { EmptyState } from '@/components/shared';
 import { prisma } from '@/lib/prisma';
 import { redirect } from 'next/navigation';
 import { serialize } from '@/utils/serialize';
+import { ExamResultsHeader } from './exam-results-header';
 
 type Props = { params: Promise<{ examId: string }> };
 
@@ -27,21 +26,7 @@ export default async function ExamResultsPage({ params }: Props) {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title={exam.title}
-        description="Exam results and analytics"
-        breadcrumbs={[
-          { label: 'Teacher', href: '/teacher' },
-          { label: 'Results', href: '/teacher/results' },
-          { label: exam.title },
-        ]}
-        actions={
-          <ExportCsvButton
-            filename={`results-${exam.title}`}
-            onExport={() => exportExamResultsAction(examId)}
-          />
-        }
-      />
+      <ExamResultsHeader examId={examId} examTitle={exam.title} />
 
       {!analytics || results.length === 0 ? (
         <EmptyState title="No results" description="No students graded yet." />
