@@ -21,15 +21,17 @@ import type { DeepSerialize } from '@/utils/serialize';
 type Subject = { id: string; name: string; code: string };
 type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
 type QuestionItem = { id: string; title: string; marks: number; type: string };
+type AcademicSessionItem = { id: string; name: string; isCurrent: boolean };
 
 type Props = {
   result: DeepSerialize<PaginatedResult<ExamWithRelations>>;
   subjects: Subject[];
   classes: ClassItem[];
   questions: QuestionItem[];
+  academicSessions?: AcademicSessionItem[];
 };
 
-export function ExamsPageClient({ result, subjects, classes, questions }: Props) {
+export function ExamsPageClient({ result, subjects, classes, questions, academicSessions = [] }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -99,6 +101,7 @@ export function ExamsPageClient({ result, subjects, classes, questions }: Props)
         subjects={subjects}
         classes={classes}
         questions={questions}
+        academicSessions={academicSessions}
       />
     </div>
   );

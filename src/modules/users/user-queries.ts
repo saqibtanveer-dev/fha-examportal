@@ -10,7 +10,13 @@ import { getSkipTake, buildPaginatedResult } from '@/utils/pagination';
 export type UserWithProfile = Prisma.UserGetPayload<{
   include: {
     studentProfile: { include: { class: true; section: true } };
-    teacherProfile: true;
+    teacherProfile: {
+      include: {
+        teacherSubjects: {
+          include: { subject: { select: { id: true; name: true; code: true } } };
+        };
+      };
+    };
   };
 }>;
 
@@ -44,7 +50,13 @@ export async function listUsers(params: PaginationParams, filters: UserListFilte
       orderBy: { createdAt: 'desc' },
       include: {
         studentProfile: { include: { class: true, section: true } },
-        teacherProfile: true,
+        teacherProfile: {
+          include: {
+            teacherSubjects: {
+              include: { subject: { select: { id: true, name: true, code: true } } },
+            },
+          },
+        },
       },
     }),
     prisma.user.count({ where }),
@@ -62,7 +74,13 @@ export async function getUserById(id: string): Promise<UserWithProfile | null> {
     where: { id, deletedAt: null },
     include: {
       studentProfile: { include: { class: true, section: true } },
-      teacherProfile: true,
+      teacherProfile: {
+        include: {
+          teacherSubjects: {
+            include: { subject: { select: { id: true, name: true, code: true } } },
+          },
+        },
+      },
     },
   });
 }
@@ -90,4 +108,16 @@ export async function softDeleteUser(id: string) {
     where: { id },
     data: { deletedAt: new Date(), isActive: false },
   });
+}
+
+// ============================================
+// Get Teacher Profile ID from User ID
+// ============================================
+
+export async function getTeacherProfileId(userId: string): Promise<string | null> {
+  const profile = await prisma.teacherProfile.findUnique({
+    where: { userId },
+    select: { id: true },
+  });
+  return profile?.id ?? null;
 }

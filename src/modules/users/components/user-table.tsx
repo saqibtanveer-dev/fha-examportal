@@ -22,11 +22,15 @@ import { MoreHorizontal, Pencil, Power, Trash2 } from 'lucide-react';
 import { formatDate } from '@/utils/format';
 import { toggleUserActiveAction, deleteUserAction } from '@/modules/users/user-actions';
 import { EditUserDialog } from './edit-user-dialog';
+import { TeacherSubjectAssigner } from './teacher-subject-assigner';
 import { toast } from 'sonner';
 import type { UserWithProfile } from '@/modules/users/user-queries';
 
+type SubjectInfo = { id: string; name: string; code: string };
+
 type UserTableProps = {
   users: UserWithProfile[];
+  allSubjects?: SubjectInfo[];
 };
 
 const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
@@ -35,7 +39,7 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   STUDENT: 'outline',
 };
 
-export function UserTable({ users }: UserTableProps) {
+export function UserTable({ users, allSubjects = [] }: UserTableProps) {
   const [isPending, startTransition] = useTransition();
   const [editingUser, setEditingUser] = useState<UserWithProfile | null>(null);
   const router = useRouter();
@@ -74,6 +78,7 @@ export function UserTable({ users }: UserTableProps) {
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Status</TableHead>
+            <TableHead>Subjects</TableHead>
             <TableHead>Created</TableHead>
             <TableHead className="w-12" />
           </TableRow>
@@ -92,6 +97,27 @@ export function UserTable({ users }: UserTableProps) {
                 <Badge variant={user.isActive ? 'default' : 'destructive'}>
                   {user.isActive ? 'Active' : 'Inactive'}
                 </Badge>
+              </TableCell>
+              <TableCell>
+                {user.role === 'TEACHER' && user.teacherProfile ? (
+                  <TeacherSubjectAssigner
+                    teacherProfileId={user.teacherProfile.id}
+                    teacherName={user.email}
+                    currentAssignments={
+                      user.teacherProfile.teacherSubjects?.map((ts: any) => ({
+                        subjectId: ts.subject.id,
+                        subject: {
+                          id: ts.subject.id,
+                          name: ts.subject.name,
+                          code: ts.subject.code,
+                        },
+                      })) ?? []
+                    }
+                    allSubjects={allSubjects}
+                  />
+                ) : (
+                  <span className="text-muted-foreground text-xs">—</span>
+                )}
               </TableCell>
               <TableCell>{formatDate(user.createdAt)}</TableCell>
               <TableCell>

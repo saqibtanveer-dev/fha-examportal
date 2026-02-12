@@ -7,6 +7,7 @@ export type ExamWithRelations = Prisma.ExamGetPayload<{
   include: {
     subject: { select: { id: true; name: true; code: true } };
     createdBy: { select: { id: true; firstName: true; lastName: true } };
+    academicSession: { select: { id: true; name: true } };
     examQuestions: { include: { question: true } };
     examClassAssignments: { include: { class: true; section: true } };
     _count: { select: { examSessions: true } };
@@ -18,6 +19,7 @@ export type ExamListFilters = {
   subjectId?: string;
   status?: ExamStatus;
   createdById?: string;
+  academicSessionId?: string;
 };
 
 export async function listExams(params: PaginationParams, filters: ExamListFilters) {
@@ -26,6 +28,7 @@ export async function listExams(params: PaginationParams, filters: ExamListFilte
   if (filters.subjectId) where.subjectId = filters.subjectId;
   if (filters.status) where.status = filters.status;
   if (filters.createdById) where.createdById = filters.createdById;
+  if (filters.academicSessionId) where.academicSessionId = filters.academicSessionId;
   if (filters.search) {
     where.OR = [
       { title: { contains: filters.search, mode: 'insensitive' } },
@@ -40,6 +43,7 @@ export async function listExams(params: PaginationParams, filters: ExamListFilte
       include: {
         subject: { select: { id: true, name: true, code: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true } },
+        academicSession: { select: { id: true, name: true } },
         examQuestions: { include: { question: true }, orderBy: { sortOrder: 'asc' } },
         examClassAssignments: { include: { class: true, section: true } },
         _count: { select: { examSessions: true } },
@@ -57,6 +61,7 @@ export async function getExamById(id: string): Promise<ExamWithRelations | null>
     include: {
       subject: { select: { id: true, name: true, code: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true } },
+      academicSession: { select: { id: true, name: true } },
       examQuestions: { include: { question: { include: { mcqOptions: true } } }, orderBy: { sortOrder: 'asc' } },
       examClassAssignments: { include: { class: true, section: true } },
       _count: { select: { examSessions: true } },

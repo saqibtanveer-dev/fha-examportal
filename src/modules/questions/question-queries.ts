@@ -10,6 +10,7 @@ import { getSkipTake, buildPaginatedResult } from '@/utils/pagination';
 export type QuestionWithRelations = Prisma.QuestionGetPayload<{
   include: {
     subject: { select: { id: true; name: true; code: true } };
+    class: { select: { id: true; name: true; grade: true } };
     createdBy: { select: { id: true; firstName: true; lastName: true } };
     mcqOptions: true;
     questionTags: { include: { tag: true } };
@@ -20,6 +21,7 @@ export type QuestionWithRelations = Prisma.QuestionGetPayload<{
 export type QuestionListFilters = {
   search?: string;
   subjectId?: string;
+  classId?: string;
   type?: QuestionType;
   difficulty?: Difficulty;
   createdById?: string;
@@ -33,6 +35,7 @@ export async function listQuestions(params: PaginationParams, filters: QuestionL
   const where: Prisma.QuestionWhereInput = { deletedAt: null, isActive: true };
 
   if (filters.subjectId) where.subjectId = filters.subjectId;
+  if (filters.classId) where.classId = filters.classId;
   if (filters.type) where.type = filters.type;
   if (filters.difficulty) where.difficulty = filters.difficulty;
   if (filters.createdById) where.createdById = filters.createdById;
@@ -50,6 +53,7 @@ export async function listQuestions(params: PaginationParams, filters: QuestionL
       orderBy: { createdAt: 'desc' },
       include: {
         subject: { select: { id: true, name: true, code: true } },
+        class: { select: { id: true, name: true, grade: true } },
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         mcqOptions: { orderBy: { sortOrder: 'asc' } },
         questionTags: { include: { tag: true } },
@@ -71,6 +75,7 @@ export async function getQuestionById(id: string): Promise<QuestionWithRelations
     where: { id, deletedAt: null },
     include: {
       subject: { select: { id: true, name: true, code: true } },
+      class: { select: { id: true, name: true, grade: true } },
       createdBy: { select: { id: true, firstName: true, lastName: true } },
       mcqOptions: { orderBy: { sortOrder: 'asc' } },
       questionTags: { include: { tag: true } },
@@ -83,12 +88,13 @@ export async function getQuestionById(id: string): Promise<QuestionWithRelations
 // Light list for exam question picker
 // ============================================
 
-export async function getQuestionsForPicker(subjectId?: string) {
+export async function getQuestionsForPicker(subjectId?: string, classId?: string) {
   return prisma.question.findMany({
     where: {
       deletedAt: null,
       isActive: true,
       ...(subjectId ? { subjectId } : {}),
+      ...(classId ? { classId } : {}),
     },
     select: {
       id: true,
@@ -96,6 +102,7 @@ export async function getQuestionsForPicker(subjectId?: string) {
       type: true,
       difficulty: true,
       marks: true,
+      class: { select: { id: true, name: true } },
     },
     orderBy: { title: 'asc' },
   });

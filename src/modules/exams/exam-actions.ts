@@ -23,11 +23,19 @@ export async function createExamAction(input: CreateExamInput): Promise<ActionRe
   const parsed = createExamSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
-  const { questions, classAssignments, scheduledStartAt, scheduledEndAt, ...examData } = parsed.data;
+  const { questions, classAssignments, scheduledStartAt, scheduledEndAt, academicSessionId, ...examData } = parsed.data;
+
+  // Auto-set academic session to current if not provided
+  let sessionId = academicSessionId;
+  if (!sessionId) {
+    const currentSession = await prisma.academicSession.findFirst({ where: { isCurrent: true } });
+    if (currentSession) sessionId = currentSession.id;
+  }
 
   const exam = await prisma.exam.create({
     data: {
       ...examData,
+      academicSessionId: sessionId,
       scheduledStartAt: scheduledStartAt ? new Date(scheduledStartAt) : undefined,
       scheduledEndAt: scheduledEndAt ? new Date(scheduledEndAt) : undefined,
       createdById: session.user.id,

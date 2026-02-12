@@ -23,11 +23,14 @@ const USER_CSV_SAMPLE =
   'email,firstName,lastName,role,phone,password\njohn@school.com,John,Doe,STUDENT,03001234567,Temp@1234\njane@school.com,Jane,Smith,TEACHER,,';
 
 
+type SubjectInfo = { id: string; name: string; code: string };
+
 type Props = {
   result: PaginatedResult<UserWithProfile>;
+  allSubjects?: SubjectInfo[];
 };
 
-export function UsersPageClient({ result }: Props) {
+export function UsersPageClient({ result, allSubjects = [] }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -116,7 +119,7 @@ export function UsersPageClient({ result }: Props) {
           }
         />
       ) : (
-        <UserTable users={result.data} />
+        <UserTable users={result.data} allSubjects={allSubjects} />
       )}
 
       {/* Pagination info */}

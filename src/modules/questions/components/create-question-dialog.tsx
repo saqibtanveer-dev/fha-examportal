@@ -27,17 +27,20 @@ import { toast } from 'sonner';
 import type { CreateQuestionInput } from '@/validations/question-schemas';
 
 type Subject = { id: string; name: string; code: string };
+type SubjectClassMap = { subjectId: string; classId: string; className: string };
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   subjects: Subject[];
+  subjectClassLinks?: SubjectClassMap[];
 };
 
-export function CreateQuestionDialog({ open, onOpenChange, subjects }: Props) {
+export function CreateQuestionDialog({ open, onOpenChange, subjects, subjectClassLinks = [] }: Props) {
   const [isPending, startTransition] = useTransition();
   const [type, setType] = useState<string>('MCQ');
   const [subjectId, setSubjectId] = useState('');
+  const [classId, setClassId] = useState('');
   const [difficulty, setDifficulty] = useState('MEDIUM');
   const [mcqOptions, setMcqOptions] = useState<CreateQuestionInput['mcqOptions']>([
     { label: 'A', text: '', isCorrect: true, sortOrder: 0 },
@@ -47,12 +50,21 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects }: Props) {
   ]);
   const router = useRouter();
 
+  // Classes available for the selected subject
+  const classesForSubject = subjectClassLinks.filter((l) => l.subjectId === subjectId);
+
+  function handleSubjectChange(newSubjectId: string) {
+    setSubjectId(newSubjectId);
+    setClassId(''); // Reset when subject changes
+  }
+
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       const input: CreateQuestionInput = {
         title: formData.get('title') as string,
         description: (formData.get('description') as string) || undefined,
         subjectId,
+        classId: classId || undefined,
         type: type as 'MCQ' | 'SHORT_ANSWER' | 'LONG_ANSWER',
         difficulty: difficulty as 'EASY' | 'MEDIUM' | 'HARD',
         marks: parseFloat(formData.get('marks') as string),
@@ -84,7 +96,7 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Subject</Label>
-              <Select value={subjectId} onValueChange={setSubjectId}>
+              <Select value={subjectId} onValueChange={handleSubjectChange}>
                 <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
@@ -93,6 +105,19 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects }: Props) {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Class {classesForSubject.length > 0 ? '' : '(optional)'}</Label>
+              <Select value={classId} onValueChange={setClassId} disabled={!subjectId || classesForSubject.length === 0}>
+                <SelectTrigger><SelectValue placeholder={classesForSubject.length === 0 ? 'No classes linked' : 'Select class'} /></SelectTrigger>
+                <SelectContent>
+                  {classesForSubject.map((l) => (
+                    <SelectItem key={l.classId} value={l.classId}>{l.className}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Type</Label>
               <Select value={type} onValueChange={setType}>

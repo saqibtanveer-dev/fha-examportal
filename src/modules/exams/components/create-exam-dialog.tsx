@@ -28,6 +28,7 @@ import { toast } from 'sonner';
 type Subject = { id: string; name: string; code: string };
 type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
 type QuestionItem = { id: string; title: string; marks: number; type: string };
+type AcademicSessionItem = { id: string; name: string; isCurrent: boolean };
 
 type Props = {
   open: boolean;
@@ -35,12 +36,17 @@ type Props = {
   subjects: Subject[];
   classes: ClassItem[];
   questions: QuestionItem[];
+  academicSessions?: AcademicSessionItem[];
 };
 
-export function CreateExamDialog({ open, onOpenChange, subjects, classes, questions }: Props) {
+export function CreateExamDialog({ open, onOpenChange, subjects, classes, questions, academicSessions = [] }: Props) {
   const [isPending, startTransition] = useTransition();
   const [subjectId, setSubjectId] = useState('');
   const [type, setType] = useState('QUIZ');
+  const [academicSessionId, setAcademicSessionId] = useState(() => {
+    const current = academicSessions.find((s) => s.isCurrent);
+    return current?.id ?? '';
+  });
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const router = useRouter();
@@ -64,6 +70,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
         title: formData.get('title') as string,
         description: (formData.get('description') as string) || undefined,
         subjectId,
+        academicSessionId: academicSessionId || undefined,
         type: type as 'QUIZ' | 'MIDTERM' | 'FINAL' | 'PRACTICE' | 'CUSTOM',
         totalMarks,
         passingMarks: parseFloat(formData.get('passingMarks') as string),
@@ -133,6 +140,21 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
               <Input id="duration" name="duration" type="number" min={5} max={300} required disabled={isPending} />
             </div>
           </div>
+          {academicSessions.length > 0 && (
+            <div className="space-y-2">
+              <Label>Academic Session</Label>
+              <Select value={academicSessionId} onValueChange={setAcademicSessionId}>
+                <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
+                <SelectContent>
+                  {academicSessions.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}{s.isCurrent ? ' (Current)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="passingMarks">Passing Marks</Label>
             <Input id="passingMarks" name="passingMarks" type="number" min={0} step="0.5" required disabled={isPending} />

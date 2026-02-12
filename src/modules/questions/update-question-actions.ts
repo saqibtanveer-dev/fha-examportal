@@ -91,6 +91,7 @@ export async function duplicateQuestionAction(id: string): Promise<ActionResult>
   const duplicate = await prisma.question.create({
     data: {
       subjectId: original.subjectId,
+      classId: original.classId,
       type: original.type,
       title: `${original.title} (Copy)`,
       description: original.description,

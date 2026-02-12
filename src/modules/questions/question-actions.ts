@@ -20,6 +20,30 @@ export async function createQuestionAction(input: CreateQuestionInput): Promise<
 
   const { mcqOptions, tagIds, gradingRubric, ...questionData } = parsed.data;
 
+  // Teacher-subject enforcement (soft — warn but allow if no assignments exist)
+  if (session.user.role === 'TEACHER') {
+    const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: session.user.id } });
+    if (teacherProfile) {
+      const assignments = await prisma.teacherSubject.findMany({ where: { teacherId: teacherProfile.id } });
+      if (assignments.length > 0) {
+        const assignedSubjectIds = assignments.map((a) => a.subjectId);
+        if (!assignedSubjectIds.includes(questionData.subjectId)) {
+          return { success: false, error: 'You are not assigned to this subject. Contact admin.' };
+        }
+      }
+    }
+  }
+
+  // Validate classId against SubjectClassLink if provided
+  if (questionData.classId) {
+    const link = await prisma.subjectClassLink.findUnique({
+      where: { subjectId_classId: { subjectId: questionData.subjectId, classId: questionData.classId } },
+    });
+    if (!link || !link.isActive) {
+      return { success: false, error: 'This subject is not assigned to the selected class' };
+    }
+  }
+
   const question = await prisma.question.create({
     data: {
       ...questionData,
@@ -34,7 +58,7 @@ export async function createQuestionAction(input: CreateQuestionInput): Promise<
     },
   });
 
-  createAuditLog(session.user.id, 'CREATE_QUESTION', 'QUESTION', question.id, { subjectId: questionData.subjectId, type: questionData.type }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_QUESTION', 'QUESTION', question.id, { subjectId: questionData.subjectId, classId: questionData.classId, type: questionData.type }).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true, data: { id: question.id } };
 }

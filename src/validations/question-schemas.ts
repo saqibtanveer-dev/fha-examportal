@@ -30,6 +30,7 @@ const mcqOptionSchema = z.object({
 export const createQuestionSchema = z
   .object({
     subjectId: z.string().uuid('Invalid subject'),
+    classId: z.string().uuid('Invalid class').optional(),
     type: z.enum(['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER']),
     title: z.string().min(1, 'Title is required').max(1000),
     description: z.string().max(5000).optional(),

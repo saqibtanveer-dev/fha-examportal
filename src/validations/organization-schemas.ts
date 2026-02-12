@@ -43,6 +43,66 @@ export const updateSubjectSchema = z.object({
 export type UpdateSubjectInput = z.infer<typeof updateSubjectSchema>;
 
 // ============================================
+// Subject-Class Link
+// ============================================
+
+export const assignSubjectToClassSchema = z.object({
+  subjectId: z.string().uuid('Invalid subject'),
+  classId: z.string().uuid('Invalid class'),
+  syllabus: z.string().max(500).optional(),
+});
+
+export type AssignSubjectToClassInput = z.infer<typeof assignSubjectToClassSchema>;
+
+export const bulkAssignSubjectToClassesSchema = z.object({
+  subjectId: z.string().uuid('Invalid subject'),
+  classIds: z.array(z.string().uuid()).min(1, 'Select at least one class'),
+});
+
+export type BulkAssignSubjectToClassesInput = z.infer<typeof bulkAssignSubjectToClassesSchema>;
+
+// ============================================
+// Academic Session
+// ============================================
+
+export const createAcademicSessionSchema = z.object({
+  name: z.string().min(1, 'Name is required').max(50),
+  startDate: z.string().datetime('Invalid date'),
+  endDate: z.string().datetime('Invalid date'),
+  isCurrent: z.boolean().default(false),
+});
+
+export type CreateAcademicSessionInput = z.infer<typeof createAcademicSessionSchema>;
+
+export const updateAcademicSessionSchema = z.object({
+  name: z.string().min(1).max(50).optional(),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  isCurrent: z.boolean().optional(),
+});
+
+export type UpdateAcademicSessionInput = z.infer<typeof updateAcademicSessionSchema>;
+
+// ============================================
+// Teacher-Subject Assignment
+// ============================================
+
+export const assignTeacherToSubjectSchema = z.object({
+  teacherId: z.string().uuid('Invalid teacher'),
+  subjectId: z.string().uuid('Invalid subject'),
+  classId: z.string().uuid().optional(),
+});
+
+export type AssignTeacherToSubjectInput = z.infer<typeof assignTeacherToSubjectSchema>;
+
+export const bulkAssignTeacherSubjectsSchema = z.object({
+  teacherId: z.string().uuid('Invalid teacher'),
+  subjectIds: z.array(z.string().uuid()).min(1, 'Select at least one subject'),
+});
+
+export type BulkAssignTeacherSubjectsInput = z.infer<typeof bulkAssignTeacherSubjectsSchema>;
+
+// ============================================
 // Class
 // ============================================
 

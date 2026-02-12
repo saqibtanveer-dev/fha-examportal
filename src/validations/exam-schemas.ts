@@ -28,6 +28,7 @@ export const createExamSchema = z.object({
   title: z.string().min(1, 'Title is required').max(500),
   description: z.string().max(2000).optional(),
   subjectId: z.string().uuid('Invalid subject'),
+  academicSessionId: z.string().uuid('Invalid session').optional(),
   type: z.enum(['QUIZ', 'MIDTERM', 'FINAL', 'PRACTICE', 'CUSTOM']),
   totalMarks: z.number().positive('Total marks must be positive'),
   passingMarks: z.number().positive('Passing marks must be positive'),

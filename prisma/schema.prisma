@@ -184,22 +184,46 @@ model Subject {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  department      Department       @relation(fields: [departmentId], references: [id])
-  teacherSubjects TeacherSubject[]
-  questions       Question[]
-  exams           Exam[]
+  department        Department         @relation(fields: [departmentId], references: [id])
+  teacherSubjects   TeacherSubject[]
+  questions         Question[]
+  exams             Exam[]
+  subjectClassLinks SubjectClassLink[]
 
   @@index([departmentId])
+}
+
+// ============================================
+// SUBJECT-CLASS LINK (which subjects are taught in which classes)
+// ============================================
+
+model SubjectClassLink {
+  id        String   @id @default(uuid())
+  subjectId String
+  classId   String
+  syllabus  String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
+
+  @@unique([subjectId, classId])
+  @@index([classId])
+  @@index([subjectId])
 }
 
 model TeacherSubject {
   id        String   @id @default(uuid())
   teacherId String
   subjectId String
+  classId   String?
   createdAt DateTime @default(now())
 
   teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   subject Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  class   Class?         @relation(fields: [classId], references: [id])
 
   @@unique([teacherId, subjectId])
 }
@@ -215,6 +239,9 @@ model Class {
   sections             Section[]
   students             StudentProfile[]
   examClassAssignments ExamClassAssignment[]
+  subjectClassLinks    SubjectClassLink[]
+  questions            Question[]
+  teacherSubjects      TeacherSubject[]
 
   @@index([grade])
 }
@@ -253,6 +280,7 @@ model Tag {
 model Question {
   id            String       @id @default(uuid())
   subjectId     String
+  classId       String?
   createdById   String
   type          QuestionType
   title         String
@@ -271,12 +299,14 @@ model Question {
   deletedAt     DateTime?
 
   subject       Subject       @relation(fields: [subjectId], references: [id])
+  class         Class?        @relation(fields: [classId], references: [id])
   createdBy     User          @relation(fields: [createdById], references: [id])
   mcqOptions    McqOption[]
   questionTags  QuestionTag[]
   examQuestions ExamQuestion[]
 
   @@index([subjectId])
+  @@index([classId])
   @@index([createdById])
   @@index([type])
   @@index([difficulty])
@@ -318,29 +348,31 @@ model QuestionTag {
 // ============================================
 
 model Exam {
-  id               String          @id @default(uuid())
-  title            String
-  description      String?
-  subjectId        String
-  createdById      String
-  type             ExamType
-  status           ExamStatus      @default(DRAFT)
-  totalMarks       Decimal
-  passingMarks     Decimal
-  duration         Int
-  scheduledStartAt DateTime?
-  scheduledEndAt   DateTime?
-  instructions     String?
-  shuffleQuestions Boolean         @default(false)
-  showResultAfter  ShowResultAfter @default(IMMEDIATELY)
-  allowReview      Boolean         @default(true)
-  maxAttempts      Int             @default(1)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  deletedAt        DateTime?
+  id                String          @id @default(uuid())
+  title             String
+  description       String?
+  subjectId         String
+  createdById       String
+  academicSessionId String?
+  type              ExamType
+  status            ExamStatus      @default(DRAFT)
+  totalMarks        Decimal
+  passingMarks      Decimal
+  duration          Int
+  scheduledStartAt  DateTime?
+  scheduledEndAt    DateTime?
+  instructions      String?
+  shuffleQuestions  Boolean         @default(false)
+  showResultAfter   ShowResultAfter @default(IMMEDIATELY)
+  allowReview       Boolean         @default(true)
+  maxAttempts       Int             @default(1)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
 
   subject              Subject              @relation(fields: [subjectId], references: [id])
   createdBy            User                 @relation(fields: [createdById], references: [id])
+  academicSession      AcademicSession?     @relation(fields: [academicSessionId], references: [id])
   examQuestions        ExamQuestion[]
   examClassAssignments ExamClassAssignment[]
   examSessions         ExamSession[]
@@ -348,6 +380,7 @@ model Exam {
 
   @@index([subjectId])
   @@index([createdById])
+  @@index([academicSessionId])
   @@index([status])
   @@index([scheduledStartAt])
   @@index([scheduledEndAt])
@@ -489,6 +522,24 @@ model ExamResult {
 
   @@index([examId])
   @@index([studentId])
+}
+
+// ============================================
+// ACADEMIC SESSION
+// ============================================
+
+model AcademicSession {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  startDate DateTime
+  endDate   DateTime
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  exams Exam[]
+
+  @@index([isCurrent])
 }
 
 // ============================================

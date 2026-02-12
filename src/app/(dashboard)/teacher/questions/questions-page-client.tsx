@@ -25,15 +25,17 @@ const Q_CSV_SAMPLE =
   'title,type,difficulty,marks,subjectId,modelAnswer,mcqOptions\n"What is 2+2?",MCQ,EASY,1,<subject-id>,"B","2|*4|6|8"\n"Explain gravity",SHORT_ANSWER,MEDIUM,5,<subject-id>,"Force of attraction",';
 
 type Subject = { id: string; name: string; code: string };
+type SubjectClassMap = { subjectId: string; classId: string; className: string };
 type TagItem = { id: string; name: string; category: string; _count: { questionTags: number } };
 
 type Props = {
   result: DeepSerialize<PaginatedResult<QuestionWithRelations>>;
   subjects: Subject[];
+  subjectClassLinks?: SubjectClassMap[];
   tags: TagItem[];
 };
 
-export function QuestionsPageClient({ result, subjects, tags }: Props) {
+export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], tags }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,6 +89,39 @@ export function QuestionsPageClient({ result, subjects, tags }: Props) {
           />
         </div>
         <Select
+          value={searchParams.get('subjectId') ?? 'ALL'}
+          onValueChange={(val) => updateFilter('subjectId', val)}
+        >
+          <SelectTrigger className="w-40"><SelectValue placeholder="Subject" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Subjects</SelectItem>
+            {subjects.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {(() => {
+          const currentSubjectId = searchParams.get('subjectId');
+          const classesForSubject = currentSubjectId
+            ? subjectClassLinks.filter((l) => l.subjectId === currentSubjectId)
+            : [];
+          if (classesForSubject.length === 0) return null;
+          return (
+            <Select
+              value={searchParams.get('classId') ?? 'ALL'}
+              onValueChange={(val) => updateFilter('classId', val)}
+            >
+              <SelectTrigger className="w-36"><SelectValue placeholder="Class" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All Classes</SelectItem>
+                {classesForSubject.map((l) => (
+                  <SelectItem key={l.classId} value={l.classId}>{l.className}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          );
+        })()}
+        <Select
           value={searchParams.get('type') ?? 'ALL'}
           onValueChange={(val) => updateFilter('type', val)}
         >
@@ -128,7 +163,7 @@ export function QuestionsPageClient({ result, subjects, tags }: Props) {
         </p>
       )}
 
-      <CreateQuestionDialog open={dialogOpen} onOpenChange={setDialogOpen} subjects={subjects} />
+      <CreateQuestionDialog open={dialogOpen} onOpenChange={setDialogOpen} subjects={subjects} subjectClassLinks={subjectClassLinks} />
 
       <TagManager tags={tags} />
     </div>
