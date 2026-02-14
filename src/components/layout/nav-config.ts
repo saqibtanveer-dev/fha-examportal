@@ -11,6 +11,7 @@ import {
   Settings,
   Bell,
   ScrollText,
+  ArrowUpCircle,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -41,6 +42,11 @@ export const adminNavigation: NavGroup[] = [
       { label: 'Departments', href: ROUTES.ADMIN.DEPARTMENTS, icon: School },
       { label: 'Subjects', href: ROUTES.ADMIN.SUBJECTS, icon: BookOpen },
       { label: 'Classes', href: ROUTES.ADMIN.CLASSES, icon: GraduationCap },
+      {
+        label: 'Year Transition',
+        href: ROUTES.ADMIN.YEAR_TRANSITION,
+        icon: ArrowUpCircle,
+      },
     ],
   },
   {

@@ -65,6 +65,7 @@ export const ROUTES = {
     CLASSES: '/admin/classes',
     SUBJECTS: '/admin/subjects',
     DEPARTMENTS: '/admin/departments',
+    YEAR_TRANSITION: '/admin/year-transition',
     NOTIFICATIONS: '/admin/notifications',
     SETTINGS: '/admin/settings',
     AUDIT_LOG: '/admin/audit-log',

@@ -123,3 +123,37 @@ export const createSectionSchema = z.object({
 });
 
 export type CreateSectionInput = z.infer<typeof createSectionSchema>;
+
+// ============================================
+// Student Promotion / Year Transition
+// ============================================
+
+export const studentPromotionEntrySchema = z.object({
+  studentProfileId: z.string().uuid(),
+  action: z.enum(['PROMOTE', 'HOLD_BACK', 'GRADUATE']),
+  toSectionId: z.string().uuid().optional(),
+});
+
+export type StudentPromotionEntry = z.infer<typeof studentPromotionEntrySchema>;
+
+export const bulkPromoteClassSchema = z.object({
+  academicSessionId: z.string().uuid('Select an academic session'),
+  fromClassId: z.string().uuid('Invalid class'),
+  toClassId: z.string().uuid().optional(),
+  defaultSectionId: z.string().uuid().optional(),
+  entries: z.array(studentPromotionEntrySchema).min(1, 'Select at least one student'),
+});
+
+export type BulkPromoteClassInput = z.infer<typeof bulkPromoteClassSchema>;
+
+export const yearTransitionSchema = z.object({
+  academicSessionId: z.string().uuid('Select an academic session'),
+  promotions: z.array(z.object({
+    fromClassId: z.string().uuid(),
+    toClassId: z.string().uuid().optional(),
+    defaultSectionId: z.string().uuid().optional(),
+    entries: z.array(studentPromotionEntrySchema),
+  })),
+});
+
+export type YearTransitionInput = z.infer<typeof yearTransitionSchema>;

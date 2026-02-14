@@ -87,6 +87,14 @@ enum NotificationType {
   SYSTEM
 }
 
+enum StudentStatus {
+  ACTIVE
+  PROMOTED
+  GRADUATED
+  HELD_BACK
+  WITHDRAWN
+}
+
 // ============================================
 // USER TABLES
 // ============================================
@@ -115,6 +123,7 @@ model User {
   examResults    ExamResult[]
   auditLogs      AuditLog[]
   notifications  Notification[]
+  promotionsDone StudentPromotion[]
 
   @@index([role])
   @@index([isActive])
@@ -122,27 +131,30 @@ model User {
 }
 
 model StudentProfile {
-  id              String    @id @default(uuid())
-  userId          String    @unique
+  id              String        @id @default(uuid())
+  userId          String        @unique
   rollNumber      String
-  registrationNo  String    @unique
+  registrationNo  String        @unique
   classId         String
   sectionId       String
+  status          StudentStatus @default(ACTIVE)
   guardianName    String?
   guardianPhone   String?
   dateOfBirth     DateTime?
   gender          Gender?
-  enrollmentDate  DateTime  @default(now())
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  enrollmentDate  DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  class   Class   @relation(fields: [classId], references: [id])
-  section Section @relation(fields: [sectionId], references: [id])
+  user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  class      Class              @relation(fields: [classId], references: [id])
+  section    Section            @relation(fields: [sectionId], references: [id])
+  promotions StudentPromotion[]
 
   @@index([classId])
   @@index([sectionId])
   @@index([rollNumber])
+  @@index([status])
 }
 
 model TeacherProfile {
@@ -242,6 +254,8 @@ model Class {
   subjectClassLinks    SubjectClassLink[]
   questions            Question[]
   teacherSubjects      TeacherSubject[]
+  promotionsFrom       StudentPromotion[]   @relation("PromotionFromClass")
+  promotionsTo         StudentPromotion[]   @relation("PromotionToClass")
 
   @@index([grade])
 }
@@ -257,6 +271,8 @@ model Section {
   class                Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
   students             StudentProfile[]
   examClassAssignments ExamClassAssignment[]
+  promotionsFrom       StudentPromotion[]   @relation("PromotionFromSection")
+  promotionsTo         StudentPromotion[]   @relation("PromotionToSection")
 
   @@unique([classId, name])
   @@index([classId])
@@ -537,9 +553,42 @@ model AcademicSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  exams Exam[]
+  exams      Exam[]
+  promotions StudentPromotion[]
 
   @@index([isCurrent])
+}
+
+// ============================================
+// STUDENT PROMOTION / YEAR TRANSITION
+// ============================================
+
+model StudentPromotion {
+  id                String        @id @default(uuid())
+  studentProfileId  String
+  academicSessionId String
+  fromClassId       String
+  fromSectionId     String
+  toClassId         String?
+  toSectionId       String?
+  status            StudentStatus
+  remarks           String?
+  promotedById      String
+  promotedAt        DateTime      @default(now())
+  createdAt         DateTime      @default(now())
+
+  studentProfile  StudentProfile  @relation(fields: [studentProfileId], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  fromClass       Class           @relation("PromotionFromClass", fields: [fromClassId], references: [id])
+  fromSection     Section         @relation("PromotionFromSection", fields: [fromSectionId], references: [id])
+  toClass         Class?          @relation("PromotionToClass", fields: [toClassId], references: [id])
+  toSection       Section?        @relation("PromotionToSection", fields: [toSectionId], references: [id])
+  promotedBy      User            @relation(fields: [promotedById], references: [id])
+
+  @@index([studentProfileId])
+  @@index([academicSessionId])
+  @@index([fromClassId])
+  @@index([status])
 }
 
 // ============================================
