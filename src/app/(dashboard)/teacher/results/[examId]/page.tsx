@@ -38,7 +38,7 @@ export default async function ExamResultsPage({ params }: Props) {
       ) : (
         <>
           <ExamAnalyticsChart analytics={analytics} />
-          <ResultsTable results={serialize(results)} />
+          <ResultsTable results={serialize(results)} viewMode="teacher" examId={examId} />
         </>
       )}
     </div>
