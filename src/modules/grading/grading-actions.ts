@@ -56,9 +56,9 @@ export async function gradeAnswerAction(
   answerId: string,
   marksAwarded: number,
   feedback: string,
-  graderId: string,
 ): Promise<ActionResult> {
   const authSession = await requireRole('TEACHER', 'ADMIN');
+  const graderId = authSession.user.id;
 
   const answer = await prisma.studentAnswer.findUnique({
     where: { id: answerId },

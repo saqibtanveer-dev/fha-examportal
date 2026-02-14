@@ -54,8 +54,12 @@ export async function updateSubjectAction(
 
 export async function deleteSubjectAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
-  const questions = await prisma.question.count({ where: { subjectId: id } });
+  const [questions, exams] = await Promise.all([
+    prisma.question.count({ where: { subjectId: id } }),
+    prisma.exam.count({ where: { subjectId: id, deletedAt: null } }),
+  ]);
   if (questions > 0) return { success: false, error: 'Cannot delete subject with questions' };
+  if (exams > 0) return { success: false, error: 'Cannot delete subject with linked exams' };
 
   await prisma.subject.delete({ where: { id } });
   createAuditLog(session.user.id, 'DELETE_SUBJECT', 'SUBJECT', id).catch(() => {});

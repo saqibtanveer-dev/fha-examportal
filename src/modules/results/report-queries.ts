@@ -13,7 +13,7 @@ export async function getSystemOverview() {
   ] = await Promise.all([
     prisma.user.count({ where: { role: 'STUDENT', isActive: true } }),
     prisma.user.count({ where: { role: 'TEACHER', isActive: true } }),
-    prisma.exam.count(),
+    prisma.exam.count({ where: { deletedAt: null } }),
     prisma.examResult.count(),
     prisma.department.count(),
     prisma.subject.count(),
@@ -62,6 +62,7 @@ export async function getDepartmentPerformance(): Promise<
       subjects: {
         include: {
           exams: {
+            where: { deletedAt: null },
             include: {
               examResults: { select: { percentage: true, isPassed: true } },
             },
@@ -107,6 +108,7 @@ export async function getSubjectPerformance(): Promise<SubjectPerformance[]> {
   const subjects = await prisma.subject.findMany({
     include: {
       exams: {
+        where: { deletedAt: null },
         include: {
           examResults: { select: { percentage: true, isPassed: true } },
         },
@@ -151,7 +153,10 @@ export type RecentExamSummary = {
 
 export async function getRecentExamSummaries(): Promise<RecentExamSummary[]> {
   const exams = await prisma.exam.findMany({
-    where: { status: 'PUBLISHED' },
+    where: {
+      status: { in: ['PUBLISHED', 'ACTIVE', 'COMPLETED'] },
+      deletedAt: null,
+    },
     orderBy: { scheduledStartAt: 'desc' },
     take: 10,
     include: {

@@ -27,8 +27,9 @@ export async function autoGradeMcqAnswers(sessionId: string): Promise<number> {
     const q = answer.examQuestion.question;
     if (q.type !== 'MCQ') continue;
 
-    const correctOption = q.mcqOptions.find((o) => o.isCorrect);
-    const isCorrect = correctOption?.id === answer.selectedOptionId;
+    const correctOptionIds = new Set(q.mcqOptions.filter((o) => o.isCorrect).map((o) => o.id));
+    const isCorrect = answer.selectedOptionId != null && correctOptionIds.has(answer.selectedOptionId);
+    const correctTexts = q.mcqOptions.filter((o) => o.isCorrect).map((o) => o.text).join(', ');
     const marks = isCorrect ? Number(answer.examQuestion.marks) : 0;
     const maxMarks = Number(answer.examQuestion.marks);
     totalMarks += marks;
@@ -40,11 +41,11 @@ export async function autoGradeMcqAnswers(sessionId: string): Promise<number> {
         gradedBy: 'SYSTEM',
         marksAwarded: marks,
         maxMarks,
-        feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctOption?.text ?? 'N/A'}`,
+        feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctTexts || 'N/A'}`,
       },
       update: {
         marksAwarded: marks,
-        feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctOption?.text ?? 'N/A'}`,
+        feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctTexts || 'N/A'}`,
       },
     });
   }
@@ -109,6 +110,7 @@ export async function calculateResult(sessionId: string) {
       percentage,
       isPassed,
       grade,
+      publishedAt: new Date(),
     },
     update: {
       obtainedMarks,
@@ -116,6 +118,7 @@ export async function calculateResult(sessionId: string) {
       percentage,
       isPassed,
       grade,
+      publishedAt: new Date(),
     },
   });
 

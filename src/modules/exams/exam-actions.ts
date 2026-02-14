@@ -67,6 +67,9 @@ export async function updateExamAction(id: string, input: UpdateExamInput): Prom
 
   const exam = await prisma.exam.findUnique({ where: { id } });
   if (!exam) return { success: false, error: 'Exam not found' };
+  if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
+    return { success: false, error: 'You can only modify your own exams' };
+  }
   if (exam.status !== 'DRAFT') return { success: false, error: 'Only draft exams can be edited' };
 
   const parsed = updateExamSchema.safeParse(input);
@@ -91,16 +94,23 @@ export async function publishExamAction(id: string): Promise<ActionResult> {
   });
 
   if (!exam) return { success: false, error: 'Exam not found' };
+  if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
+    return { success: false, error: 'You can only publish your own exams' };
+  }
   if (exam.status !== 'DRAFT') return { success: false, error: 'Only draft exams can be published' };
   if (exam.examQuestions.length === 0) return { success: false, error: 'Add questions before publishing' };
   if (exam.examClassAssignments.length === 0) return { success: false, error: 'Assign to classes first' };
 
   await prisma.exam.update({ where: { id }, data: { status: 'PUBLISHED' } });
 
-  // Notify students in assigned classes
+  // Notify active students in assigned classes
   const classIds = exam.examClassAssignments.map((a) => a.classId);
   const students = await prisma.studentProfile.findMany({
-    where: { classId: { in: classIds } },
+    where: {
+      classId: { in: classIds },
+      status: 'ACTIVE',
+      user: { isActive: true, deletedAt: null },
+    },
     select: { userId: true },
   });
   const studentIds = students.map((s) => s.userId);
@@ -125,6 +135,12 @@ export async function publishExamAction(id: string): Promise<ActionResult> {
 
 export async function deleteExamAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
+
+  const exam = await prisma.exam.findUnique({ where: { id, deletedAt: null } });
+  if (!exam) return { success: false, error: 'Exam not found' };
+  if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
+    return { success: false, error: 'You can only delete your own exams' };
+  }
 
   const sessions = await prisma.examSession.count({ where: { examId: id } });
   if (sessions > 0) return { success: false, error: 'Cannot delete exam with sessions' };

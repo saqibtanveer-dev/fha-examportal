@@ -1,4 +1,5 @@
 import { PageHeader } from '@/components/shared';
+import { requireRole } from '@/lib/auth-utils';
 import { ReportsPageClient } from '@/modules/results/components/reports-page-client';
 import {
   getSystemOverview,
@@ -11,6 +12,8 @@ import {
 export const metadata = { title: 'Reports & Analytics' };
 
 export default async function AdminReportsPage() {
+  await requireRole('ADMIN');
+
   const [overview, departments, subjects, recentExams, gradeDistribution] =
     await Promise.all([
       getSystemOverview(),

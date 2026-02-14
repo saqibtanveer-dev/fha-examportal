@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
 
 const TAB_SWITCH_FLAG_THRESHOLD = 5;
@@ -15,13 +16,20 @@ export async function logAntiCheatViolationAction(
   sessionId: string,
   type: ViolationType,
 ): Promise<ActionResult> {
+  const authSession = await requireRole('STUDENT');
+
   const session = await prisma.examSession.findUnique({
     where: { id: sessionId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, studentId: true },
   });
 
   if (!session || session.status !== 'IN_PROGRESS') {
     return { success: false, error: 'Session not active' };
+  }
+
+  // Verify student owns this session
+  if (session.studentId !== authSession.user.id) {
+    return { success: false, error: 'Access denied' };
   }
 
   const updateData: Record<string, unknown> = {};

@@ -22,7 +22,7 @@ export default async function StudentExamsPage() {
   const exams = await getExamsForStudent(
     userId,
     studentProfile.classId,
-    studentProfile.sectionId ?? '',
+    studentProfile.sectionId ?? undefined,
   );
 
   return <StudentExamsClient exams={serialize(exams)} />;

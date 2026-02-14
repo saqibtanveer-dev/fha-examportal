@@ -41,8 +41,13 @@ export async function createSectionAction(input: CreateSectionInput): Promise<Ac
 
 export async function deleteClassAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
-  const students = await prisma.studentProfile.count({ where: { classId: id } });
+
+  const [students, examAssignments] = await Promise.all([
+    prisma.studentProfile.count({ where: { classId: id } }),
+    prisma.examClassAssignment.count({ where: { classId: id } }),
+  ]);
   if (students > 0) return { success: false, error: 'Cannot delete class with students' };
+  if (examAssignments > 0) return { success: false, error: 'Cannot delete class with linked exam assignments' };
 
   await prisma.class.delete({ where: { id } });
   createAuditLog(session.user.id, 'DELETE_CLASS', 'CLASS', id).catch(() => {});

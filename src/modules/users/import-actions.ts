@@ -13,6 +13,17 @@ type CsvUser = {
   role: string;
   phone?: string;
   password?: string;
+  // Student profile fields
+  classId?: string;
+  sectionId?: string;
+  rollNumber?: string;
+  registrationNo?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  // Teacher profile fields
+  employeeId?: string;
+  qualification?: string;
+  specialization?: string;
 };
 
 type ImportResult = {
@@ -28,6 +39,8 @@ const DEFAULT_PASSWORD = 'Temp@1234';
 /**
  * Import users from CSV data.
  * Expected columns: email, firstName, lastName, role, phone (optional), password (optional)
+ * For STUDENT: classId, sectionId, rollNumber, registrationNo (required)
+ * For TEACHER: employeeId (required)
  */
 export async function importUsersFromCsvAction(
   csvRows: CsvUser[],
@@ -66,7 +79,54 @@ export async function importUsersFromCsvAction(
       continue;
     }
 
-    // Check duplicate
+    // Validate student-specific required fields
+    if (role === 'STUDENT') {
+      if (!row.classId || !row.sectionId || !row.rollNumber || !row.registrationNo) {
+        result.errors.push({
+          row: rowNum,
+          email: row.email,
+          error: 'Students require classId, sectionId, rollNumber, and registrationNo',
+        });
+        continue;
+      }
+      // Check registration number uniqueness
+      const existingProfile = await prisma.studentProfile.findUnique({
+        where: { registrationNo: row.registrationNo },
+      });
+      if (existingProfile) {
+        result.errors.push({
+          row: rowNum,
+          email: row.email,
+          error: `Registration number ${row.registrationNo} already exists`,
+        });
+        continue;
+      }
+    }
+
+    // Validate teacher-specific required fields
+    if (role === 'TEACHER') {
+      if (!row.employeeId) {
+        result.errors.push({
+          row: rowNum,
+          email: row.email,
+          error: 'Teachers require employeeId',
+        });
+        continue;
+      }
+      const existingTeacher = await prisma.teacherProfile.findUnique({
+        where: { employeeId: row.employeeId },
+      });
+      if (existingTeacher) {
+        result.errors.push({
+          row: rowNum,
+          email: row.email,
+          error: `Employee ID ${row.employeeId} already exists`,
+        });
+        continue;
+      }
+    }
+
+    // Check duplicate email
     const existing = await prisma.user.findUnique({
       where: { email: row.email.toLowerCase() },
     });
@@ -87,6 +147,33 @@ export async function importUsersFromCsvAction(
           role: role as 'ADMIN' | 'TEACHER' | 'STUDENT',
           phone: row.phone?.trim() || null,
           passwordHash,
+          // Create StudentProfile for students
+          ...(role === 'STUDENT' && row.classId && row.sectionId && row.rollNumber && row.registrationNo
+            ? {
+                studentProfile: {
+                  create: {
+                    classId: row.classId.trim(),
+                    sectionId: row.sectionId.trim(),
+                    rollNumber: row.rollNumber.trim(),
+                    registrationNo: row.registrationNo.trim(),
+                    guardianName: row.guardianName?.trim() || null,
+                    guardianPhone: row.guardianPhone?.trim() || null,
+                  },
+                },
+              }
+            : {}),
+          // Create TeacherProfile for teachers
+          ...(role === 'TEACHER' && row.employeeId
+            ? {
+                teacherProfile: {
+                  create: {
+                    employeeId: row.employeeId.trim(),
+                    qualification: row.qualification?.trim() || null,
+                    specialization: row.specialization?.trim() || null,
+                  },
+                },
+              }
+            : {}),
         },
       });
 

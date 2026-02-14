@@ -6,6 +6,6 @@ import { GradingPageClient } from './grading-page-client';
 
 export default async function GradingPage() {
   const session = await requireRole('TEACHER', 'ADMIN');
-  const sessions = await getSessionsForGrading(session.user.id);
+  const sessions = await getSessionsForGrading(session.user.id, session.user.role === 'ADMIN');
   return <GradingPageClient sessions={sessions} />;
 }

@@ -16,11 +16,32 @@ export async function startSessionAction(examId: string): Promise<ActionResult<{
 
   const exam = await prisma.exam.findUnique({
     where: { id: examId, deletedAt: null },
-    include: { examQuestions: true },
+    include: { examQuestions: true, examClassAssignments: true },
   });
 
   if (!exam) return { success: false, error: 'Exam not found' };
   if (!['PUBLISHED', 'ACTIVE'].includes(exam.status)) return { success: false, error: 'Exam not available' };
+
+  // Enforce exam time window
+  const now = new Date();
+  if (exam.scheduledStartAt && now < exam.scheduledStartAt) {
+    return { success: false, error: 'Exam has not started yet' };
+  }
+  if (exam.scheduledEndAt && now > exam.scheduledEndAt) {
+    return { success: false, error: 'Exam deadline has passed' };
+  }
+
+  // Verify student is assigned to exam's class
+  const studentProfile = await prisma.studentProfile.findUnique({
+    where: { userId },
+    select: { classId: true, sectionId: true },
+  });
+  if (!studentProfile) return { success: false, error: 'Student profile not found. Contact admin.' };
+
+  const isAssigned = exam.examClassAssignments.some(
+    (a) => a.classId === studentProfile.classId && (!a.sectionId || a.sectionId === studentProfile.sectionId),
+  );
+  if (!isAssigned) return { success: false, error: 'This exam is not assigned to your class' };
 
   const existing = await prisma.examSession.findFirst({
     where: { examId, studentId: userId, status: { in: ['NOT_STARTED', 'IN_PROGRESS'] } },
@@ -56,7 +77,7 @@ export async function submitAnswerAction(
   answer: string,
   selectedOptionId?: string | null,
 ): Promise<ActionResult> {
-  await requireRole('STUDENT');
+  const authSession = await requireRole('STUDENT');
 
   const session = await prisma.examSession.findUnique({
     where: { id: sessionId },
@@ -64,7 +85,17 @@ export async function submitAnswerAction(
   });
 
   if (!session) return { success: false, error: 'Session not found' };
+  if (session.studentId !== authSession.user.id) return { success: false, error: 'Access denied' };
   if (session.status !== 'IN_PROGRESS') return { success: false, error: 'Session not active' };
+
+  // Enforce exam duration — reject answers after time expires
+  if (session.startedAt && session.exam.duration) {
+    const elapsedMinutes = (Date.now() - new Date(session.startedAt).getTime()) / 60000;
+    if (elapsedMinutes > session.exam.duration) {
+      await prisma.examSession.update({ where: { id: sessionId }, data: { status: 'TIMED_OUT', submittedAt: new Date() } });
+      return { success: false, error: 'Exam time has expired' };
+    }
+  }
 
   const examQuestion = session.exam.examQuestions.find((eq) => eq.questionId === questionId);
   if (!examQuestion) return { success: false, error: 'Question not in exam' };
@@ -95,10 +126,11 @@ export async function submitAnswerAction(
 // ============================================
 
 export async function submitSessionAction(sessionId: string): Promise<ActionResult> {
-  await requireRole('STUDENT');
+  const authSession = await requireRole('STUDENT');
 
   const session = await prisma.examSession.findUnique({ where: { id: sessionId } });
   if (!session) return { success: false, error: 'Session not found' };
+  if (session.studentId !== authSession.user.id) return { success: false, error: 'Access denied' };
   if (session.status !== 'IN_PROGRESS') return { success: false, error: 'Session not active' };
 
   await prisma.examSession.update({

@@ -28,7 +28,19 @@ type ExportResult = {
 export async function exportExamResultsAction(
   examId: string,
 ): Promise<ActionResult<ExportResult>> {
-  await requireRole('ADMIN', 'TEACHER');
+  const session = await requireRole('ADMIN', 'TEACHER');
+
+  // Verify teacher owns the exam
+  if (session.user.role === 'TEACHER') {
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      select: { createdById: true },
+    });
+    if (!exam) return { success: false, error: 'Exam not found' };
+    if (exam.createdById !== session.user.id) {
+      return { success: false, error: 'You can only export results for your own exams' };
+    }
+  }
 
   const results = await prisma.examResult.findMany({
     where: { examId },

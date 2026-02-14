@@ -16,6 +16,9 @@ export async function addQuestionToExamAction(
 
   const exam = await prisma.exam.findUnique({ where: { id: examId } });
   if (!exam) return { success: false, error: 'Exam not found' };
+  if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
+    return { success: false, error: 'You can only modify your own exams' };
+  }
   if (exam.status !== 'DRAFT') return { success: false, error: 'Only draft exams can be modified' };
 
   const existing = await prisma.examQuestion.findFirst({
@@ -60,6 +63,9 @@ export async function removeQuestionFromExamAction(
 
   const exam = await prisma.exam.findUnique({ where: { id: examId } });
   if (!exam) return { success: false, error: 'Exam not found' };
+  if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
+    return { success: false, error: 'You can only modify your own exams' };
+  }
   if (exam.status !== 'DRAFT') return { success: false, error: 'Only draft exams can be modified' };
 
   await prisma.examQuestion.deleteMany({ where: { examId, questionId } });
@@ -75,10 +81,13 @@ export async function reorderExamQuestionsAction(
   examId: string,
   orderedQuestionIds: string[],
 ): Promise<ActionResult> {
-  await requireRole('TEACHER', 'ADMIN');
+  const session = await requireRole('TEACHER', 'ADMIN');
 
   const exam = await prisma.exam.findUnique({ where: { id: examId } });
   if (!exam) return { success: false, error: 'Exam not found' };
+  if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
+    return { success: false, error: 'You can only modify your own exams' };
+  }
   if (exam.status !== 'DRAFT') return { success: false, error: 'Only draft exams can be modified' };
 
   await prisma.$transaction(

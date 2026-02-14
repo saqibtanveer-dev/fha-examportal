@@ -20,17 +20,24 @@ import type { PaginatedResult } from '@/utils/pagination';
 import type { UserWithProfile } from '@/modules/users/user-queries';
 
 const USER_CSV_SAMPLE =
-  'email,firstName,lastName,role,phone,password\njohn@school.com,John,Doe,STUDENT,03001234567,Temp@1234\njane@school.com,Jane,Smith,TEACHER,,';
+  'email,firstName,lastName,role,phone,password,classId,sectionId,rollNumber,registrationNo,employeeId\njohn@school.com,John,Doe,STUDENT,03001234567,Temp@1234,<class-id>,<section-id>,101,STU-2026-001,\njane@school.com,Jane,Smith,TEACHER,,,,,,,EMP-001\nadmin@school.com,Admin,User,ADMIN,,,,,,,';
 
 
 type SubjectInfo = { id: string; name: string; code: string };
+type ClassInfo = {
+  id: string;
+  name: string;
+  grade: number;
+  sections: { id: string; name: string }[];
+};
 
 type Props = {
   result: PaginatedResult<UserWithProfile>;
   allSubjects?: SubjectInfo[];
+  allClasses?: ClassInfo[];
 };
 
-export function UsersPageClient({ result, allSubjects = [] }: Props) {
+export function UsersPageClient({ result, allSubjects = [], allClasses = [] }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,9 +65,9 @@ export function UsersPageClient({ result, allSubjects = [] }: Props) {
           <div className="flex gap-2">
             <CsvImportDialog
               title="Import Users"
-              description="Upload a CSV file to bulk-create users."
+              description="Upload a CSV file to bulk-create users. Students require classId, sectionId, rollNumber, registrationNo. Teachers require employeeId."
               requiredColumns={['email', 'firstName', 'lastName', 'role']}
-              optionalColumns={['phone', 'password']}
+              optionalColumns={['phone', 'password', 'classId', 'sectionId', 'rollNumber', 'registrationNo', 'employeeId', 'qualification', 'specialization', 'guardianName', 'guardianPhone']}
               sampleCsv={USER_CSV_SAMPLE}
               onImport={async (rows) => {
                 const res = await importUsersFromCsvAction(rows as any);
@@ -130,7 +137,7 @@ export function UsersPageClient({ result, allSubjects = [] }: Props) {
         </p>
       )}
 
-      <CreateUserDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <CreateUserDialog open={dialogOpen} onOpenChange={setDialogOpen} classes={allClasses} />
     </div>
   );
 }

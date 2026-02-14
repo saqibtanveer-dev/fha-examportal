@@ -38,12 +38,19 @@ export default async function GradingDetailPage({ params }: Props) {
         : null,
     }));
 
+  const antiCheatInfo = {
+    tabSwitchCount: session.tabSwitchCount,
+    fullscreenExits: session.fullscreenExits,
+    copyPasteAttempts: session.copyPasteAttempts,
+    isFlagged: session.isFlagged,
+  };
+
   return (
     <GradingInterface
       sessionId={sessionId}
       answers={answers}
-      graderId={authSession.user.id}
       studentName={`${session.student.firstName} ${session.student.lastName}`}
+      antiCheatInfo={antiCheatInfo}
     />
   );
 }

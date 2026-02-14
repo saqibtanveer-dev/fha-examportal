@@ -23,7 +23,36 @@ export const createUserSchema = z.object({
   lastName: z.string().min(1, 'Last name is required').max(100),
   role: z.enum(['ADMIN', 'TEACHER', 'STUDENT']),
   phone: z.string().optional(),
-});
+  // Student profile fields (required when role = STUDENT)
+  classId: z.string().optional(),
+  sectionId: z.string().optional(),
+  rollNumber: z.string().optional(),
+  registrationNo: z.string().optional(),
+  guardianName: z.string().optional(),
+  guardianPhone: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
+  // Teacher profile fields (required when role = TEACHER)
+  employeeId: z.string().optional(),
+  qualification: z.string().optional(),
+  specialization: z.string().optional(),
+}).refine(
+  (data) => {
+    if (data.role === 'STUDENT') {
+      return !!data.classId && !!data.sectionId && !!data.rollNumber && !!data.registrationNo;
+    }
+    return true;
+  },
+  { message: 'Students require classId, sectionId, rollNumber, and registrationNo' },
+).refine(
+  (data) => {
+    if (data.role === 'TEACHER') {
+      return !!data.employeeId;
+    }
+    return true;
+  },
+  { message: 'Teachers require employeeId' },
+);
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 

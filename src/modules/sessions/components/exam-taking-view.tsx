@@ -68,15 +68,27 @@ export function ExamTakingView({ session }: Props) {
     setAnswers(saved);
   }, [session.studentAnswers]);
 
-  // Timer
+  // Timer - auto-submit when time runs out
+  const handleSubmitRef = useCallback(() => {
+    startTransition(async () => {
+      const result = await submitSessionAction(session.id);
+      if (result.success) {
+        toast.success('Exam submitted!');
+        router.push('/student/exams');
+      } else {
+        toast.error(result.error ?? 'Failed');
+      }
+    });
+  }, [session.id, router]);
+
   useEffect(() => {
     if (timeLeft <= 0) {
-      handleSubmit();
+      handleSubmitRef();
       return;
     }
     const interval = setInterval(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearInterval(interval);
-  }, [timeLeft]);
+  }, [timeLeft, handleSubmitRef]);
 
   const formatTime = useCallback((s: number) => {
     const m = Math.floor(s / 60);
@@ -101,15 +113,7 @@ export function ExamTakingView({ session }: Props) {
   }
 
   function handleSubmit() {
-    startTransition(async () => {
-      const result = await submitSessionAction(session.id);
-      if (result.success) {
-        toast.success('Exam submitted!');
-        router.push('/student/exams');
-      } else {
-        toast.error(result.error ?? 'Failed');
-      }
-    });
+    handleSubmitRef();
   }
 
   if (!current) return null;

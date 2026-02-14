@@ -94,7 +94,7 @@ export async function getExamDetail(id: string) {
   });
 }
 
-export async function getExamsForStudent(studentId: string, classId: string, sectionId: string) {
+export async function getExamsForStudent(studentId: string, classId: string, sectionId?: string) {
   return prisma.exam.findMany({
     where: {
       deletedAt: null,
@@ -102,7 +102,10 @@ export async function getExamsForStudent(studentId: string, classId: string, sec
       examClassAssignments: {
         some: {
           classId,
-          OR: [{ sectionId: null }, { sectionId }],
+          OR: [
+            { sectionId: null },
+            ...(sectionId ? [{ sectionId }] : []),
+          ],
         },
       },
     },

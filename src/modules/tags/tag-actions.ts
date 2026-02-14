@@ -42,6 +42,14 @@ export async function updateTagAction(id: string, input: UpdateTagInput): Promis
   const parsed = updateTagSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid input' };
 
+  // Check name uniqueness if updating name
+  if (parsed.data.name) {
+    const existing = await prisma.tag.findFirst({
+      where: { name: parsed.data.name, id: { not: id } },
+    });
+    if (existing) return { success: false, error: 'Tag with this name already exists' };
+  }
+
   await prisma.tag.update({ where: { id }, data: parsed.data });
 
   createAuditLog(session.user.id, 'UPDATE_TAG', 'TAG', id).catch(() => {});

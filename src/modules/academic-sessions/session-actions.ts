@@ -21,21 +21,23 @@ export async function createAcademicSessionAction(
 
   const { isCurrent, startDate, endDate, ...rest } = parsed.data;
 
-  // If setting as current, unset other current sessions
-  if (isCurrent) {
-    await prisma.academicSession.updateMany({
-      where: { isCurrent: true },
-      data: { isCurrent: false },
-    });
-  }
+  const academicSession = await prisma.$transaction(async (tx) => {
+    // If setting as current, unset other current sessions
+    if (isCurrent) {
+      await tx.academicSession.updateMany({
+        where: { isCurrent: true },
+        data: { isCurrent: false },
+      });
+    }
 
-  const academicSession = await prisma.academicSession.create({
-    data: {
-      ...rest,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate),
-      isCurrent: isCurrent ?? false,
-    },
+    return tx.academicSession.create({
+      data: {
+        ...rest,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        isCurrent: isCurrent ?? false,
+      },
+    });
   });
 
   createAuditLog(session.user.id, 'CREATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', academicSession.id, rest).catch(() => {});
@@ -53,22 +55,24 @@ export async function updateAcademicSessionAction(
 
   const { isCurrent, startDate, endDate, ...rest } = parsed.data;
 
-  // If setting as current, unset other current sessions
-  if (isCurrent) {
-    await prisma.academicSession.updateMany({
-      where: { isCurrent: true, id: { not: id } },
-      data: { isCurrent: false },
-    });
-  }
+  await prisma.$transaction(async (tx) => {
+    // If setting as current, unset other current sessions
+    if (isCurrent) {
+      await tx.academicSession.updateMany({
+        where: { isCurrent: true, id: { not: id } },
+        data: { isCurrent: false },
+      });
+    }
 
-  await prisma.academicSession.update({
-    where: { id },
-    data: {
-      ...rest,
-      ...(startDate ? { startDate: new Date(startDate) } : {}),
-      ...(endDate ? { endDate: new Date(endDate) } : {}),
-      ...(isCurrent !== undefined ? { isCurrent } : {}),
-    },
+    await tx.academicSession.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...(startDate ? { startDate: new Date(startDate) } : {}),
+        ...(endDate ? { endDate: new Date(endDate) } : {}),
+        ...(isCurrent !== undefined ? { isCurrent } : {}),
+      },
+    });
   });
 
   createAuditLog(session.user.id, 'UPDATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id, parsed.data).catch(() => {});
@@ -98,9 +102,15 @@ export async function setCurrentAcademicSessionAction(id: string): Promise<Actio
 export async function deleteAcademicSessionAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
-  const examCount = await prisma.exam.count({ where: { academicSessionId: id } });
+  const [examCount, promotionCount] = await Promise.all([
+    prisma.exam.count({ where: { academicSessionId: id } }),
+    prisma.studentPromotion.count({ where: { academicSessionId: id } }),
+  ]);
   if (examCount > 0) {
     return { success: false, error: `Cannot delete — ${examCount} exams are linked to this session` };
+  }
+  if (promotionCount > 0) {
+    return { success: false, error: `Cannot delete — ${promotionCount} promotion records are linked to this session` };
   }
 
   const academicSession = await prisma.academicSession.findUnique({ where: { id } });

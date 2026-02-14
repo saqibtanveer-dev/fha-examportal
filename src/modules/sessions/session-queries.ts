@@ -64,11 +64,11 @@ export async function getStudentSessions(studentId: string) {
   });
 }
 
-export async function getSessionsForGrading(teacherId: string) {
+export async function getSessionsForGrading(teacherId: string, isAdmin = false) {
   return prisma.examSession.findMany({
     where: {
       status: { in: ['SUBMITTED', 'GRADING'] },
-      exam: { createdById: teacherId },
+      ...(isAdmin ? {} : { exam: { createdById: teacherId } }),
     },
     orderBy: { submittedAt: 'asc' },
     include: {
@@ -78,5 +78,6 @@ export async function getSessionsForGrading(teacherId: string) {
         select: { studentAnswers: true },
       },
     },
+    // Ensure anti-cheat fields are included (they are part of the model)
   });
 }

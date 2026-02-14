@@ -107,7 +107,7 @@ export async function deleteQuestionAction(id: string): Promise<ActionResult> {
 export async function toggleQuestionActiveAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
-  const question = await prisma.question.findUnique({ where: { id } });
+  const question = await prisma.question.findUnique({ where: { id, deletedAt: null } });
   if (!question) return { success: false, error: 'Question not found' };
 
   await prisma.question.update({

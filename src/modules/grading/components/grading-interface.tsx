@@ -12,7 +12,7 @@ import { Spinner } from '@/components/shared';
 import { gradeAnswerAction } from '@/modules/grading/grading-actions';
 import { approveAiGradeAction } from '@/modules/grading/ai-grading-actions';
 import { toast } from 'sonner';
-import { CheckCircle, ChevronLeft, ChevronRight, Brain, Shield } from 'lucide-react';
+import { CheckCircle, ChevronLeft, ChevronRight, Brain, Shield, ShieldAlert, AlertTriangle } from 'lucide-react';
 
 type Answer = {
   id: string;
@@ -28,14 +28,21 @@ type Answer = {
   } | null;
 };
 
+type AntiCheatInfo = {
+  tabSwitchCount: number;
+  fullscreenExits: number;
+  copyPasteAttempts: number;
+  isFlagged: boolean;
+};
+
 type Props = {
   sessionId: string;
   answers: Answer[];
-  graderId: string;
   studentName: string;
+  antiCheatInfo?: AntiCheatInfo;
 };
 
-export function GradingInterface({ sessionId, answers, graderId, studentName }: Props) {
+export function GradingInterface({ sessionId, answers, studentName, antiCheatInfo }: Props) {
   const [isPending, startTransition] = useTransition();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [marks, setMarks] = useState<Record<string, string>>({});
@@ -53,7 +60,7 @@ export function GradingInterface({ sessionId, answers, graderId, studentName }: 
     const f = feedback[answerId] ?? '';
 
     startTransition(async () => {
-      const result = await gradeAnswerAction(answerId, m, f, graderId);
+      const result = await gradeAnswerAction(answerId, m, f);
       if (result.success) {
         toast.success('Answer graded');
         router.refresh();
@@ -88,6 +95,33 @@ export function GradingInterface({ sessionId, answers, graderId, studentName }: 
           {gradedCount === answers.length ? 'All Graded' : `${ungradedAnswers.length} remaining`}
         </Badge>
       </div>
+
+      {/* Anti-cheat info */}
+      {antiCheatInfo && (antiCheatInfo.isFlagged || antiCheatInfo.tabSwitchCount > 0 || antiCheatInfo.fullscreenExits > 0 || antiCheatInfo.copyPasteAttempts > 0) && (
+        <div className={`rounded-lg border p-3 ${antiCheatInfo.isFlagged ? 'border-destructive bg-destructive/5' : 'border-yellow-300 bg-yellow-50'}`}>
+          <div className="flex items-center gap-2 mb-2">
+            {antiCheatInfo.isFlagged ? (
+              <ShieldAlert className="h-4 w-4 text-destructive" />
+            ) : (
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+            )}
+            <span className={`text-sm font-medium ${antiCheatInfo.isFlagged ? 'text-destructive' : 'text-yellow-700'}`}>
+              {antiCheatInfo.isFlagged ? 'Session Flagged — Suspicious Activity' : 'Anti-Cheat Alerts'}
+            </span>
+          </div>
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            {antiCheatInfo.tabSwitchCount > 0 && (
+              <span>Tab switches: <strong>{antiCheatInfo.tabSwitchCount}</strong></span>
+            )}
+            {antiCheatInfo.fullscreenExits > 0 && (
+              <span>Fullscreen exits: <strong>{antiCheatInfo.fullscreenExits}</strong></span>
+            )}
+            {antiCheatInfo.copyPasteAttempts > 0 && (
+              <span>Copy/paste attempts: <strong>{antiCheatInfo.copyPasteAttempts}</strong></span>
+            )}
+          </div>
+        </div>
+      )}
 
       <Card>
         <CardHeader className="pb-3">

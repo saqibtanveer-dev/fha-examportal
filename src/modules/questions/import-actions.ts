@@ -30,7 +30,7 @@ const VALID_DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD'];
 export async function importQuestionsFromCsvAction(
   csvRows: CsvQuestion[],
 ): Promise<ActionResult<ImportResult>> {
-  const session = await requireRole('TEACHER');
+  const session = await requireRole('TEACHER', 'ADMIN');
 
   const result: ImportResult = {
     total: csvRows.length,

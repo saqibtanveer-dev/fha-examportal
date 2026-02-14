@@ -10,7 +10,7 @@ export type ResultWithDetails = Prisma.ExamResultGetPayload<{
 }>;
 
 export async function getResultsByStudent(studentId: string): Promise<ResultWithDetails[]> {
-  return prisma.examResult.findMany({
+  const results = await prisma.examResult.findMany({
     where: { studentId },
     orderBy: { createdAt: 'desc' },
     include: {
@@ -18,6 +18,23 @@ export async function getResultsByStudent(studentId: string): Promise<ResultWith
       student: { select: { id: true, firstName: true, lastName: true } },
       session: { select: { id: true, attemptNumber: true, submittedAt: true } },
     },
+  });
+
+  // Filter results based on showResultAfter policy
+  const now = new Date();
+  return results.filter((r) => {
+    const policy = r.exam.showResultAfter;
+    if (policy === 'IMMEDIATELY') return true;
+    if (policy === 'AFTER_DEADLINE') {
+      // Show after exam's scheduled end date
+      const deadline = r.exam.scheduledEndAt;
+      return deadline ? now >= deadline : true;
+    }
+    if (policy === 'MANUAL') {
+      // Show only if publishedAt is set
+      return !!r.publishedAt;
+    }
+    return true;
   });
 }
 

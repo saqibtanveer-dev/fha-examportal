@@ -22,7 +22,7 @@ import type { QuestionWithRelations } from '@/modules/questions/question-queries
 import type { DeepSerialize } from '@/utils/serialize';
 
 const Q_CSV_SAMPLE =
-  'title,type,difficulty,marks,subjectId,modelAnswer,mcqOptions\n"What is 2+2?",MCQ,EASY,1,<subject-id>,"B","2|*4|6|8"\n"Explain gravity",SHORT_ANSWER,MEDIUM,5,<subject-id>,"Force of attraction",';
+  'title,type,difficulty,marks,subjectId,modelAnswer,explanation,description,mcqOptions\n"What is 2+2?",MCQ,EASY,1,<subject-id>,"B","Basic arithmetic","Choose the correct answer","2|*4|6|8"\n"Explain gravity",SHORT_ANSWER,MEDIUM,5,<subject-id>,"Gravity is the force of attraction between objects",,"Briefly explain the concept of gravity",\n"Discuss photosynthesis in detail",LONG_ANSWER,HARD,10,<subject-id>,"Photosynthesis is the process by which plants convert light energy into chemical energy","Include the light and dark reactions","Write a detailed essay on photosynthesis",';
 
 type Subject = { id: string; name: string; code: string };
 type SubjectClassMap = { subjectId: string; classId: string; className: string };

@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Users, BookOpen, ClipboardList, GraduationCap } from 'lucide-react';
 import { prisma } from '@/lib/prisma';
+import { requireRole } from '@/lib/auth-utils';
 
 async function getDashboardStats() {
   const [userCount, subjectCount, examCount, classCount] = await Promise.all([
@@ -17,6 +18,7 @@ async function getDashboardStats() {
 }
 
 export default async function AdminDashboardPage() {
+  await requireRole('ADMIN');
   const stats = await getDashboardStats();
 
   const cards = [

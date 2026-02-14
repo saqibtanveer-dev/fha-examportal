@@ -77,6 +77,7 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
             <TableHead>Name</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Role</TableHead>
+            <TableHead>Class / Info</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Subjects</TableHead>
             <TableHead>Created</TableHead>
@@ -92,6 +93,25 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
               <TableCell>{user.email}</TableCell>
               <TableCell>
                 <Badge variant={roleBadgeVariant[user.role] ?? 'outline'}>{user.role}</Badge>
+              </TableCell>
+              <TableCell>
+                {user.role === 'STUDENT' && user.studentProfile ? (
+                  <div className="text-xs">
+                    <span className="font-medium">{user.studentProfile.class?.name}</span>
+                    {user.studentProfile.section && (
+                      <span className="text-muted-foreground"> - {user.studentProfile.section.name}</span>
+                    )}
+                    <div className="text-muted-foreground">Roll: {user.studentProfile.rollNumber}</div>
+                  </div>
+                ) : user.role === 'STUDENT' ? (
+                  <Badge variant="destructive" className="text-xs">No class</Badge>
+                ) : user.role === 'TEACHER' && user.teacherProfile ? (
+                  <span className="text-xs text-muted-foreground">ID: {user.teacherProfile.employeeId}</span>
+                ) : user.role === 'TEACHER' ? (
+                  <Badge variant="destructive" className="text-xs">No profile</Badge>
+                ) : (
+                  <span className="text-muted-foreground text-xs">—</span>
+                )}
               </TableCell>
               <TableCell>
                 <Badge variant={user.isActive ? 'default' : 'destructive'}>
