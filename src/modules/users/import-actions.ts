@@ -33,7 +33,7 @@ type ImportResult = {
   errors: { row: number; email: string; error: string }[];
 };
 
-const VALID_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
+const VALID_ROLES = ['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT'];
 const DEFAULT_PASSWORD = 'Temp@1234';
 
 /**
@@ -74,7 +74,7 @@ export async function importUsersFromCsvAction(
       result.errors.push({
         row: rowNum,
         email: row.email,
-        error: `Invalid role: ${row.role}. Must be ADMIN, TEACHER, or STUDENT`,
+        error: `Invalid role: ${row.role}. Must be ADMIN, PRINCIPAL, TEACHER, or STUDENT`,
       });
       continue;
     }
@@ -144,7 +144,7 @@ export async function importUsersFromCsvAction(
           email: row.email.toLowerCase(),
           firstName: row.firstName.trim(),
           lastName: row.lastName.trim(),
-          role: role as 'ADMIN' | 'TEACHER' | 'STUDENT',
+          role: role as 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT',
           phone: row.phone?.trim() || null,
           passwordHash,
           // Create StudentProfile for students

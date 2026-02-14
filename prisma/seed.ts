@@ -76,6 +76,23 @@ async function main() {
   console.log('✅ Admin user');
 
   // ============================================
+  // 3b. Principal User
+  // ============================================
+  const principal = await prisma.user.upsert({
+    where: { email: 'principal@examcore.school' },
+    update: {},
+    create: {
+      email: 'principal@examcore.school',
+      passwordHash: pw('Principal123!'),
+      firstName: 'Head',
+      lastName: 'Principal',
+      role: 'PRINCIPAL',
+      isActive: true,
+    },
+  });
+  console.log('✅ Principal user');
+
+  // ============================================
   // 4. Departments
   // ============================================
   const [scienceDept, mathsDept, engDept, socialDept] = await Promise.all([
@@ -653,6 +670,9 @@ async function main() {
       { userId: students[0]!.id, title: 'Result Published', message: 'Your Chemistry Elements Quiz result is available.', type: 'RESULT_PUBLISHED', isRead: true },
       { userId: t1.id, title: 'New Question Approved', message: '8 physics questions have been added to the bank.', type: 'SYSTEM' },
       { userId: admin.id, title: 'System Update', message: 'Database migration completed successfully.', type: 'SYSTEM' },
+      { userId: principal.id, title: 'Weekly Performance Report', message: 'The weekly school performance report is ready for review.', type: 'SYSTEM' },
+      { userId: principal.id, title: 'New Teacher Onboarded', message: 'Teacher Ayesha Nawaz has been added to the system.', type: 'SYSTEM' },
+      { userId: principal.id, title: 'Exam Results Published', message: 'Chemistry Elements Quiz results have been published for Class 9.', type: 'RESULT_PUBLISHED', isRead: true },
     ];
     for (const n of notificationDefs) {
       await prisma.notification.create({
@@ -665,7 +685,7 @@ async function main() {
         },
       });
     }
-    console.log('✅ 4 notifications');
+    console.log('✅ 7 notifications');
 
     // ============================================
     // 15. Audit Logs
@@ -691,7 +711,8 @@ async function main() {
 
   console.log('\n🎉 Seeding complete!\n');
   console.log('Login credentials:');
-  console.log('  Admin:   admin@examcore.school / AdminPass123!');
+  console.log('  Admin:     admin@examcore.school / AdminPass123!');
+  console.log('  Principal: principal@examcore.school / Principal123!');
   console.log('  Teacher: ahmed.khan@examcore.school / Teacher123!');
   console.log('  Teacher: fatima.ali@examcore.school / Teacher123!');
   console.log('  Teacher: bilal.ahmed@examcore.school / Teacher123!');

@@ -28,7 +28,7 @@ type ExportResult = {
 export async function exportExamResultsAction(
   examId: string,
 ): Promise<ActionResult<ExportResult>> {
-  const session = await requireRole('ADMIN', 'TEACHER');
+  const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
 
   // Verify teacher owns the exam
   if (session.user.role === 'TEACHER') {
@@ -90,7 +90,7 @@ export async function exportExamResultsAction(
 export async function exportStudentResultsAction(
   studentId: string,
 ): Promise<ActionResult<ExportResult>> {
-  const session = await requireRole('ADMIN', 'TEACHER', 'STUDENT');
+  const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
 
   // Students can only export their own
   if (session.user.role === 'STUDENT' && session.user.id !== studentId) {

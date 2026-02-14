@@ -67,7 +67,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
         password: formData.get('password') as string,
         firstName: formData.get('firstName') as string,
         lastName: formData.get('lastName') as string,
-        role: role as 'ADMIN' | 'TEACHER' | 'STUDENT',
+        role: role as 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT',
         phone: (formData.get('phone') as string) || undefined,
         // Student fields
         ...(role === 'STUDENT'
@@ -135,6 +135,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ADMIN">Admin</SelectItem>
+                <SelectItem value="PRINCIPAL">Principal</SelectItem>
                 <SelectItem value="TEACHER">Teacher</SelectItem>
                 <SelectItem value="STUDENT">Student</SelectItem>
               </SelectContent>

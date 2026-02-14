@@ -12,6 +12,8 @@ import {
   Bell,
   ScrollText,
   ArrowUpCircle,
+  UserCheck,
+  TrendingUp,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -56,6 +58,31 @@ export const adminNavigation: NavGroup[] = [
       { label: 'Notifications', href: ROUTES.ADMIN.NOTIFICATIONS, icon: Bell },
       { label: 'Audit Logs', href: ROUTES.ADMIN.AUDIT_LOG, icon: ScrollText },
       { label: 'Settings', href: ROUTES.ADMIN.SETTINGS, icon: Settings },
+    ],
+  },
+];
+
+export const principalNavigation: NavGroup[] = [
+  {
+    title: 'Overview',
+    items: [
+      { label: 'Dashboard', href: ROUTES.DASHBOARD.PRINCIPAL, icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Monitoring',
+    items: [
+      { label: 'Teachers', href: ROUTES.PRINCIPAL.TEACHERS, icon: UserCheck },
+      { label: 'Students', href: ROUTES.PRINCIPAL.STUDENTS, icon: Users },
+      { label: 'Classes', href: ROUTES.PRINCIPAL.CLASSES, icon: GraduationCap },
+      { label: 'Exams', href: ROUTES.PRINCIPAL.EXAMS, icon: ClipboardList },
+    ],
+  },
+  {
+    title: 'Insights',
+    items: [
+      { label: 'Analytics', href: ROUTES.PRINCIPAL.ANALYTICS, icon: TrendingUp },
+      { label: 'Notifications', href: ROUTES.PRINCIPAL.NOTIFICATIONS, icon: Bell },
     ],
   },
 ];
@@ -110,6 +137,8 @@ export function getNavigationByRole(role: string): NavGroup[] {
   switch (role) {
     case 'ADMIN':
       return adminNavigation;
+    case 'PRINCIPAL':
+      return principalNavigation;
     case 'TEACHER':
       return teacherNavigation;
     case 'STUDENT':

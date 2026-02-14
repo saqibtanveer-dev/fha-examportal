@@ -21,7 +21,7 @@ export const createUserSchema = z.object({
   password: passwordSchema,
   firstName: z.string().min(1, 'First name is required').max(100),
   lastName: z.string().min(1, 'Last name is required').max(100),
-  role: z.enum(['ADMIN', 'TEACHER', 'STUDENT']),
+  role: z.enum(['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT']),
   phone: z.string().optional(),
   // Student profile fields (required when role = STUDENT)
   classId: z.string().optional(),

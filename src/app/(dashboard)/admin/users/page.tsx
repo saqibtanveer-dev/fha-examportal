@@ -19,7 +19,7 @@ export default async function UsersPage({ searchParams }: Props) {
 
   const page = Math.max(1, parseInt(params.page ?? '1', 10));
   const pageSize = Math.min(50, Math.max(1, parseInt(params.pageSize ?? '20', 10)));
-  const role = params.role as 'ADMIN' | 'TEACHER' | 'STUDENT' | undefined;
+  const role = params.role as 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT' | undefined;
 
   const [result, subjects, classes] = await Promise.all([
     listUsers({ page, pageSize }, { search: params.search, role }),

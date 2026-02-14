@@ -13,6 +13,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { getInitials } from '@/utils/format';
 import { cn } from '@/utils/cn';
+import Link from 'next/link';
+
+function getRolePaths(role: string) {
+  const base = `/${role.toLowerCase()}`;
+  return {
+    profile: `${base}/profile`,
+    notifications: `${base}/notifications`,
+  };
+}
+
+function formatRoleLabel(role: string) {
+  return role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+}
 
 type TopNavProps = {
   user: {
@@ -54,13 +67,15 @@ export function TopNav({ user, sidebarCollapsed, notificationCount = 0, onSignOu
       {/* Right: Actions */}
       <div className="flex items-center gap-2 md:gap-3">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications">
-          <Bell className="h-5 w-5" />
-          {notificationCount > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
-              {notificationCount > 9 ? '9+' : notificationCount}
-            </span>
-          )}
+        <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications" asChild>
+          <Link href={getRolePaths(user.role).notifications}>
+            <Bell className="h-5 w-5" />
+            {notificationCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] text-white">
+                {notificationCount > 9 ? '9+' : notificationCount}
+              </span>
+            )}
+          </Link>
         </Button>
 
         {/* User Menu */}
@@ -76,7 +91,7 @@ export function TopNav({ user, sidebarCollapsed, notificationCount = 0, onSignOu
                 <p className="text-sm font-medium leading-none">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-muted-foreground">{user.role}</p>
+                <p className="text-xs text-muted-foreground">{formatRoleLabel(user.role)}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>
@@ -86,9 +101,11 @@ export function TopNav({ user, sidebarCollapsed, notificationCount = 0, onSignOu
               <p className="text-xs text-muted-foreground">{user.email}</p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
-              <User className="mr-2 h-4 w-4" />
-              Profile
+            <DropdownMenuItem asChild>
+              <Link href={getRolePaths(user.role).profile}>
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={onSignOut} className="text-destructive">

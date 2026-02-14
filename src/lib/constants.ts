@@ -57,6 +57,7 @@ export const ROUTES = {
   LOGIN: '/login',
   DASHBOARD: {
     ADMIN: '/admin',
+    PRINCIPAL: '/principal',
     TEACHER: '/teacher',
     STUDENT: '/student',
   },
@@ -70,6 +71,16 @@ export const ROUTES = {
     SETTINGS: '/admin/settings',
     AUDIT_LOG: '/admin/audit-log',
     REPORTS: '/admin/reports',
+  },
+  PRINCIPAL: {
+    TEACHERS: '/principal/teachers',
+    STUDENTS: '/principal/students',
+    CLASSES: '/principal/classes',
+    EXAMS: '/principal/exams',
+    ANALYTICS: '/principal/analytics',
+    NOTIFICATIONS: '/principal/notifications',
+    PROFILE: '/principal/profile',
+    CHANGE_PASSWORD: '/principal/profile/change-password',
   },
   TEACHER: {
     QUESTIONS: '/teacher/questions',

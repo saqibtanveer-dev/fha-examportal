@@ -60,7 +60,7 @@ export function UsersPageClient({ result, allSubjects = [], allClasses = [] }: P
     <div className="space-y-6">
       <PageHeader
         title="User Management"
-        description="Manage admins, teachers, and students"
+        description="Manage admins, principals, teachers, and students"
         breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Users' }]}
         actions={
           <div className="flex gap-2">
@@ -108,6 +108,7 @@ export function UsersPageClient({ result, allSubjects = [], allClasses = [] }: P
           <SelectContent>
             <SelectItem value="ALL">All Roles</SelectItem>
             <SelectItem value="ADMIN">Admin</SelectItem>
+            <SelectItem value="PRINCIPAL">Principal</SelectItem>
             <SelectItem value="TEACHER">Teacher</SelectItem>
             <SelectItem value="STUDENT">Student</SelectItem>
           </SelectContent>

@@ -6,6 +6,7 @@ const LOGIN = '/login';
 
 const roleRouteMap: Record<string, string> = {
   ADMIN: '/admin',
+  PRINCIPAL: '/principal',
   TEACHER: '/teacher',
   STUDENT: '/student',
 };
