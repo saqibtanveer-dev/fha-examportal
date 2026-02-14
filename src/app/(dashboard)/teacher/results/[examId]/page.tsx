@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic';
 
-import { getResultsByExam, getExamAnalytics } from '@/modules/results/result-queries';
-import { ResultsTable, ExamAnalyticsChart } from '@/modules/results/components';
+import { getResultsByExam, getExamDetailedAnalytics } from '@/modules/results/result-queries';
+import { ResultsTable, ExamDetailedAnalyticsDashboard } from '@/modules/results/components';
 import { EmptyState } from '@/components/shared';
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
@@ -24,20 +24,20 @@ export default async function ExamResultsPage({ params }: Props) {
     redirect('/teacher/results');
   }
 
-  const [results, analytics] = await Promise.all([
+  const [results, detailedAnalytics] = await Promise.all([
     getResultsByExam(examId),
-    getExamAnalytics(examId),
+    getExamDetailedAnalytics(examId),
   ]);
 
   return (
     <div className="space-y-6">
       <ExamResultsHeader examId={examId} examTitle={exam.title} />
 
-      {!analytics || results.length === 0 ? (
+      {!detailedAnalytics || results.length === 0 ? (
         <EmptyState title="No results" description="No students graded yet." />
       ) : (
         <>
-          <ExamAnalyticsChart analytics={analytics} />
+          <ExamDetailedAnalyticsDashboard analytics={detailedAnalytics} />
           <ResultsTable results={serialize(results)} viewMode="teacher" examId={examId} />
         </>
       )}
