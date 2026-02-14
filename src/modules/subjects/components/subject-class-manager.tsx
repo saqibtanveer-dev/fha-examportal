@@ -84,8 +84,8 @@ export function SubjectClassManager({ subjectId, subjectName, currentLinks, allC
         ) : (
           <span className="text-xs text-muted-foreground">No classes assigned</span>
         )}
-        <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleOpenChange(true)}>
-          <Plus className="h-3 w-3" />
+        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenChange(true)}>
+          <Plus className="h-4 w-4" />
         </Button>
       </div>
 

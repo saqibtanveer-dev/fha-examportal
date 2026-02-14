@@ -122,16 +122,16 @@ export function ExamTakingView({ session }: Props) {
   const currentAnswer = answers[current.id];
 
   return (
-    <div className="mx-auto max-w-3xl space-y-4">
+    <div className="mx-auto max-w-3xl space-y-4 px-1">
       {/* Header */}
-      <div className="flex items-center justify-between rounded-lg border bg-card p-3">
-        <div>
-          <h2 className="font-semibold">{session.exam.title}</h2>
+      <div className="flex flex-col gap-2 rounded-lg border bg-card p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <h2 className="truncate font-semibold">{session.exam.title}</h2>
           <p className="text-sm text-muted-foreground">
             {answeredCount}/{totalQuestions} answered
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           <div className={`flex items-center gap-1 font-mono text-sm ${timeLeft < 300 ? 'text-destructive font-bold' : ''}`}>
             <Clock className="h-4 w-4" />{formatTime(timeLeft)}
           </div>
@@ -172,7 +172,7 @@ export function ExamTakingView({ session }: Props) {
       {/* Question Card */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-2">
               <Badge variant="outline">Q{currentIndex + 1} / {totalQuestions}</Badge>
               {markedForReview.has(current.id) && (
@@ -227,16 +227,17 @@ export function ExamTakingView({ session }: Props) {
       </Card>
 
       {/* Navigation */}
-      <div className="flex items-center justify-between">
-        <Button variant="outline" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0}>
+      <div className="flex items-center justify-between gap-2">
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0}>
           <ChevronLeft className="mr-1 h-4 w-4" />Prev
         </Button>
-        <div className="flex gap-1 overflow-hidden">
+        <div className="flex flex-wrap justify-center gap-1 overflow-y-auto max-h-20">
           {questions.map((eq, i) => (
             <button
               key={i}
               onClick={() => setCurrentIndex(i)}
-              className={`h-7 w-7 rounded text-xs font-medium transition-colors ${
+              aria-label={`Question ${i + 1}`}
+              className={`h-8 w-8 rounded text-xs font-medium transition-colors ${
                 i === currentIndex ? 'bg-primary text-primary-foreground' :
                 markedForReview.has(eq.id) ? 'bg-amber-100 text-amber-800 ring-1 ring-amber-300' :
                 answers[eq.id] ? 'bg-green-100 text-green-800' : 'bg-muted'
@@ -246,7 +247,7 @@ export function ExamTakingView({ session }: Props) {
             </button>
           ))}
         </div>
-        <Button variant="outline" onClick={() => setCurrentIndex((i) => Math.min(totalQuestions - 1, i + 1))} disabled={currentIndex === totalQuestions - 1}>
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setCurrentIndex((i) => Math.min(totalQuestions - 1, i + 1))} disabled={currentIndex === totalQuestions - 1}>
           Next<ChevronRight className="ml-1 h-4 w-4" />
         </Button>
       </div>

@@ -71,7 +71,7 @@ function Row({ icon, label, value }: { icon?: React.ReactNode; label: string; va
         {icon}
         {label}
       </div>
-      <div className="text-sm font-medium">{value}</div>
+      <div className="min-w-0 truncate text-sm font-medium">{value}</div>
     </div>
   );
 }

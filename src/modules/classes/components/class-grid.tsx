@@ -68,7 +68,7 @@ export function ClassGrid({ classes }: Props) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7"
+                className="h-8 w-8"
                 onClick={() => setEditingClass(cls)}
                 disabled={isPending}
               >
@@ -77,7 +77,7 @@ export function ClassGrid({ classes }: Props) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-destructive"
+                className="h-8 w-8 text-destructive"
                 onClick={() => handleDeleteClass(cls.id)}
                 disabled={isPending}
               >
@@ -101,8 +101,9 @@ export function ClassGrid({ classes }: Props) {
                       {sec.name}
                       <button
                         onClick={() => handleDeleteSection(sec.id)}
-                        className="ml-1 text-destructive hover:text-destructive/80"
+                        className="ml-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive/80"
                         disabled={isPending}
+                        aria-label={`Remove section ${sec.name}`}
                       >
                         &times;
                       </button>

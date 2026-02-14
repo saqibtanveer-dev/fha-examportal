@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +43,7 @@ export function UsersPageClient({ result, allSubjects = [], allClasses = [] }: P
   const searchParams = useSearchParams();
   const currentSearch = searchParams.get('search') ?? '';
   const currentRole = searchParams.get('role') ?? '';
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   function updateFilters(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -91,8 +92,8 @@ export function UsersPageClient({ result, allSubjects = [], allClasses = [] }: P
             placeholder="Search by name or email..."
             defaultValue={currentSearch}
             onChange={(e) => {
-              const timer = setTimeout(() => updateFilters('search', e.target.value), 400);
-              return () => clearTimeout(timer);
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => updateFilters('search', e.target.value), 400);
             }}
             className="pl-9"
           />
@@ -101,7 +102,7 @@ export function UsersPageClient({ result, allSubjects = [], allClasses = [] }: P
           value={currentRole}
           onValueChange={(val) => updateFilters('role', val === 'ALL' ? '' : val)}
         >
-          <SelectTrigger className="w-40">
+          <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="All Roles" />
           </SelectTrigger>
           <SelectContent>

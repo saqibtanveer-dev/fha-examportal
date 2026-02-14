@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Table,
@@ -31,6 +32,7 @@ type Props = { result: PaginatedResult<AuditEntry> };
 export function AuditLogClient({ result }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -54,8 +56,8 @@ export function AuditLogClient({ result }: Props) {
           placeholder="Filter by action..."
           defaultValue={searchParams.get('action') ?? ''}
           onChange={(e) => {
-            const timer = setTimeout(() => updateFilter('action', e.target.value), 400);
-            return () => clearTimeout(timer);
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            debounceRef.current = setTimeout(() => updateFilter('action', e.target.value), 400);
           }}
           className="pl-9"
         />
@@ -64,7 +66,7 @@ export function AuditLogClient({ result }: Props) {
       {result.data.length === 0 ? (
         <EmptyState icon={<Shield className="h-12 w-12 text-muted-foreground" />} title="No logs" description="No audit entries found." />
       ) : (
-        <div className="rounded-md border">
+        <div className="overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>

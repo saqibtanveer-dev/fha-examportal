@@ -109,7 +109,7 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
               {antiCheatInfo.isFlagged ? 'Session Flagged — Suspicious Activity' : 'Anti-Cheat Alerts'}
             </span>
           </div>
-          <div className="flex gap-4 text-xs text-muted-foreground">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             {antiCheatInfo.tabSwitchCount > 0 && (
               <span>Tab switches: <strong>{antiCheatInfo.tabSwitchCount}</strong></span>
             )}
@@ -220,7 +220,7 @@ function GradeDisplay({
 
   return (
     <div className="space-y-2 rounded-md border p-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         {isAi ? (
           <Brain className="h-4 w-4 text-purple-500" />
         ) : (

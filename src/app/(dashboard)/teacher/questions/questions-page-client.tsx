@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,7 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -82,8 +83,8 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
             placeholder="Search questions..."
             defaultValue={searchParams.get('search') ?? ''}
             onChange={(e) => {
-              const timer = setTimeout(() => updateFilter('search', e.target.value), 400);
-              return () => clearTimeout(timer);
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => updateFilter('search', e.target.value), 400);
             }}
             className="pl-9"
           />
@@ -92,7 +93,7 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
           value={searchParams.get('subjectId') ?? 'ALL'}
           onValueChange={(val) => updateFilter('subjectId', val)}
         >
-          <SelectTrigger className="w-40"><SelectValue placeholder="Subject" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-40"><SelectValue placeholder="Subject" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Subjects</SelectItem>
             {subjects.map((s) => (
@@ -111,7 +112,7 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
               value={searchParams.get('classId') ?? 'ALL'}
               onValueChange={(val) => updateFilter('classId', val)}
             >
-              <SelectTrigger className="w-36"><SelectValue placeholder="Class" /></SelectTrigger>
+              <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Class" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">All Classes</SelectItem>
                 {classesForSubject.map((l) => (
@@ -125,7 +126,7 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
           value={searchParams.get('type') ?? 'ALL'}
           onValueChange={(val) => updateFilter('type', val)}
         >
-          <SelectTrigger className="w-36"><SelectValue placeholder="Type" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Type" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All Types</SelectItem>
             <SelectItem value="MCQ">MCQ</SelectItem>
@@ -137,7 +138,7 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
           value={searchParams.get('difficulty') ?? 'ALL'}
           onValueChange={(val) => updateFilter('difficulty', val)}
         >
-          <SelectTrigger className="w-36"><SelectValue placeholder="Difficulty" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Difficulty" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All</SelectItem>
             <SelectItem value="EASY">Easy</SelectItem>

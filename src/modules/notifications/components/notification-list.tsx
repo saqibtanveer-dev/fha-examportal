@@ -85,12 +85,12 @@ export function NotificationList({ notifications }: Props) {
                 </div>
                 <div className="flex gap-1">
                   {!n.isRead && (
-                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleMarkRead(n.id)} disabled={isPending}>
-                      <Check className="h-3 w-3" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleMarkRead(n.id)} disabled={isPending}>
+                      <Check className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => handleDelete(n.id)} disabled={isPending}>
-                    <X className="h-3 w-3" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(n.id)} disabled={isPending}>
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>

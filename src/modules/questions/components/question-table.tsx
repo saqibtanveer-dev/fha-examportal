@@ -73,16 +73,16 @@ export function QuestionTable({ questions }: Props) {
 
   return (
   <>
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead className="min-w-50">Title</TableHead>
-            <TableHead>Subject</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Difficulty</TableHead>
+            <TableHead className="hidden sm:table-cell">Subject</TableHead>
+            <TableHead className="hidden md:table-cell">Type</TableHead>
+            <TableHead className="hidden md:table-cell">Difficulty</TableHead>
             <TableHead>Marks</TableHead>
-            <TableHead>Used In</TableHead>
+            <TableHead className="hidden lg:table-cell">Used In</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -90,19 +90,19 @@ export function QuestionTable({ questions }: Props) {
           {questions.map((q) => (
             <TableRow key={q.id}>
               <TableCell className="font-medium">{truncate(q.title, 60)}</TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <Badge variant="outline">{q.subject.code}</Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 <Badge variant="secondary">{typeLabels[q.type] ?? q.type}</Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden md:table-cell">
                 <Badge className={difficultyColors[q.difficulty] ?? ''} variant="outline">
                   {q.difficulty}
                 </Badge>
               </TableCell>
               <TableCell>{String(q.marks)}</TableCell>
-              <TableCell>{q._count.examQuestions} exams</TableCell>
+              <TableCell className="hidden lg:table-cell">{q._count.examQuestions} exams</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

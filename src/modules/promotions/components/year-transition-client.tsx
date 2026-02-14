@@ -269,7 +269,7 @@ export function YearTransitionClient({
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-4">
+            <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
               <SummaryCard
                 label="Promoted"
                 count={promotionSummary.PROMOTED ?? 0}
@@ -367,7 +367,7 @@ export function YearTransitionClient({
       </Card>
 
       {/* Summary Bar */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
         <SummaryCard
           label="To Promote"
           count={summary.promote}
@@ -401,7 +401,7 @@ export function YearTransitionClient({
         configs.map((cfg, classIdx) => (
           <Card key={cfg.fromClassId}>
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <CardTitle className="flex items-center gap-2 text-lg">
                     {cfg.fromClassName}
@@ -445,7 +445,7 @@ export function YearTransitionClient({
 
               {/* Default section for promoted students */}
               {!cfg.isHighestGrade && cfg.toSections.length > 0 && (
-                <div className="mt-3 flex items-center gap-3">
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                   <span className="text-sm text-muted-foreground">
                     Default section in {cfg.toClassName}:
                   </span>
@@ -453,7 +453,7 @@ export function YearTransitionClient({
                     value={cfg.defaultSectionId ?? ''}
                     onValueChange={(v) => updateDefaultSection(classIdx, v)}
                   >
-                    <SelectTrigger className="w-32">
+                    <SelectTrigger className="w-full sm:w-32">
                       <SelectValue placeholder="Section" />
                     </SelectTrigger>
                     <SelectContent>
@@ -468,6 +468,7 @@ export function YearTransitionClient({
               )}
             </CardHeader>
             <CardContent>
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -550,6 +551,7 @@ export function YearTransitionClient({
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </CardContent>
           </Card>
         ))

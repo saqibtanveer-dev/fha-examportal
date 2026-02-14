@@ -167,6 +167,7 @@ function ExamQuestionsTable({
   isPending: boolean;
 }) {
   return (
+    <div className="overflow-x-auto">
     <Table>
       <TableHeader>
         <TableRow>
@@ -206,6 +207,7 @@ function ExamQuestionsTable({
         ))}
       </TableBody>
     </Table>
+    </div>
   );
 }
 

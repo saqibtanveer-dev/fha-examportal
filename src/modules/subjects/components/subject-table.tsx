@@ -70,16 +70,16 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
 
   return (
   <>
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
             <TableHead>Code</TableHead>
-            <TableHead>Department</TableHead>
-            <TableHead>Assigned Classes</TableHead>
-            <TableHead>Questions</TableHead>
-            <TableHead>Exams</TableHead>
+            <TableHead className="hidden sm:table-cell">Department</TableHead>
+            <TableHead className="hidden md:table-cell">Assigned Classes</TableHead>
+            <TableHead className="hidden lg:table-cell">Questions</TableHead>
+            <TableHead className="hidden lg:table-cell">Exams</TableHead>
             <TableHead>Status</TableHead>
             <TableHead className="w-12" />
           </TableRow>
@@ -89,8 +89,8 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
             <TableRow key={subj.id}>
               <TableCell className="font-medium">{subj.name}</TableCell>
               <TableCell><code className="text-xs">{subj.code}</code></TableCell>
-              <TableCell>{subj.department.name}</TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">{subj.department.name}</TableCell>
+              <TableCell className="hidden md:table-cell">
                 <SubjectClassManager
                   subjectId={subj.id}
                   subjectName={subj.name}
@@ -98,8 +98,8 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
                   allClasses={allClasses}
                 />
               </TableCell>
-              <TableCell>{subj._count.questions}</TableCell>
-              <TableCell>{subj._count.exams}</TableCell>
+              <TableCell className="hidden lg:table-cell">{subj._count.questions}</TableCell>
+              <TableCell className="hidden lg:table-cell">{subj._count.exams}</TableCell>
               <TableCell>
                 <Badge variant={subj.isActive ? 'default' : 'destructive'}>
                   {subj.isActive ? 'Active' : 'Inactive'}

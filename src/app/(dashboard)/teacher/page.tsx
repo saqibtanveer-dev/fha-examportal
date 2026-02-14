@@ -41,7 +41,7 @@ export default async function TeacherDashboardPage() {
               <card.icon className="h-5 w-5 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold">{card.value}</p>
+              <p className="text-2xl font-bold md:text-3xl">{card.value}</p>
             </CardContent>
           </Card>
         ))}

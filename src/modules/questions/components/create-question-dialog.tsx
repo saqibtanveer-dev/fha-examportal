@@ -93,7 +93,7 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects, subjectClas
           <DialogDescription>Add a new question to the bank.</DialogDescription>
         </DialogHeader>
         <form action={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Subject</Label>
               <Select value={subjectId} onValueChange={handleSubjectChange}>
@@ -117,7 +117,7 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects, subjectClas
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Type</Label>
               <Select value={type} onValueChange={setType}>
@@ -138,7 +138,7 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects, subjectClas
             <Label htmlFor="description">Description (optional)</Label>
             <Textarea id="description" name="description" rows={3} disabled={isPending} />
           </div>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
             <div className="space-y-2">
               <Label>Difficulty</Label>
               <Select value={difficulty} onValueChange={setDifficulty}>

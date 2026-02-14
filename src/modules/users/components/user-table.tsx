@@ -70,17 +70,17 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
 
   return (
   <>
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Email</TableHead>
+            <TableHead className="hidden md:table-cell">Email</TableHead>
             <TableHead>Role</TableHead>
-            <TableHead>Class / Info</TableHead>
+            <TableHead className="hidden sm:table-cell">Class / Info</TableHead>
             <TableHead>Status</TableHead>
-            <TableHead>Subjects</TableHead>
-            <TableHead>Created</TableHead>
+            <TableHead className="hidden lg:table-cell">Subjects</TableHead>
+            <TableHead className="hidden lg:table-cell">Created</TableHead>
             <TableHead className="w-12" />
           </TableRow>
         </TableHeader>
@@ -90,11 +90,11 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
               <TableCell className="font-medium">
                 {user.firstName} {user.lastName}
               </TableCell>
-              <TableCell>{user.email}</TableCell>
+              <TableCell className="hidden md:table-cell">{user.email}</TableCell>
               <TableCell>
                 <Badge variant={roleBadgeVariant[user.role] ?? 'outline'}>{user.role}</Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 {user.role === 'STUDENT' && user.studentProfile ? (
                   <div className="text-xs">
                     <span className="font-medium">{user.studentProfile.class?.name}</span>
@@ -118,7 +118,7 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
                   {user.isActive ? 'Active' : 'Inactive'}
                 </Badge>
               </TableCell>
-              <TableCell>
+              <TableCell className="hidden lg:table-cell">
                 {user.role === 'TEACHER' && user.teacherProfile ? (
                   <TeacherSubjectAssigner
                     teacherProfileId={user.teacherProfile.id}
@@ -139,7 +139,7 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
                   <span className="text-muted-foreground text-xs">—</span>
                 )}
               </TableCell>
-              <TableCell>{formatDate(user.createdAt)}</TableCell>
+              <TableCell className="hidden lg:table-cell">{formatDate(user.createdAt)}</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

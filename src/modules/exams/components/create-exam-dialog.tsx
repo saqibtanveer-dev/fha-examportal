@@ -106,7 +106,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
           <DialogDescription>Build a new exam from your question bank.</DialogDescription>
         </DialogHeader>
         <form action={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input id="title" name="title" required disabled={isPending} />
@@ -123,7 +123,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
               </Select>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Subject</Label>
               <Select value={subjectId} onValueChange={setSubjectId}>

@@ -47,7 +47,7 @@ export function ExamAnalyticsChart({ analytics }: Props) {
           <CardTitle className="text-sm font-medium">Summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Stat label="Total Students" value={String(analytics.total)} />
             <Stat label="Passed" value={String(analytics.passed)} />
             <Stat label="Failed" value={String(analytics.failed)} />

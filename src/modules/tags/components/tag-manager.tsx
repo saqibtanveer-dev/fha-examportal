@@ -78,7 +78,7 @@ export function TagManager({ tags }: Props) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <Input
             placeholder="Tag name..."
             value={name}
@@ -87,7 +87,7 @@ export function TagManager({ tags }: Props) {
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
           />
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger className="w-36">
+            <SelectTrigger className="w-full sm:w-36">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -116,10 +116,10 @@ export function TagManager({ tags }: Props) {
                 {tag._count.questionTags === 0 && (
                   <button
                     onClick={() => handleDelete(tag.id)}
-                    className="ml-1 hover:text-destructive"
+                    className="ml-1 rounded-sm p-0.5 hover:text-destructive"
                     disabled={isPending}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </button>
                 )}
               </Badge>

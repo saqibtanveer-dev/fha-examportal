@@ -111,7 +111,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
         </DialogHeader>
         <form action={handleSubmit} className="space-y-4">
           {/* Basic Info */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="firstName">First Name</Label>
               <Input id="firstName" name="firstName" required disabled={isPending} />
@@ -149,7 +149,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
           {role === 'STUDENT' && (
             <div className="space-y-4 rounded-lg border p-4">
               <h4 className="text-sm font-semibold text-foreground">Student Profile</h4>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Class <span className="text-destructive">*</span></Label>
                   <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isPending}>
@@ -185,7 +185,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
                   </Select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="rollNumber">Roll Number <span className="text-destructive">*</span></Label>
                   <Input id="rollNumber" name="rollNumber" required disabled={isPending} placeholder="e.g. 101" />
@@ -195,7 +195,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
                   <Input id="registrationNo" name="registrationNo" required disabled={isPending} placeholder="e.g. STU-2026-001" />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="guardianName">Guardian Name</Label>
                   <Input id="guardianName" name="guardianName" disabled={isPending} />
@@ -205,7 +205,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
                   <Input id="guardianPhone" name="guardianPhone" disabled={isPending} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="dateOfBirth">Date of Birth</Label>
                   <Input id="dateOfBirth" name="dateOfBirth" type="date" disabled={isPending} />
@@ -235,7 +235,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
                 <Label htmlFor="employeeId">Employee ID <span className="text-destructive">*</span></Label>
                 <Input id="employeeId" name="employeeId" required disabled={isPending} placeholder="e.g. EMP-001" />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="qualification">Qualification</Label>
                   <Input id="qualification" name="qualification" disabled={isPending} placeholder="e.g. M.Sc Physics" />

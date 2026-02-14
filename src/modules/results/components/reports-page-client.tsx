@@ -167,6 +167,7 @@ function SubjectTable({ subjects }: { subjects: SubjectPerformance[] }) {
         <CardTitle>Subject Performance</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -203,6 +204,7 @@ function SubjectTable({ subjects }: { subjects: SubjectPerformance[] }) {
             )}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -217,6 +219,7 @@ function RecentExamsTable({ exams }: { exams: RecentExamSummary[] }) {
         <CardTitle>Recent Exams</CardTitle>
       </CardHeader>
       <CardContent>
+        <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -253,6 +256,7 @@ function RecentExamsTable({ exams }: { exams: RecentExamSummary[] }) {
             )}
           </TableBody>
         </Table>
+        </div>
       </CardContent>
     </Card>
   );

@@ -85,7 +85,7 @@ export function McqOptionsEditor({ options, onChange }: Props) {
             type="button"
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8"
             onClick={() => removeOption(i)}
             disabled={options.length <= 2}
           >

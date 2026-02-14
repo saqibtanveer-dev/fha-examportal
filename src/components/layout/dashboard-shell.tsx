@@ -27,12 +27,15 @@ export function DashboardShell({
   children,
 }: DashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background">
       <Sidebar
         navigation={navigation}
         collapsed={collapsed}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
         onToggle={() => setCollapsed(!collapsed)}
       />
       <TopNav
@@ -40,14 +43,16 @@ export function DashboardShell({
         sidebarCollapsed={collapsed}
         notificationCount={notificationCount}
         onSignOut={onSignOut}
+        onMobileMenuToggle={() => setMobileOpen(true)}
       />
       <main
         className={cn(
           'pt-16 transition-all duration-300',
-          collapsed ? 'pl-16' : 'pl-64',
+          // No left padding on mobile; sidebar is a drawer
+          collapsed ? 'md:pl-16' : 'md:pl-64',
         )}
       >
-        <div className="p-6">{children}</div>
+        <div className="p-4 md:p-6">{children}</div>
       </main>
     </div>
   );

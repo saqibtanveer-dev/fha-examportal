@@ -74,7 +74,7 @@ export function ExamGrid({ exams }: Props) {
               </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isPending}>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
                     <MoreHorizontal className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>

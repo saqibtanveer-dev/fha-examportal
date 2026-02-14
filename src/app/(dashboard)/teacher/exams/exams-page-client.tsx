@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,7 @@ export function ExamsPageClient({ result, subjects, classes, questions, academic
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -64,8 +65,8 @@ export function ExamsPageClient({ result, subjects, classes, questions, academic
             placeholder="Search exams..."
             defaultValue={searchParams.get('search') ?? ''}
             onChange={(e) => {
-              const timer = setTimeout(() => updateFilter('search', e.target.value), 400);
-              return () => clearTimeout(timer);
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => updateFilter('search', e.target.value), 400);
             }}
             className="pl-9"
           />
@@ -74,7 +75,7 @@ export function ExamsPageClient({ result, subjects, classes, questions, academic
           value={searchParams.get('status') ?? 'ALL'}
           onValueChange={(val) => updateFilter('status', val)}
         >
-          <SelectTrigger className="w-36"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-36"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="ALL">All</SelectItem>
             <SelectItem value="DRAFT">Draft</SelectItem>

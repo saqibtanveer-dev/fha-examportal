@@ -35,18 +35,18 @@ export function ResultsTable({ results, viewMode = 'student', examId }: Props) {
   }
 
   return (
-    <div className="rounded-md border">
+    <div className="overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
             {isTeacher && <TableHead>Student</TableHead>}
             <TableHead>Exam</TableHead>
-            <TableHead>Subject</TableHead>
+            <TableHead className="hidden sm:table-cell">Subject</TableHead>
             <TableHead className="text-center">Marks</TableHead>
-            <TableHead className="text-center">Percentage</TableHead>
-            <TableHead className="text-center">Grade</TableHead>
+            <TableHead className="hidden sm:table-cell text-center">Percentage</TableHead>
+            <TableHead className="hidden md:table-cell text-center">Grade</TableHead>
             <TableHead className="text-center">Status</TableHead>
-            <TableHead>Date</TableHead>
+            <TableHead className="hidden lg:table-cell">Date</TableHead>
             <TableHead className="text-center">Details</TableHead>
           </TableRow>
         </TableHeader>
@@ -59,16 +59,16 @@ export function ResultsTable({ results, viewMode = 'student', examId }: Props) {
                 </TableCell>
               )}
               <TableCell className="font-medium">{r.exam.title}</TableCell>
-              <TableCell>
+              <TableCell className="hidden sm:table-cell">
                 <Badge variant="outline">{r.exam.subject.code}</Badge>
               </TableCell>
               <TableCell className="text-center">
                 {String(r.obtainedMarks)} / {String(r.totalMarks)}
               </TableCell>
-              <TableCell className="text-center font-medium">
+              <TableCell className="hidden sm:table-cell text-center font-medium">
                 {formatPercentage(Number(r.percentage))}
               </TableCell>
-              <TableCell className="text-center">
+              <TableCell className="hidden md:table-cell text-center">
                 {r.grade ? (
                   <Badge variant="secondary">{r.grade}</Badge>
                 ) : (
@@ -80,7 +80,7 @@ export function ResultsTable({ results, viewMode = 'student', examId }: Props) {
                   {r.isPassed ? 'Passed' : 'Failed'}
                 </Badge>
               </TableCell>
-              <TableCell className="text-muted-foreground">
+              <TableCell className="hidden lg:table-cell text-muted-foreground">
                 {formatDate(r.createdAt)}
               </TableCell>
               <TableCell className="text-center">

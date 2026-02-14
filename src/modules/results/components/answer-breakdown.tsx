@@ -125,7 +125,7 @@ function GradeDisplay({
   return (
     <div className="space-y-2">
       {/* Marks */}
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant={g.isCorrect ? 'default' : g.marksAwarded > 0 ? 'secondary' : 'destructive'}
           className="text-sm"
@@ -185,9 +185,9 @@ function QuestionCard({
   return (
     <Card className={cn('border-l-4', statusColor)}>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="text-xs">
                 Q{answer.questionNumber}
               </Badge>
@@ -199,7 +199,7 @@ function QuestionCard({
               {answer.questionTitle}
             </CardTitle>
           </div>
-          <div className="shrink-0 text-right">
+          <div className="sm:shrink-0 sm:text-right">
             <GradeDisplay answer={answer} aiInfo={aiInfo} />
           </div>
         </div>
