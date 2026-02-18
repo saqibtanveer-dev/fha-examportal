@@ -139,7 +139,7 @@ function GradeDisplay({
 
       {/* Teacher/AI feedback */}
       {g.feedback && (
-        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/20">
+        <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/20 overflow-y-scroll max-w-2xl lg:text-left">
           <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <p className="whitespace-pre-wrap">{g.feedback}</p>
         </div>
