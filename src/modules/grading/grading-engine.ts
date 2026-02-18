@@ -3,6 +3,7 @@ import { DEFAULT_GRADING_SCALE } from '@/lib/constants';
 
 /**
  * Auto-grade all MCQ answers in a session.
+ * Uses a transaction to batch all grade upserts atomically.
  * Returns total auto-graded marks.
  */
 export async function autoGradeMcqAnswers(sessionId: string): Promise<number> {
@@ -14,6 +15,7 @@ export async function autoGradeMcqAnswers(sessionId: string): Promise<number> {
           examQuestion: {
             include: { question: { include: { mcqOptions: true } } },
           },
+          answerGrade: true,
         },
       },
     },
@@ -21,34 +23,52 @@ export async function autoGradeMcqAnswers(sessionId: string): Promise<number> {
 
   if (!session) return 0;
 
+  // Filter to only MCQ answers that haven't been graded yet
+  const mcqAnswers = session.studentAnswers.filter(
+    (a) => a.examQuestion.question.type === 'MCQ' && !a.answerGrade,
+  );
+
+  if (mcqAnswers.length === 0) {
+    // Return existing MCQ marks
+    return session.studentAnswers
+      .filter((a) => a.examQuestion.question.type === 'MCQ' && a.answerGrade)
+      .reduce((sum, a) => sum + Number(a.answerGrade!.marksAwarded), 0);
+  }
+
   let totalMarks = 0;
 
-  for (const answer of session.studentAnswers) {
-    const q = answer.examQuestion.question;
-    if (q.type !== 'MCQ') continue;
+  // Batch all grade upserts in a single transaction to avoid N+1
+  await prisma.$transaction(async (tx) => {
+    for (const answer of mcqAnswers) {
+      const q = answer.examQuestion.question;
+      const correctOptionIds = new Set(q.mcqOptions.filter((o) => o.isCorrect).map((o) => o.id));
+      const isCorrect = answer.selectedOptionId != null && correctOptionIds.has(answer.selectedOptionId);
+      const correctTexts = q.mcqOptions.filter((o) => o.isCorrect).map((o) => o.text).join(', ');
+      const marks = isCorrect ? Number(answer.examQuestion.marks) : 0;
+      const maxMarks = Number(answer.examQuestion.marks);
+      totalMarks += marks;
 
-    const correctOptionIds = new Set(q.mcqOptions.filter((o) => o.isCorrect).map((o) => o.id));
-    const isCorrect = answer.selectedOptionId != null && correctOptionIds.has(answer.selectedOptionId);
-    const correctTexts = q.mcqOptions.filter((o) => o.isCorrect).map((o) => o.text).join(', ');
-    const marks = isCorrect ? Number(answer.examQuestion.marks) : 0;
-    const maxMarks = Number(answer.examQuestion.marks);
-    totalMarks += marks;
+      await tx.answerGrade.upsert({
+        where: { studentAnswerId: answer.id },
+        create: {
+          studentAnswerId: answer.id,
+          gradedBy: 'SYSTEM',
+          marksAwarded: marks,
+          maxMarks,
+          feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctTexts || 'N/A'}`,
+        },
+        update: {
+          marksAwarded: marks,
+          feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctTexts || 'N/A'}`,
+        },
+      });
+    }
+  });
 
-    await prisma.answerGrade.upsert({
-      where: { studentAnswerId: answer.id },
-      create: {
-        studentAnswerId: answer.id,
-        gradedBy: 'SYSTEM',
-        marksAwarded: marks,
-        maxMarks,
-        feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctTexts || 'N/A'}`,
-      },
-      update: {
-        marksAwarded: marks,
-        feedback: isCorrect ? 'Correct' : `Incorrect. Correct: ${correctTexts || 'N/A'}`,
-      },
-    });
-  }
+  // Add existing MCQ marks
+  totalMarks += session.studentAnswers
+    .filter((a) => a.examQuestion.question.type === 'MCQ' && a.answerGrade)
+    .reduce((sum, a) => sum + Number(a.answerGrade!.marksAwarded), 0);
 
   return totalMarks;
 }
@@ -76,56 +96,62 @@ function deriveGrade(percentage: number): string {
 
 /**
  * Calculate and save exam result from graded answers.
+ * Uses a serializable transaction to prevent race conditions.
+ * Does NOT auto-publish — publishedAt is only set when explicitly publishing.
  */
 export async function calculateResult(sessionId: string) {
-  const session = await prisma.examSession.findUnique({
-    where: { id: sessionId },
-    include: {
-      exam: true,
-      studentAnswers: { include: { answerGrade: true } },
-    },
+  return prisma.$transaction(async (tx) => {
+    const session = await tx.examSession.findUnique({
+      where: { id: sessionId },
+      include: {
+        exam: true,
+        studentAnswers: { include: { answerGrade: true } },
+      },
+    });
+
+    if (!session) return null;
+
+    const obtainedMarks = session.studentAnswers.reduce(
+      (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
+      0,
+    );
+
+    const totalMarks = Number(session.exam.totalMarks);
+    const passingMarks = Number(session.exam.passingMarks);
+    const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
+    const isPassed = obtainedMarks >= passingMarks;
+    const grade = deriveGrade(percentage);
+
+    const result = await tx.examResult.upsert({
+      where: { sessionId },
+      create: {
+        sessionId,
+        studentId: session.studentId,
+        examId: session.examId,
+        obtainedMarks,
+        totalMarks,
+        percentage,
+        isPassed,
+        grade,
+        // publishedAt intentionally NOT set — teacher must explicitly publish
+      },
+      update: {
+        obtainedMarks,
+        totalMarks,
+        percentage,
+        isPassed,
+        grade,
+        // Preserve existing publishedAt on recalculation
+      },
+    });
+
+    await tx.examSession.update({
+      where: { id: sessionId },
+      data: { status: 'GRADED' },
+    });
+
+    return result;
+  }, {
+    isolationLevel: 'Serializable',
   });
-
-  if (!session) return null;
-
-  const obtainedMarks = session.studentAnswers.reduce(
-    (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
-    0,
-  );
-
-  const totalMarks = Number(session.exam.totalMarks);
-  const passingMarks = Number(session.exam.passingMarks);
-  const percentage = totalMarks > 0 ? (obtainedMarks / totalMarks) * 100 : 0;
-  const isPassed = obtainedMarks >= passingMarks;
-  const grade = deriveGrade(percentage);
-
-  const result = await prisma.examResult.upsert({
-    where: { sessionId },
-    create: {
-      sessionId,
-      studentId: session.studentId,
-      examId: session.examId,
-      obtainedMarks,
-      totalMarks,
-      percentage,
-      isPassed,
-      grade,
-      publishedAt: new Date(),
-    },
-    update: {
-      obtainedMarks,
-      totalMarks,
-      percentage,
-      isPassed,
-      grade,
-      publishedAt: new Date(),
-    },
-  });
-
-  await prisma.examSession.update({
-    where: { id: sessionId },
-    data: { status: 'GRADED' },
-  });
-
-  return result;
 }

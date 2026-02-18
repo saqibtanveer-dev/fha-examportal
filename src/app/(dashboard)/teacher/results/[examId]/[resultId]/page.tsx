@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic';
 import { notFound, redirect } from 'next/navigation';
 import { requireRole } from '@/lib/auth-utils';
 import { getTeacherResultDetail } from '@/modules/results/result-queries';
-import { AnswerBreakdown } from '@/modules/results/components';
+import { AnswerBreakdown, ResultEditActions } from '@/modules/results/components';
 import { PageHeader } from '@/components/shared';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +71,12 @@ export default async function TeacherResultDetailPage({ params }: Props) {
           { label: result.examTitle, href: `/teacher/results/${examId}` },
           { label: studentName },
         ]}
+        actions={
+          <ResultEditActions
+            sessionId={result.session.id}
+            sessionStatus={result.session.status}
+          />
+        }
       />
 
       {/* Student Info + Pass/Fail */}

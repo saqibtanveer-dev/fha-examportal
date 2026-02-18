@@ -14,6 +14,11 @@ export default async function GradingDetailPage({ params }: Props) {
 
   if (!session) redirect('/teacher/grading');
 
+  // Allow grading for SUBMITTED, GRADING, and GRADED sessions (for re-grading)
+  if (!['SUBMITTED', 'GRADING', 'GRADED'].includes(session.status)) {
+    redirect('/teacher/grading');
+  }
+
   const answers = session.studentAnswers
     .filter((a) => a.examQuestion.question.type !== 'MCQ')
     .map((a) => ({

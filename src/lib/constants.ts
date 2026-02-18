@@ -106,10 +106,10 @@ export const ROUTES = {
 
 export const DEFAULT_GRADING_SCALE = [
   { grade: 'A+', minPercentage: 90, maxPercentage: 100 },
-  { grade: 'A', minPercentage: 80, maxPercentage: 89 },
-  { grade: 'B+', minPercentage: 70, maxPercentage: 79 },
-  { grade: 'B', minPercentage: 60, maxPercentage: 69 },
-  { grade: 'C', minPercentage: 50, maxPercentage: 59 },
-  { grade: 'D', minPercentage: 40, maxPercentage: 49 },
-  { grade: 'F', minPercentage: 0, maxPercentage: 39 },
+  { grade: 'A', minPercentage: 80, maxPercentage: 89.99 },
+  { grade: 'B+', minPercentage: 70, maxPercentage: 79.99 },
+  { grade: 'B', minPercentage: 60, maxPercentage: 69.99 },
+  { grade: 'C', minPercentage: 50, maxPercentage: 59.99 },
+  { grade: 'D', minPercentage: 40, maxPercentage: 49.99 },
+  { grade: 'F', minPercentage: 0, maxPercentage: 39.99 },
 ] as const;

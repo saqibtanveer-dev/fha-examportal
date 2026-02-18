@@ -33,3 +33,16 @@ export async function requireRole(...roles: UserRole[]) {
 export async function getAuthSession() {
   return auth();
 }
+
+/**
+ * Check if the current user can access a session for grading.
+ * ADMIN can access all sessions, TEACHER can only access sessions for exams they created.
+ */
+export function canAccessSession(
+  userRole: string,
+  userId: string,
+  examCreatedById: string,
+): boolean {
+  if (userRole === 'ADMIN') return true;
+  return userId === examCreatedById;
+}

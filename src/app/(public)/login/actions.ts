@@ -3,6 +3,7 @@
 import { signIn, signOut } from '@/lib/auth';
 import { loginSchema } from '@/validations/user-schemas';
 import { AuthError } from 'next-auth';
+import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
 
 export type AuthActionResult = {
   success: boolean;
@@ -18,6 +19,17 @@ export async function loginAction(formData: FormData): Promise<AuthActionResult>
   const parsed = loginSchema.safeParse(raw);
   if (!parsed.success) {
     return { success: false, error: 'Invalid email or password format' };
+  }
+
+  // Rate limit by email to prevent brute-force attacks
+  const rateLimitKey = `login:${parsed.data.email.toLowerCase()}`;
+  const rateLimit = checkRateLimit(rateLimitKey, RATE_LIMITS.LOGIN);
+  if (!rateLimit.allowed) {
+    const retryMinutes = Math.ceil(rateLimit.retryAfterMs / 60000);
+    return {
+      success: false,
+      error: `Too many login attempts. Please try again in ${retryMinutes} minute${retryMinutes !== 1 ? 's' : ''}.`,
+    };
   }
 
   try {

@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import type { ActionResult } from '@/types/action-result';
 
 type CsvUser = {
@@ -31,10 +32,15 @@ type ImportResult = {
   created: number;
   skipped: number;
   errors: { row: number; email: string; error: string }[];
+  credentials: { email: string; tempPassword: string }[];
 };
 
 const VALID_ROLES = ['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT'];
-const DEFAULT_PASSWORD = 'Temp@1234';
+
+/** Generate a cryptographically random temporary password */
+function generateTempPassword(): string {
+  return crypto.randomBytes(12).toString('base64url');
+}
 
 /**
  * Import users from CSV data.
@@ -52,6 +58,7 @@ export async function importUsersFromCsvAction(
     created: 0,
     skipped: 0,
     errors: [],
+    credentials: [],
   };
 
   for (let i = 0; i < csvRows.length; i++) {
@@ -137,7 +144,8 @@ export async function importUsersFromCsvAction(
     }
 
     try {
-      const passwordHash = await bcrypt.hash(row.password ?? DEFAULT_PASSWORD, 12);
+      const tempPassword = row.password ?? generateTempPassword();
+      const passwordHash = await bcrypt.hash(tempPassword, 12);
 
       await prisma.user.create({
         data: {
@@ -178,6 +186,10 @@ export async function importUsersFromCsvAction(
       });
 
       result.created++;
+      // Track generated credentials so admin can distribute them
+      if (!row.password) {
+        result.credentials.push({ email: row.email.toLowerCase(), tempPassword });
+      }
     } catch (err) {
       result.errors.push({
         row: rowNum,

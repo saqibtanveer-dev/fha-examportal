@@ -2,7 +2,7 @@ import { generateObject } from 'ai';
 import { gradingModel } from '@/lib/ai';
 import { prisma } from '@/lib/prisma';
 import { logger } from '@/lib/logger';
-import { AI_CONFIDENCE_THRESHOLD, AI_MAX_TOKENS } from '@/lib/constants';
+import { AI_CONFIDENCE_THRESHOLD, AI_MAX_TOKENS, AI_GRADING_MODEL } from '@/lib/constants';
 import {
   shortAnswerGradeSchema,
   longAnswerGradeSchema,
@@ -207,7 +207,7 @@ async function saveAiGrade(studentAnswerId: string, data: SaveGradeInput) {
       maxMarks: data.maxMarks,
       feedback: data.feedback,
       aiConfidence: data.confidence,
-      aiModelUsed: 'gpt-4o-mini',
+      aiModelUsed: AI_GRADING_MODEL,
       aiPromptTokens: data.promptTokens,
       aiResponseTokens: data.responseTokens,
     },
@@ -216,7 +216,7 @@ async function saveAiGrade(studentAnswerId: string, data: SaveGradeInput) {
       marksAwarded: data.marksAwarded,
       feedback: data.feedback,
       aiConfidence: data.confidence,
-      aiModelUsed: 'gpt-4o-mini',
+      aiModelUsed: AI_GRADING_MODEL,
       aiPromptTokens: data.promptTokens,
       aiResponseTokens: data.responseTokens,
       isReviewed: false,

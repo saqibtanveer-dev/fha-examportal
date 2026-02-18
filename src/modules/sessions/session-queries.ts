@@ -43,7 +43,23 @@ export async function getActiveSessionForStudent(examId: string, studentId: stri
         include: {
           examQuestions: {
             orderBy: { sortOrder: 'asc' },
-            include: { question: { include: { mcqOptions: true } } },
+            include: {
+              question: {
+                include: {
+                  mcqOptions: {
+                    // SECURITY: Exclude isCorrect to prevent answer leakage during active exams
+                    select: {
+                      id: true,
+                      text: true,
+                      label: true,
+                      imageUrl: true,
+                      sortOrder: true,
+                    },
+                    orderBy: { sortOrder: 'asc' },
+                  },
+                },
+              },
+            },
           },
         },
       },

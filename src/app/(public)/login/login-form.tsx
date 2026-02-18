@@ -18,7 +18,10 @@ export function LoginForm() {
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') ?? '/';
+  
+  // Sanitize callbackUrl to prevent open redirect — only allow relative paths
+  const rawCallback = searchParams.get('callbackUrl') ?? '/';
+  const callbackUrl = rawCallback.startsWith('/') && !rawCallback.startsWith('//') ? rawCallback : '/';
 
   function handleSubmit(formData: FormData) {
     setError(null);

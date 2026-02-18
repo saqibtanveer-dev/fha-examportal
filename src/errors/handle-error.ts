@@ -36,8 +36,14 @@ function isPrismaError(error: unknown): error is { code: string; meta?: Record<s
 function handlePrismaError(error: { code: string; meta?: Record<string, unknown> }) {
   switch (error.code) {
     case 'P2002': {
+      // Don't expose field names in production — could reveal schema details
       const target = (error.meta?.target as string[])?.join(', ') ?? 'field';
-      return errorResponse(`A record with this ${target} already exists`, 409);
+      return errorResponse(
+        process.env.NODE_ENV === 'development'
+          ? `A record with this ${target} already exists`
+          : 'A record with this value already exists',
+        409,
+      );
     }
     case 'P2025':
       return errorResponse('Record not found', 404);
@@ -45,6 +51,6 @@ function handlePrismaError(error: { code: string; meta?: Record<string, unknown>
       return errorResponse('Related record not found', 400);
     default:
       logger.error({ prismaCode: error.code, meta: error.meta }, 'Unhandled Prisma error');
-      return errorResponse('Database error', 500);
+      return errorResponse('An unexpected error occurred', 500);
   }
 }

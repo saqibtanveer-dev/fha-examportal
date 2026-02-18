@@ -7,14 +7,15 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { PageHeader, EmptyState, Spinner } from '@/components/shared';
 import { autoGradeSessionAction } from '@/modules/grading/grading-actions';
-import { aiGradeSessionAction } from '@/modules/grading/ai-grading-actions';
+import { aiGradeSessionAction, finalizeSessionAction } from '@/modules/grading/ai-grading-actions';
 import { toast } from 'sonner';
-import { Zap, PenLine, Brain, ShieldAlert } from 'lucide-react';
+import { Zap, PenLine, Brain, ShieldAlert, Send } from 'lucide-react';
 import Link from 'next/link';
 
 type Session = {
   id: string;
   attemptNumber: number;
+  status: string;
   submittedAt: Date | null;
   tabSwitchCount?: number;
   isFlagged?: boolean;
@@ -56,6 +57,18 @@ export function GradingPageClient({ sessions }: Props) {
     });
   }
 
+  function handleFinalize(sessionId: string) {
+    startTransition(async () => {
+      const result = await finalizeSessionAction(sessionId);
+      if (result.success) {
+        toast.success('Result finalized and published!');
+        router.refresh();
+      } else {
+        toast.error(result.error ?? 'Failed to finalize');
+      }
+    });
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -73,7 +86,14 @@ export function GradingPageClient({ sessions }: Props) {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <Badge variant="outline">{s.exam.subject.name}</Badge>
-                  <Badge variant="secondary">{s._count.studentAnswers} answers</Badge>
+                  <div className="flex items-center gap-2">
+                    {s.status === 'GRADING' && (
+                      <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">
+                        AI Graded — Review
+                      </Badge>
+                    )}
+                    <Badge variant="secondary">{s._count.studentAnswers} answers</Badge>
+                  </div>
                 </div>
                 <CardTitle className="text-base">{s.exam.title}</CardTitle>
               </CardHeader>
@@ -101,6 +121,17 @@ export function GradingPageClient({ sessions }: Props) {
                       <PenLine className="mr-1 h-3.5 w-3.5" />Manual
                     </Link>
                   </Button>
+                  {s.status === 'GRADING' && (
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => handleFinalize(s.id)}
+                      disabled={isPending}
+                    >
+                      {isPending ? <Spinner size="sm" className="mr-1" /> : <Send className="mr-1 h-3.5 w-3.5" />}
+                      Finalize
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

@@ -43,28 +43,42 @@ export async function startSessionAction(examId: string): Promise<ActionResult<{
   );
   if (!isAssigned) return { success: false, error: 'This exam is not assigned to your class' };
 
-  const existing = await prisma.examSession.findFirst({
-    where: { examId, studentId: userId, status: { in: ['NOT_STARTED', 'IN_PROGRESS'] } },
-  });
-  if (existing) return { success: true, data: { sessionId: existing.id } };
+  // Use serializable transaction to prevent race condition on maxAttempts
+  try {
+    const newSession = await prisma.$transaction(async (tx) => {
+      // Check for existing active session inside transaction
+      const existing = await tx.examSession.findFirst({
+        where: { examId, studentId: userId, status: { in: ['NOT_STARTED', 'IN_PROGRESS'] } },
+      });
+      if (existing) return existing;
 
-  const attemptCount = await prisma.examSession.count({ where: { examId, studentId: userId } });
-  if (exam.maxAttempts && attemptCount >= exam.maxAttempts) {
-    return { success: false, error: 'Maximum attempts reached' };
+      // Count attempts inside transaction to prevent race condition
+      const attemptCount = await tx.examSession.count({ where: { examId, studentId: userId } });
+      if (exam.maxAttempts && attemptCount >= exam.maxAttempts) {
+        throw new Error('Maximum attempts reached');
+      }
+
+      return tx.examSession.create({
+        data: {
+          examId,
+          studentId: userId,
+          attemptNumber: attemptCount + 1,
+          status: 'IN_PROGRESS',
+          startedAt: new Date(),
+        },
+      });
+    }, {
+      isolationLevel: 'Serializable',
+    });
+
+    revalidatePath('/student/exams');
+    return { success: true, data: { sessionId: newSession.id } };
+  } catch (err) {
+    if (err instanceof Error && err.message === 'Maximum attempts reached') {
+      return { success: false, error: 'Maximum attempts reached' };
+    }
+    throw err;
   }
-
-  const newSession = await prisma.examSession.create({
-    data: {
-      examId,
-      studentId: userId,
-      attemptNumber: attemptCount + 1,
-      status: 'IN_PROGRESS',
-      startedAt: new Date(),
-    },
-  });
-
-  revalidatePath('/student/exams');
-  return { success: true, data: { sessionId: newSession.id } };
 }
 
 // ============================================
@@ -142,7 +156,14 @@ export async function submitSessionAction(sessionId: string): Promise<ActionResu
   await autoGradeMcqAnswers(sessionId);
   const fullyGraded = await isSessionFullyGraded(sessionId);
   if (fullyGraded) {
+    // All answers were MCQ — auto-finalize result
     await calculateResult(sessionId);
+  } else {
+    // Has non-MCQ answers — set to GRADING so it appears in teacher's grading queue
+    await prisma.examSession.update({
+      where: { id: sessionId },
+      data: { status: 'GRADING' },
+    });
   }
 
   revalidatePath('/student/exams');
