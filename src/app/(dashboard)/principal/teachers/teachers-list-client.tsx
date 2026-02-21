@@ -149,8 +149,8 @@ export function TeachersListClient({ teachers, total, currentPage, search }: Pro
       </div>
 
       {/* Desktop Table View */}
-      <Card className="hidden md:block">
-        <CardContent className="p-0">
+      <Card className="hidden overflow-hidden md:block">
+        <CardContent className="overflow-x-auto p-0">
           <Table>
             <TableHeader>
               <TableRow>

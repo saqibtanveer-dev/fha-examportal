@@ -54,11 +54,13 @@ export function ResultsTable({ results, viewMode = 'student', examId }: Props) {
           {results.map((r) => (
             <TableRow key={r.id}>
               {isTeacher && (
-                <TableCell className="font-medium">
-                  {r.student.firstName} {r.student.lastName}
+                <TableCell className="max-w-40 font-medium">
+                  <span className="line-clamp-1">{r.student.firstName} {r.student.lastName}</span>
                 </TableCell>
               )}
-              <TableCell className="font-medium">{r.exam.title}</TableCell>
+              <TableCell className="max-w-48 font-medium">
+                <span className="line-clamp-2 wrap-break-word">{r.exam.title}</span>
+              </TableCell>
               <TableCell className="hidden sm:table-cell">
                 <Badge variant="outline">{r.exam.subject.code}</Badge>
               </TableCell>

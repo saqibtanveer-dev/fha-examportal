@@ -192,7 +192,7 @@ export function ExamTakingView({ session }: Props) {
               <Badge variant="secondary">{String(current.marks)} marks</Badge>
             </div>
           </div>
-          <CardTitle className="text-lg">{q.title}</CardTitle>
+          <CardTitle className="text-lg wrap-break-word">{q.title}</CardTitle>
         </CardHeader>
         <CardContent>
           {q.type === 'MCQ' && q.mcqOptions.length > 0 && (
@@ -205,9 +205,9 @@ export function ExamTakingView({ session }: Props) {
               className="space-y-2"
             >
               {q.mcqOptions.map((opt) => (
-                <label key={opt.id} className="flex items-center gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent">
-                  <RadioGroupItem value={opt.id} />
-                  <span>{opt.text}</span>
+                <label key={opt.id} className="flex items-start gap-3 rounded-md border p-3 cursor-pointer hover:bg-accent">
+                  <RadioGroupItem value={opt.id} className="mt-0.5 shrink-0" />
+                  <span className="min-w-0 wrap-break-word">{opt.text}</span>
                 </label>
               ))}
             </RadioGroup>

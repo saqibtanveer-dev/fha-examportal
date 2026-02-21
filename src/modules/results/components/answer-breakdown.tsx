@@ -48,21 +48,23 @@ function McqAnswer({ answer }: { answer: AnswerDetail }) {
             <div
               key={opt.id}
               className={cn(
-                'flex items-center gap-3 rounded-lg border p-3 text-sm transition-colors',
+                'flex items-start gap-3 rounded-lg border p-3 text-sm transition-colors',
                 borderClass,
                 bgClass,
               )}
             >
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold mt-0.5">
                 {opt.label}
               </span>
-              <span className="flex-1">{opt.text}</span>
-              {icon}
-              {isSelected && (
-                <Badge variant="outline" className="shrink-0 text-xs">
-                  Your answer
-                </Badge>
-              )}
+              <span className="min-w-0 flex-1 wrap-break-word">{opt.text}</span>
+              <div className="flex shrink-0 items-center gap-2">
+                {icon}
+                {isSelected && (
+                  <Badge variant="outline" className="shrink-0 text-xs">
+                    Your answer
+                  </Badge>
+                )}
+              </div>
             </div>
           );
         })}
@@ -80,7 +82,7 @@ function WrittenAnswer({ answer }: { answer: AnswerDetail }) {
     <div className="space-y-3">
       <div>
         <p className="mb-1 text-sm font-medium text-muted-foreground">Your Answer:</p>
-        <div className="rounded-lg border bg-muted/50 p-3 text-sm whitespace-pre-wrap">
+        <div className="rounded-lg border bg-muted/50 p-3 text-sm whitespace-pre-wrap wrap-break-word overflow-hidden">
           {answer.answerText || (
             <span className="italic text-muted-foreground">No answer submitted</span>
           )}
@@ -92,7 +94,7 @@ function WrittenAnswer({ answer }: { answer: AnswerDetail }) {
           <p className="mb-1 flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
             <BookOpen className="h-3.5 w-3.5" /> Model Answer:
           </p>
-          <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-sm whitespace-pre-wrap dark:border-blue-900 dark:bg-blue-950/20">
+          <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 text-sm whitespace-pre-wrap wrap-break-word overflow-hidden dark:border-blue-900 dark:bg-blue-950/20">
             {answer.modelAnswer}
           </div>
         </div>
@@ -141,7 +143,7 @@ function GradeDisplay({
       {g.feedback && (
         <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50/50 p-3 text-sm dark:border-amber-900 dark:bg-amber-950/20 overflow-y-scroll max-w-2xl lg:text-left">
           <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
-          <p className="whitespace-pre-wrap">{g.feedback}</p>
+          <p className="min-w-0 flex-1 whitespace-pre-wrap wrap-break-word overflow-hidden">{g.feedback}</p>
         </div>
       )}
 
@@ -183,23 +185,23 @@ function QuestionCard({
   else if (notGraded) statusColor = 'border-l-muted-foreground';
 
   return (
-    <Card className={cn('border-l-4', statusColor)}>
+    <Card className={cn('border-l-4 overflow-hidden', statusColor)}>
       <CardHeader className="pb-3">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-          <div className="space-y-1 min-w-0">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="shrink-0 text-xs">
                 Q{answer.questionNumber}
               </Badge>
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="shrink-0 text-xs uppercase">
                 {answer.questionType.replace('_', ' ')}
               </Badge>
             </div>
-            <CardTitle className="text-base font-medium leading-snug">
+            <CardTitle className="text-base font-medium leading-snug wrap-break-word">
               {answer.questionTitle}
             </CardTitle>
           </div>
-          <div className="sm:shrink-0 sm:text-right">
+          <div className="shrink-0 sm:text-right">
             <GradeDisplay answer={answer} aiInfo={aiInfo} />
           </div>
         </div>
@@ -216,11 +218,11 @@ function QuestionCard({
         {answer.explanation && (
           <div className="flex items-start gap-2 rounded-lg border border-indigo-200 bg-indigo-50/50 p-3 text-sm dark:border-indigo-900 dark:bg-indigo-950/20">
             <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-indigo-600" />
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="mb-0.5 font-medium text-indigo-700 dark:text-indigo-300">
                 Explanation
               </p>
-              <p className="whitespace-pre-wrap text-muted-foreground">{answer.explanation}</p>
+              <p className="whitespace-pre-wrap wrap-break-word overflow-hidden text-muted-foreground">{answer.explanation}</p>
             </div>
           </div>
         )}

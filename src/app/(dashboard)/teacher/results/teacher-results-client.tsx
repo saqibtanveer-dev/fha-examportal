@@ -39,7 +39,7 @@ export function TeacherResultsClient({ exams }: Props) {
                     {exam._count.examResults}
                   </div>
                 </div>
-                <CardTitle className="text-base">{exam.title}</CardTitle>
+                <CardTitle className="truncate text-base">{exam.title}</CardTitle>
               </CardHeader>
               <CardContent>
                 <Button size="sm" asChild className="w-full">

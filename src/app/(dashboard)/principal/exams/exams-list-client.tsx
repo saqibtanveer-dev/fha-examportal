@@ -241,12 +241,12 @@ export function ExamsListClient({
       </div>
 
       {/* Desktop Table */}
-      <Card className="hidden md:block">
+      <Card className="hidden overflow-hidden md:block">
         <CardHeader>
           <CardTitle>All Exams</CardTitle>
           <CardDescription>Comprehensive exam list with participation and performance</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>

@@ -63,9 +63,9 @@ export function ExamGrid({ exams }: Props) {
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {exams.map((exam) => (
         <Card key={exam.id}>
-          <CardHeader className="flex flex-row items-start justify-between pb-2">
-            <div className="space-y-1">
-              <CardTitle className="text-base">{exam.title}</CardTitle>
+          <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="truncate text-base">{exam.title}</CardTitle>
               <Badge variant="outline">{exam.subject.code}</Badge>
             </div>
             <div className="flex items-center gap-1">

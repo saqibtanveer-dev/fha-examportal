@@ -277,7 +277,7 @@ export function ClassDetailClient({ classData }: Props) {
           </div>
 
           {/* Desktop */}
-          <div className="hidden md:block">
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -370,7 +370,7 @@ export function ClassDetailClient({ classData }: Props) {
               </Link>
             ))}
           </div>
-          <div className="hidden md:block">
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>

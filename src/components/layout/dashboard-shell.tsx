@@ -47,7 +47,7 @@ export function DashboardShell({
       />
       <main
         className={cn(
-          'pt-16 transition-all duration-300',
+          'min-w-0 overflow-hidden pt-16 transition-all duration-300',
           // No left padding on mobile; sidebar is a drawer
           collapsed ? 'md:pl-16' : 'md:pl-64',
         )}

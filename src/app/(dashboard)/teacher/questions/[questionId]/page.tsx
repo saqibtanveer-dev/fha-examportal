@@ -93,7 +93,7 @@ export default async function QuestionDetailPage({ params }: Props) {
             <CardTitle className="text-base">Description</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="whitespace-pre-wrap text-sm">{q.description}</p>
+            <p className="whitespace-pre-wrap wrap-break-word text-sm">{q.description}</p>
           </CardContent>
         </Card>
       )}
@@ -139,7 +139,7 @@ export default async function QuestionDetailPage({ params }: Props) {
                 <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
                   Model Answer
                 </p>
-                <p className="whitespace-pre-wrap text-sm">{q.modelAnswer}</p>
+                <p className="whitespace-pre-wrap wrap-break-word text-sm">{q.modelAnswer}</p>
               </div>
             )}
             {q.explanation && (
@@ -147,7 +147,7 @@ export default async function QuestionDetailPage({ params }: Props) {
                 <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
                   Explanation
                 </p>
-                <p className="whitespace-pre-wrap text-sm">{q.explanation}</p>
+                <p className="whitespace-pre-wrap wrap-break-word text-sm">{q.explanation}</p>
               </div>
             )}
           </CardContent>

@@ -45,17 +45,17 @@ export default async function StudentResultDetailPage({ params }: Props) {
       {/* Pass / Fail + Grade + Rank badges */}
       <div className="flex flex-wrap items-center gap-2">
         {result.isPassed ? (
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+          <Badge className="shrink-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
             <CheckCircle2 className="mr-1 h-3.5 w-3.5" /> Passed
           </Badge>
         ) : (
-          <Badge className="bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+          <Badge className="shrink-0 bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
             <XCircle className="mr-1 h-3.5 w-3.5" /> Failed
           </Badge>
         )}
-        {result.grade && <Badge variant="secondary">Grade: {result.grade}</Badge>}
-        {result.rank && <Badge variant="outline">Rank #{result.rank}</Badge>}
-        <Badge variant="outline" className="text-xs">
+        {result.grade && <Badge variant="secondary" className="shrink-0">Grade: {result.grade}</Badge>}
+        {result.rank && <Badge variant="outline" className="shrink-0">Rank #{result.rank}</Badge>}
+        <Badge variant="outline" className="shrink-0 text-xs">
           Attempt #{result.session.attemptNumber}
         </Badge>
       </div>
@@ -90,25 +90,25 @@ export default async function StudentResultDetailPage({ params }: Props) {
           <CardTitle className="text-base">Session Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <dl className="grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
-            <div>
+          <dl className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-4">
+            <div className="min-w-0">
               <dt className="text-muted-foreground">Status</dt>
-              <dd className="font-medium">{result.session.status}</dd>
+              <dd className="truncate font-medium">{result.session.status}</dd>
             </div>
-            <div>
+            <div className="min-w-0">
               <dt className="text-muted-foreground">Exam Duration</dt>
-              <dd className="font-medium">{formatDuration(result.duration)}</dd>
+              <dd className="truncate font-medium">{formatDuration(result.duration)}</dd>
             </div>
             {result.session.startedAt && (
-              <div>
+              <div className="min-w-0">
                 <dt className="text-muted-foreground">Started at</dt>
-                <dd className="font-medium">{formatDateTime(result.session.startedAt)}</dd>
+                <dd className="truncate font-medium">{formatDateTime(result.session.startedAt)}</dd>
               </div>
             )}
             {result.session.submittedAt && (
-              <div>
+              <div className="min-w-0">
                 <dt className="text-muted-foreground">Submitted at</dt>
-                <dd className="font-medium">{formatDateTime(result.session.submittedAt)}</dd>
+                <dd className="truncate font-medium">{formatDateTime(result.session.submittedAt)}</dd>
               </div>
             )}
           </dl>
@@ -154,10 +154,10 @@ function InfoCard({
   return (
     <Card>
       <CardContent className="flex items-center gap-3 p-4">
-        {icon}
-        <div>
-          <p className="text-xs text-muted-foreground">{label}</p>
-          <p className="text-sm font-semibold">{value}</p>
+        <div className="shrink-0">{icon}</div>
+        <div className="min-w-0">
+          <p className="truncate text-xs text-muted-foreground">{label}</p>
+          <p className="truncate text-sm font-semibold">{value}</p>
         </div>
       </CardContent>
     </Card>

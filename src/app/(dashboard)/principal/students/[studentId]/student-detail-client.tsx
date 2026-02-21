@@ -386,7 +386,7 @@ export function StudentDetailClient({ student }: Props) {
           </div>
 
           {/* Desktop table */}
-          <div className="hidden md:block">
+          <div className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow>

@@ -87,11 +87,11 @@ export function TopNav({ user, sidebarCollapsed, notificationCount = 0, onSignOu
                   {getInitials(user.firstName, user.lastName)}
                 </AvatarFallback>
               </Avatar>
-              <div className="hidden text-left md:block">
-                <p className="text-sm font-medium leading-none">
+              <div className="hidden max-w-40 text-left md:block">
+                <p className="truncate text-sm font-medium leading-none">
                   {user.firstName} {user.lastName}
                 </p>
-                <p className="text-xs text-muted-foreground">{formatRoleLabel(user.role)}</p>
+                <p className="truncate text-xs text-muted-foreground">{formatRoleLabel(user.role)}</p>
               </div>
             </Button>
           </DropdownMenuTrigger>

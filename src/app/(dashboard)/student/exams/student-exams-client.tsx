@@ -54,7 +54,7 @@ export function StudentExamsClient({ exams }: Props) {
                       </Badge>
                     )}
                   </div>
-                  <CardTitle className="text-base">{exam.title}</CardTitle>
+                  <CardTitle className="truncate text-base">{exam.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="mb-3 text-sm text-muted-foreground">

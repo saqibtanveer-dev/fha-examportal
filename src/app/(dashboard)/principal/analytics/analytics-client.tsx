@@ -361,7 +361,7 @@ export function AnalyticsClient({
               ))}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -455,7 +455,7 @@ export function AnalyticsClient({
               ))}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -554,7 +554,7 @@ export function AnalyticsClient({
               ))}
             </div>
             {/* Desktop */}
-            <div className="hidden md:block">
+            <div className="hidden overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -762,7 +762,7 @@ function StudentTable({
         ))}
       </div>
       {/* Desktop */}
-      <div className="hidden md:block">
+      <div className="hidden overflow-x-auto md:block">
         <Table>
           <TableHeader>
             <TableRow>

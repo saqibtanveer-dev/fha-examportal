@@ -357,14 +357,14 @@ function AnswerCard({
         {/* Student Answer */}
         <div className="rounded-md border bg-muted/50 p-3">
           <Label className="text-xs text-muted-foreground">Student Answer</Label>
-          <p className="mt-1 whitespace-pre-wrap text-sm">{answer.answer || 'No answer provided'}</p>
+          <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm">{answer.answer || 'No answer provided'}</p>
         </div>
 
         {/* Model Answer */}
         {answer.question.correctAnswer && (
           <div className="rounded-md border border-green-200 bg-green-50 p-3">
             <Label className="text-xs text-green-700">Model Answer</Label>
-            <p className="mt-1 whitespace-pre-wrap text-sm text-green-800">{answer.question.correctAnswer}</p>
+            <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-green-800">{answer.question.correctAnswer}</p>
           </div>
         )}
 
@@ -525,7 +525,7 @@ function GradeDisplay({
       </div>
 
       {grade.feedback && (
-        <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+        <p className="whitespace-pre-wrap wrap-break-word text-sm text-muted-foreground">
           {grade.feedback}
         </p>
       )}

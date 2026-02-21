@@ -76,7 +76,7 @@ export function ExamInstructionsClient({ exam }: Props) {
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
           {exam.instructions ? (
-            <p className="whitespace-pre-wrap">{exam.instructions}</p>
+            <p className="whitespace-pre-wrap wrap-break-word">{exam.instructions}</p>
           ) : (
             <ul className="list-inside list-disc space-y-1 text-muted-foreground">
               <li>Read each question carefully before answering.</li>

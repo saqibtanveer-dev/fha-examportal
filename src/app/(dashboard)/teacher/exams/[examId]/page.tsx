@@ -112,14 +112,14 @@ export default async function ExamDetailPage({ params }: Props) {
           </CardHeader>
           <CardContent className="space-y-4">
             {e.description && (
-              <p className="whitespace-pre-wrap text-sm">{e.description}</p>
+              <p className="whitespace-pre-wrap wrap-break-word text-sm">{e.description}</p>
             )}
             {e.instructions && (
               <div>
                 <p className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
                   Instructions
                 </p>
-                <p className="whitespace-pre-wrap text-sm">{e.instructions}</p>
+                <p className="whitespace-pre-wrap wrap-break-word text-sm">{e.instructions}</p>
               </div>
             )}
           </CardContent>
