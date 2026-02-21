@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { PageHeader } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileQuestion, ClipboardList, PenTool } from 'lucide-react';

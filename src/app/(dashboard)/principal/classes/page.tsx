@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireRole } from '@/lib/auth-utils';
 import { PageHeader } from '@/components/shared';
 import { getClassesList } from '@/modules/principal/principal-queries';

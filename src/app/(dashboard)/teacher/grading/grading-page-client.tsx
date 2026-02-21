@@ -1,6 +1,6 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,12 +26,38 @@ type Session = {
 
 type Props = { sessions: Session[] };
 
+/** Track loading state per session + action type */
+type LoadingKey = `${string}:${'auto' | 'ai' | 'finalize'}`;
+
 export function GradingPageClient({ sessions }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const [loadingKeys, setLoadingKeys] = useState<Set<LoadingKey>>(new Set());
   const router = useRouter();
 
-  function handleAutoGrade(sessionId: string) {
-    startTransition(async () => {
+  const startLoading = useCallback((key: LoadingKey) => {
+    setLoadingKeys((prev) => new Set(prev).add(key));
+  }, []);
+
+  const stopLoading = useCallback((key: LoadingKey) => {
+    setLoadingKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
+  const isLoading = useCallback((sessionId: string, action?: 'auto' | 'ai' | 'finalize') => {
+    if (action) return loadingKeys.has(`${sessionId}:${action}`);
+    return (
+      loadingKeys.has(`${sessionId}:auto`) ||
+      loadingKeys.has(`${sessionId}:ai`) ||
+      loadingKeys.has(`${sessionId}:finalize`)
+    );
+  }, [loadingKeys]);
+
+  async function handleAutoGrade(sessionId: string) {
+    const key: LoadingKey = `${sessionId}:auto`;
+    startLoading(key);
+    try {
       const result = await autoGradeSessionAction(sessionId);
       if (result.success) {
         const data = result.data as { mcqMarks: number; fullyGraded: boolean };
@@ -40,11 +66,17 @@ export function GradingPageClient({ sessions }: Props) {
       } else {
         toast.error(result.error ?? 'Failed');
       }
-    });
+    } catch {
+      toast.error('Auto-grade failed unexpectedly');
+    } finally {
+      stopLoading(key);
+    }
   }
 
-  function handleAiGrade(sessionId: string) {
-    startTransition(async () => {
+  async function handleAiGrade(sessionId: string) {
+    const key: LoadingKey = `${sessionId}:ai`;
+    startLoading(key);
+    try {
       const result = await aiGradeSessionAction(sessionId);
       if (result.success && result.data) {
         const { graded, failed, needsReview } = result.data;
@@ -54,11 +86,17 @@ export function GradingPageClient({ sessions }: Props) {
       } else {
         toast.error(result.error ?? 'AI grading failed');
       }
-    });
+    } catch {
+      toast.error('AI grading failed unexpectedly');
+    } finally {
+      stopLoading(key);
+    }
   }
 
-  function handleFinalize(sessionId: string) {
-    startTransition(async () => {
+  async function handleFinalize(sessionId: string) {
+    const key: LoadingKey = `${sessionId}:finalize`;
+    startLoading(key);
+    try {
       const result = await finalizeSessionAction(sessionId);
       if (result.success) {
         toast.success('Result finalized and published!');
@@ -66,7 +104,11 @@ export function GradingPageClient({ sessions }: Props) {
       } else {
         toast.error(result.error ?? 'Failed to finalize');
       }
-    });
+    } catch {
+      toast.error('Finalization failed unexpectedly');
+    } finally {
+      stopLoading(key);
+    }
   }
 
   return (
@@ -81,61 +123,74 @@ export function GradingPageClient({ sessions }: Props) {
         <EmptyState title="No submissions" description="No exam submissions awaiting grading." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sessions.map((s) => (
-            <Card key={s.id}>
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant="outline">{s.exam.subject.name}</Badge>
-                  <div className="flex items-center gap-2">
-                    {s.status === 'GRADING' && (
-                      <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">
-                        AI Graded — Review
-                      </Badge>
-                    )}
-                    <Badge variant="secondary">{s._count.studentAnswers} answers</Badge>
+          {sessions.map((s) => {
+            const sessionPending = isLoading(s.id);
+            return (
+              <Card key={s.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <Badge variant="outline">{s.exam.subject.name}</Badge>
+                    <div className="flex items-center gap-2">
+                      {s.status === 'GRADING' && (
+                        <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200 text-xs">
+                          AI Graded — Review
+                        </Badge>
+                      )}
+                      <Badge variant="secondary">{s._count.studentAnswers} answers</Badge>
+                    </div>
                   </div>
-                </div>
-                <CardTitle className="text-base">{s.exam.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Student: {s.student.firstName} {s.student.lastName} (Attempt #{s.attemptNumber})
-                </p>
-                {s.isFlagged && (
-                  <div className="mb-3 flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">
-                    <ShieldAlert className="h-3.5 w-3.5" />
-                    Flagged — {s.tabSwitchCount ?? 0} tab switches detected
-                  </div>
-                )}
-                <div className="flex flex-wrap gap-2">
-                  <Button size="sm" variant="outline" onClick={() => handleAutoGrade(s.id)} disabled={isPending}>
-                    {isPending ? <Spinner size="sm" className="mr-1" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
-                    Auto-grade
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => handleAiGrade(s.id)} disabled={isPending}>
-                    {isPending ? <Spinner size="sm" className="mr-1" /> : <Brain className="mr-1 h-3.5 w-3.5" />}
-                    AI Grade
-                  </Button>
-                  <Button size="sm" asChild>
-                    <Link href={`/teacher/grading/${s.id}`}>
-                      <PenLine className="mr-1 h-3.5 w-3.5" />Manual
-                    </Link>
-                  </Button>
-                  {s.status === 'GRADING' && (
+                  <CardTitle className="text-base">{s.exam.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Student: {s.student.firstName} {s.student.lastName} (Attempt #{s.attemptNumber})
+                  </p>
+                  {s.isFlagged && (
+                    <div className="mb-3 flex items-center gap-1 rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">
+                      <ShieldAlert className="h-3.5 w-3.5" />
+                      Flagged — {s.tabSwitchCount ?? 0} tab switches detected
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
-                      className="bg-green-600 hover:bg-green-700"
-                      onClick={() => handleFinalize(s.id)}
-                      disabled={isPending}
+                      variant="outline"
+                      onClick={() => handleAutoGrade(s.id)}
+                      disabled={sessionPending}
                     >
-                      {isPending ? <Spinner size="sm" className="mr-1" /> : <Send className="mr-1 h-3.5 w-3.5" />}
-                      Finalize
+                      {isLoading(s.id, 'auto') ? <Spinner size="sm" className="mr-1" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
+                      Auto-grade
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleAiGrade(s.id)}
+                      disabled={sessionPending}
+                    >
+                      {isLoading(s.id, 'ai') ? <Spinner size="sm" className="mr-1" /> : <Brain className="mr-1 h-3.5 w-3.5" />}
+                      AI Grade
+                    </Button>
+                    <Button size="sm" asChild>
+                      <Link href={`/teacher/grading/${s.id}`}>
+                        <PenLine className="mr-1 h-3.5 w-3.5" />Manual
+                      </Link>
+                    </Button>
+                    {s.status === 'GRADING' && (
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleFinalize(s.id)}
+                        disabled={sessionPending}
+                      >
+                        {isLoading(s.id, 'finalize') ? <Spinner size="sm" className="mr-1" /> : <Send className="mr-1 h-3.5 w-3.5" />}
+                        Finalize
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
     </div>

@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { listExams } from '@/modules/exams/exam-queries';
 import { listSubjects, getSubjectsForTeacher } from '@/modules/subjects/subject-queries';
 import { listActiveClasses } from '@/modules/classes/class-queries';
@@ -68,6 +66,7 @@ export default async function ExamsPage({ searchParams }: Props) {
         title: q.title,
         marks: Number(q.marks),
         type: q.type,
+        subjectId: q.subject.id,
       }))}
       academicSessions={academicSessions.map((s) => ({
         id: s.id,

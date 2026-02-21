@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,26 +48,23 @@ type Props = {
 
 type ViewMode = 'step' | 'batch';
 
+/** Per-action loading keys for granular loading states */
+type LoadingAction = 'grade' | 'approve' | 'batch' | 'finalize';
+
 export function GradingInterface({ sessionId, answers, studentName, antiCheatInfo }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const [loadingKeys, setLoadingKeys] = useState<Set<string>>(new Set());
   const [currentIndex, setCurrentIndex] = useState(0);
   const [marks, setMarks] = useState<Record<string, string>>(() => {
-    // Pre-populate with existing grades for editing
     const initial: Record<string, string> = {};
     for (const a of answers) {
-      if (a.answerGrade) {
-        initial[a.id] = String(a.answerGrade.marksAwarded);
-      }
+      if (a.answerGrade) initial[a.id] = String(a.answerGrade.marksAwarded);
     }
     return initial;
   });
   const [feedback, setFeedback] = useState<Record<string, string>>(() => {
-    // Pre-populate with existing feedback
     const initial: Record<string, string> = {};
     for (const a of answers) {
-      if (a.answerGrade?.feedback) {
-        initial[a.id] = a.answerGrade.feedback;
-      }
+      if (a.answerGrade?.feedback) initial[a.id] = a.answerGrade.feedback;
     }
     return initial;
   });
@@ -75,17 +72,29 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
   const [viewMode, setViewMode] = useState<ViewMode>('step');
   const router = useRouter();
 
+  const startLoading = useCallback((key: string) => {
+    setLoadingKeys((prev) => new Set(prev).add(key));
+  }, []);
+  const stopLoading = useCallback((key: string) => {
+    setLoadingKeys((prev) => { const next = new Set(prev); next.delete(key); return next; });
+  }, []);
+  const isItemLoading = useCallback((id: string) => {
+    return loadingKeys.has(`grade:${id}`) || loadingKeys.has(`approve:${id}`);
+  }, [loadingKeys]);
+  const isAnyLoading = loadingKeys.size > 0;
+
   const current = answers[currentIndex];
   if (!current && viewMode === 'step') return null;
 
   const ungradedAnswers = answers.filter((a) => !a.answerGrade);
   const gradedCount = answers.length - ungradedAnswers.length;
 
-  const handleGrade = useCallback((answerId: string) => {
+  const handleGrade = useCallback(async (answerId: string) => {
     const m = parseFloat(marks[answerId] ?? '0');
     const f = feedback[answerId] ?? '';
-
-    startTransition(async () => {
+    const key = `grade:${answerId}`;
+    startLoading(key);
+    try {
       const result = await gradeAnswerAction(answerId, m, f);
       if (result.success) {
         toast.success('Answer graded');
@@ -93,11 +102,13 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       } else {
         toast.error(result.error ?? 'Failed');
       }
-    });
-  }, [marks, feedback, router]);
+    } catch { toast.error('Grading failed'); } finally { stopLoading(key); }
+  }, [marks, feedback, router, startLoading, stopLoading]);
 
-  const handleApproveAi = useCallback((gradeId: string, overrides?: { marksAwarded?: number; feedback?: string }) => {
-    startTransition(async () => {
+  const handleApproveAi = useCallback(async (gradeId: string, overrides?: { marksAwarded?: number; feedback?: string }) => {
+    const key = `approve:${gradeId}`;
+    startLoading(key);
+    try {
       const result = await approveAiGradeAction(gradeId, overrides);
       if (result.success) {
         toast.success(overrides ? 'AI grade updated & approved' : 'AI grade approved');
@@ -106,10 +117,10 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       } else {
         toast.error(result.error ?? 'Failed to approve');
       }
-    });
-  }, [router]);
+    } catch { toast.error('Approval failed'); } finally { stopLoading(key); }
+  }, [router, startLoading, stopLoading]);
 
-  const handleBatchGrade = useCallback((autoFinalize: boolean) => {
+  const handleBatchGrade = useCallback(async (autoFinalize: boolean) => {
     const grades = answers
       .filter((a) => marks[a.id] !== undefined && marks[a.id] !== '')
       .map((a) => ({
@@ -123,7 +134,9 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       return;
     }
 
-    startTransition(async () => {
+    const key = autoFinalize ? 'batch:finalize' : 'batch:save';
+    startLoading(key);
+    try {
       const result = await batchGradeAnswersAction(sessionId, grades, autoFinalize);
       if (result.success) {
         const { graded, errors } = result.data!;
@@ -138,11 +151,12 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       } else {
         toast.error(result.error ?? 'Batch grading failed');
       }
-    });
-  }, [answers, marks, feedback, sessionId, router]);
+    } catch { toast.error('Batch grading failed'); } finally { stopLoading(key); }
+  }, [answers, marks, feedback, sessionId, router, startLoading, stopLoading]);
 
-  const handleFinalize = useCallback(() => {
-    startTransition(async () => {
+  const handleFinalize = useCallback(async () => {
+    startLoading('finalize');
+    try {
       const result = await finalizeSessionAction(sessionId);
       if (result.success) {
         toast.success('Result finalized and published!');
@@ -151,8 +165,12 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       } else {
         toast.error(result.error ?? 'Failed to finalize');
       }
-    });
-  }, [sessionId, router]);
+    } catch { toast.error('Finalization failed'); } finally { stopLoading('finalize'); }
+  }, [sessionId, router, startLoading, stopLoading]);
+
+  const isBatchSaving = loadingKeys.has('batch:save');
+  const isBatchFinalizing = loadingKeys.has('batch:finalize');
+  const isFinalizing = loadingKeys.has('finalize');
 
   return (
     <div className="space-y-4">
@@ -168,7 +186,6 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
           <Badge variant={gradedCount === answers.length ? 'default' : 'secondary'}>
             {gradedCount === answers.length ? 'All Graded' : `${ungradedAnswers.length} remaining`}
           </Badge>
-          {/* View mode toggle */}
           <div className="flex rounded-md border">
             <Button
               variant={viewMode === 'step' ? 'default' : 'ghost'}
@@ -206,7 +223,8 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
               marks={marks}
               feedback={feedback}
               editingGradeId={editingGradeId}
-              isPending={isPending}
+              isLoading={isItemLoading(current.id) || isItemLoading(current.answerGrade?.id ?? '')}
+              isAnyLoading={isAnyLoading}
               onMarksChange={(id, val) => setMarks((p) => ({ ...p, [id]: val }))}
               onFeedbackChange={(id, val) => setFeedback((p) => ({ ...p, [id]: val }))}
               onGrade={handleGrade}
@@ -215,19 +233,19 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
               onCancelEdit={() => setEditingGradeId(null)}
             />
           )}
-
-          {/* Navigation */}
           <div className="flex items-center justify-between">
             <Button variant="outline" onClick={() => setCurrentIndex((i) => Math.max(0, i - 1))} disabled={currentIndex === 0}>
               <ChevronLeft className="mr-1 h-4 w-4" />Prev
             </Button>
+            <span className="text-sm text-muted-foreground">
+              {currentIndex + 1} / {answers.length}
+            </span>
             <Button variant="outline" onClick={() => setCurrentIndex((i) => Math.min(answers.length - 1, i + 1))} disabled={currentIndex === answers.length - 1}>
               Next<ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </>
       ) : (
-        /* Batch view - All questions */
         <div className="space-y-4">
           {answers.map((answer, idx) => (
             <AnswerCard
@@ -238,7 +256,8 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
               marks={marks}
               feedback={feedback}
               editingGradeId={editingGradeId}
-              isPending={isPending}
+              isLoading={isItemLoading(answer.id) || isItemLoading(answer.answerGrade?.id ?? '')}
+              isAnyLoading={isAnyLoading}
               onMarksChange={(id, val) => setMarks((p) => ({ ...p, [id]: val }))}
               onFeedbackChange={(id, val) => setFeedback((p) => ({ ...p, [id]: val }))}
               onGrade={handleGrade}
@@ -265,23 +284,23 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
               <Button
                 variant="outline"
                 onClick={() => handleBatchGrade(false)}
-                disabled={isPending}
+                disabled={isAnyLoading}
               >
-                {isPending ? <Spinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
+                {isBatchSaving ? <Spinner size="sm" className="mr-2" /> : <Save className="mr-2 h-4 w-4" />}
                 Save All Grades
               </Button>
               <Button
                 onClick={() => handleBatchGrade(true)}
-                disabled={isPending}
+                disabled={isAnyLoading}
               >
-                {isPending ? <Spinner size="sm" className="mr-2" /> : <CheckCheck className="mr-2 h-4 w-4" />}
+                {isBatchFinalizing ? <Spinner size="sm" className="mr-2" /> : <CheckCheck className="mr-2 h-4 w-4" />}
                 Grade &amp; Finalize
               </Button>
             </>
           )}
           {gradedCount === answers.length && (
-            <Button onClick={handleFinalize} disabled={isPending} className="bg-green-600 hover:bg-green-700">
-              {isPending ? <Spinner size="sm" className="mr-2" /> : <Send className="mr-2 h-4 w-4" />}
+            <Button onClick={handleFinalize} disabled={isAnyLoading} className="bg-green-600 hover:bg-green-700">
+              {isFinalizing ? <Spinner size="sm" className="mr-2" /> : <Send className="mr-2 h-4 w-4" />}
               Finalize Result
             </Button>
           )}
@@ -324,7 +343,8 @@ type AnswerCardProps = {
   marks: Record<string, string>;
   feedback: Record<string, string>;
   editingGradeId: string | null;
-  isPending: boolean;
+  isLoading: boolean;
+  isAnyLoading: boolean;
   onMarksChange: (id: string, value: string) => void;
   onFeedbackChange: (id: string, value: string) => void;
   onGrade: (answerId: string) => void;
@@ -336,7 +356,7 @@ type AnswerCardProps = {
 
 function AnswerCard({
   answer, index, total, marks, feedback, editingGradeId,
-  isPending, onMarksChange, onFeedbackChange, onGrade, onApproveAi,
+  isLoading, isAnyLoading, onMarksChange, onFeedbackChange, onGrade, onApproveAi,
   onEditGrade, onCancelEdit, compact,
 }: AnswerCardProps) {
   const isEditing = editingGradeId === answer.answerGrade?.id;
@@ -372,7 +392,8 @@ function AnswerCard({
         {answer.answerGrade && !isEditing ? (
           <GradeDisplay
             grade={answer.answerGrade}
-            isPending={isPending}
+            isLoading={isLoading}
+            isDisabled={isAnyLoading}
             onApprove={(overrides) => onApproveAi(answer.answerGrade!.id, overrides)}
             onEdit={() => onEditGrade(answer.answerGrade!.id)}
           />
@@ -381,7 +402,8 @@ function AnswerCard({
             answer={answer}
             marks={marks}
             feedback={feedback}
-            isPending={isPending}
+            isLoading={isLoading}
+            isDisabled={isAnyLoading}
             isEditing={isEditing}
             onMarksChange={onMarksChange}
             onFeedbackChange={onFeedbackChange}
@@ -398,13 +420,14 @@ function AnswerCard({
 /* ─── Grade Input Form ─── */
 
 function GradeInput({
-  answer, marks, feedback, isPending, isEditing,
+  answer, marks, feedback, isLoading, isDisabled, isEditing,
   onMarksChange, onFeedbackChange, onGrade, onApproveWithOverrides, onCancelEdit,
 }: {
   answer: Answer;
   marks: Record<string, string>;
   feedback: Record<string, string>;
-  isPending: boolean;
+  isLoading: boolean;
+  isDisabled: boolean;
   isEditing: boolean;
   onMarksChange: (id: string, value: string) => void;
   onFeedbackChange: (id: string, value: string) => void;
@@ -453,18 +476,18 @@ function GradeInput({
                 marksAwarded: parseFloat(marks[answer.id] ?? '0'),
                 feedback: feedback[answer.id] ?? '',
               })}
-              disabled={isPending}
+              disabled={isDisabled}
             >
-              {isPending && <Spinner size="sm" className="mr-2" />}
+              {isLoading && <Spinner size="sm" className="mr-2" />}
               <Save className="mr-1 h-3.5 w-3.5" />Save Changes
             </Button>
-            <Button size="sm" variant="outline" onClick={onCancelEdit} disabled={isPending}>
+            <Button size="sm" variant="outline" onClick={onCancelEdit} disabled={isDisabled}>
               Cancel
             </Button>
           </>
         ) : (
-          <Button size="sm" onClick={() => onGrade(answer.id)} disabled={isPending}>
-            {isPending && <Spinner size="sm" className="mr-2" />}
+          <Button size="sm" onClick={() => onGrade(answer.id)} disabled={isDisabled}>
+            {isLoading && <Spinner size="sm" className="mr-2" />}
             <CheckCircle className="mr-1 h-3.5 w-3.5" />Grade Answer
           </Button>
         )}
@@ -477,12 +500,14 @@ function GradeInput({
 
 function GradeDisplay({
   grade,
-  isPending,
+  isLoading,
+  isDisabled,
   onApprove,
   onEdit,
 }: {
   grade: NonNullable<Answer['answerGrade']>;
-  isPending: boolean;
+  isLoading: boolean;
+  isDisabled: boolean;
   onApprove: (overrides?: { marksAwarded?: number; feedback?: string }) => void;
   onEdit: () => void;
 }) {
@@ -531,15 +556,13 @@ function GradeDisplay({
       )}
 
       <div className="flex gap-2">
-        {/* Edit button - always available for teacher to modify grades */}
-        <Button size="sm" variant="outline" onClick={onEdit} disabled={isPending}>
+        <Button size="sm" variant="outline" onClick={onEdit} disabled={isDisabled}>
           <PenLine className="mr-1 h-3.5 w-3.5" />Edit
         </Button>
 
-        {/* Approve button - only for unreviewed AI grades */}
         {isAi && !grade.isReviewed && (
-          <Button size="sm" variant="outline" onClick={() => onApprove()} disabled={isPending}>
-            {isPending ? <Spinner size="sm" className="mr-1" /> : <Shield className="mr-1 h-3.5 w-3.5" />}
+          <Button size="sm" variant="outline" onClick={() => onApprove()} disabled={isDisabled}>
+            {isLoading ? <Spinner size="sm" className="mr-1" /> : <Shield className="mr-1 h-3.5 w-3.5" />}
             Approve
           </Button>
         )}

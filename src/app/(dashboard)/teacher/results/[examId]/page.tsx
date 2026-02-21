@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { getResultsByExam, getExamDetailedAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, ExamDetailedAnalyticsDashboard } from '@/modules/results/components';
 import { EmptyState } from '@/components/shared';

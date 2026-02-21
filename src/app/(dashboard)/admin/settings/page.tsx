@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { getSchoolSettings } from '@/modules/settings/settings-queries';
 import { listAcademicSessions } from '@/modules/academic-sessions/session-queries';
 import { SettingsForm } from './settings-form';

@@ -16,9 +16,14 @@ export function Providers({ children }: ProvidersProps) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000,
+            staleTime: 5 * 60 * 1000, // 5 minutes - data stays fresh longer
+            gcTime: 30 * 60 * 1000, // 30 minutes - cache persists in memory
             refetchOnWindowFocus: false,
+            refetchOnReconnect: true,
             retry: 1,
+          },
+          mutations: {
+            retry: 0,
           },
         },
       }),

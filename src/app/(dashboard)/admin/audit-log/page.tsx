@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { listAuditLogs } from '@/modules/audit/audit-queries';
 import { AuditLogClient } from './audit-log-client';
 

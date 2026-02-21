@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth-utils';
 import { getStudentResultDetail } from '@/modules/results/result-queries';

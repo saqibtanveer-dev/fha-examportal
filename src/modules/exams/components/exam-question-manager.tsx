@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,9 +20,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/shared';
-import { Plus, Trash2, Search } from 'lucide-react';
+import { Plus, Trash2, Search, Award } from 'lucide-react';
 import {
   addQuestionToExamAction,
   removeQuestionFromExamAction,
@@ -57,6 +63,9 @@ type Props = {
   availableQuestions: AvailableQuestion[];
 };
 
+/** Per-question loading keys */
+type LoadingKey = `${'add' | 'remove'}:${string}`;
+
 /* ─── Main Component ─── */
 
 export function ExamQuestionManager({
@@ -65,45 +74,94 @@ export function ExamQuestionManager({
   examQuestions,
   availableQuestions,
 }: Props) {
-  const [isPending, startTransition] = useTransition();
+  const [loadingKeys, setLoadingKeys] = useState<Set<LoadingKey>>(new Set());
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const router = useRouter();
+
+  const startLoading = useCallback((key: LoadingKey) => {
+    setLoadingKeys((prev) => new Set(prev).add(key));
+  }, []);
+
+  const stopLoading = useCallback((key: LoadingKey) => {
+    setLoadingKeys((prev) => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
 
   const isDraft = examStatus === 'DRAFT';
   const assignedIds = new Set(examQuestions.map((eq) => eq.question.id));
+  const isAnyLoading = loadingKeys.size > 0;
 
-  const filtered = availableQuestions.filter(
-    (q) =>
-      !assignedIds.has(q.id) &&
-      q.title.toLowerCase().includes(search.toLowerCase()),
+  const totalMarks = useMemo(
+    () => examQuestions.reduce((sum, eq) => sum + Number(eq.marks), 0),
+    [examQuestions],
   );
 
-  function handleAdd(questionId: string) {
-    startTransition(async () => {
+  const filtered = useMemo(
+    () =>
+      availableQuestions.filter(
+        (q) =>
+          !assignedIds.has(q.id) &&
+          q.title.toLowerCase().includes(search.toLowerCase()),
+      ),
+    [availableQuestions, assignedIds, search],
+  );
+
+  async function handleAdd(questionId: string) {
+    const key: LoadingKey = `add:${questionId}`;
+    startLoading(key);
+    try {
       const result = await addQuestionToExamAction(examId, questionId);
       if (result.success) {
         toast.success('Question added');
+        router.refresh();
       } else {
         toast.error(result.error ?? 'Failed to add question');
       }
-    });
+    } catch {
+      toast.error('Failed to add question');
+    } finally {
+      stopLoading(key);
+    }
   }
 
-  function handleRemove(questionId: string) {
-    startTransition(async () => {
+  async function handleRemove(questionId: string) {
+    const key: LoadingKey = `remove:${questionId}`;
+    startLoading(key);
+    try {
       const result = await removeQuestionFromExamAction(examId, questionId);
       if (result.success) {
         toast.success('Question removed');
+        router.refresh();
       } else {
         toast.error(result.error ?? 'Failed to remove question');
       }
-    });
+    } catch {
+      toast.error('Failed to remove question');
+    } finally {
+      stopLoading(key);
+    }
   }
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-base">Questions</CardTitle>
+        <div className="flex items-center gap-3">
+          <CardTitle className="text-base">Questions</CardTitle>
+          {examQuestions.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{examQuestions.length} questions</span>
+              <span>&middot;</span>
+              <span className="flex items-center gap-1 font-medium text-primary">
+                <Award className="h-3.5 w-3.5" />
+                {totalMarks} marks
+              </span>
+            </div>
+          )}
+        </div>
         {isDraft && (
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
@@ -128,7 +186,8 @@ export function ExamQuestionManager({
                 <QuestionPickerList
                   questions={filtered}
                   onAdd={handleAdd}
-                  isPending={isPending}
+                  loadingKeys={loadingKeys}
+                  isAnyLoading={isAnyLoading}
                 />
               </div>
             </DialogContent>
@@ -145,7 +204,8 @@ export function ExamQuestionManager({
             questions={examQuestions}
             isDraft={isDraft}
             onRemove={handleRemove}
-            isPending={isPending}
+            loadingKeys={loadingKeys}
+            isAnyLoading={isAnyLoading}
           />
         )}
       </CardContent>
@@ -159,12 +219,14 @@ function ExamQuestionsTable({
   questions,
   isDraft,
   onRemove,
-  isPending,
+  loadingKeys,
+  isAnyLoading,
 }: {
   questions: ExamQuestion[];
   isDraft: boolean;
   onRemove: (id: string) => void;
-  isPending: boolean;
+  loadingKeys: Set<LoadingKey>;
+  isAnyLoading: boolean;
 }) {
   return (
     <div className="overflow-x-auto">
@@ -180,31 +242,47 @@ function ExamQuestionsTable({
         </TableRow>
       </TableHeader>
       <TableBody>
-        {questions.map((eq) => (
-          <TableRow key={eq.id}>
-            <TableCell className="font-medium">{eq.sortOrder}</TableCell>
-            <TableCell>{eq.question.title}</TableCell>
-            <TableCell>
-              <Badge variant="outline">{eq.question.type}</Badge>
-            </TableCell>
-            <TableCell>
-              <Badge variant="outline">{eq.question.difficulty}</Badge>
-            </TableCell>
-            <TableCell className="text-right">{String(eq.marks)}</TableCell>
-            {isDraft && (
-              <TableCell>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  disabled={isPending}
-                  onClick={() => onRemove(eq.question.id)}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+        {questions.map((eq) => {
+          const isRemoving = loadingKeys.has(`remove:${eq.question.id}`);
+          return (
+            <TableRow key={eq.id} className={isRemoving ? 'opacity-50' : ''}>
+              <TableCell className="font-medium">{eq.sortOrder}</TableCell>
+              <TableCell className="max-w-xs">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="line-clamp-2 break-words text-sm">{eq.question.title}</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-sm">
+                    <p className="whitespace-pre-wrap break-words">{eq.question.title}</p>
+                  </TooltipContent>
+                </Tooltip>
               </TableCell>
-            )}
-          </TableRow>
-        ))}
+              <TableCell>
+                <Badge variant="outline">{eq.question.type.replace('_', ' ')}</Badge>
+              </TableCell>
+              <TableCell>
+                <Badge variant="outline">{eq.question.difficulty}</Badge>
+              </TableCell>
+              <TableCell className="text-right font-medium">{String(eq.marks)}</TableCell>
+              {isDraft && (
+                <TableCell>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={isRemoving || isAnyLoading}
+                    onClick={() => onRemove(eq.question.id)}
+                  >
+                    {isRemoving ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    )}
+                  </Button>
+                </TableCell>
+              )}
+            </TableRow>
+          );
+        })}
       </TableBody>
     </Table>
     </div>
@@ -216,11 +294,13 @@ function ExamQuestionsTable({
 function QuestionPickerList({
   questions,
   onAdd,
-  isPending,
+  loadingKeys,
+  isAnyLoading,
 }: {
   questions: AvailableQuestion[];
   onAdd: (id: string) => void;
-  isPending: boolean;
+  loadingKeys: Set<LoadingKey>;
+  isAnyLoading: boolean;
 }) {
   if (questions.length === 0) {
     return (
@@ -232,35 +312,45 @@ function QuestionPickerList({
 
   return (
     <div className="max-h-96 space-y-2 overflow-y-auto">
-      {questions.map((q) => (
-        <div
-          key={q.id}
-          className="flex items-center justify-between rounded-md border p-3"
-        >
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{q.title}</p>
-            <div className="mt-1 flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {q.type}
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                {q.difficulty}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {String(q.marks)} marks
-              </span>
-            </div>
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={isPending}
-            onClick={() => onAdd(q.id)}
+      {questions.map((q) => {
+        const isAdding = loadingKeys.has(`add:${q.id}`);
+        return (
+          <div
+            key={q.id}
+            className="flex items-center justify-between gap-3 rounded-md border p-3"
           >
-            {isPending ? <Spinner size="sm" /> : <Plus className="h-4 w-4" />}
-          </Button>
-        </div>
-      ))}
+            <div className="min-w-0 flex-1">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="line-clamp-2 break-words text-sm font-medium">{q.title}</p>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-sm">
+                  <p className="whitespace-pre-wrap break-words">{q.title}</p>
+                </TooltipContent>
+              </Tooltip>
+              <div className="mt-1 flex items-center gap-2">
+                <Badge variant="outline" className="text-xs">
+                  {q.type.replace('_', ' ')}
+                </Badge>
+                <Badge variant="outline" className="text-xs">
+                  {q.difficulty}
+                </Badge>
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  {String(q.marks)}m
+                </Badge>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={isAdding || isAnyLoading}
+              onClick={() => onAdd(q.id)}
+            >
+              {isAdding ? <Spinner size="sm" /> : <Plus className="h-4 w-4" />}
+            </Button>
+          </div>
+        );
+      })}
     </div>
   );
 }

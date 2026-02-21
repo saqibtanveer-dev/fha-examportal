@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { listQuestions } from '@/modules/questions/question-queries';
 import { listSubjects, getSubjectsForTeacher } from '@/modules/subjects/subject-queries';
 import { getTeacherProfileId } from '@/modules/users/user-queries';

@@ -20,7 +20,7 @@ import type { DeepSerialize } from '@/utils/serialize';
 
 type Subject = { id: string; name: string; code: string };
 type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
-type QuestionItem = { id: string; title: string; marks: number; type: string };
+type QuestionItem = { id: string; title: string; marks: number; type: string; subjectId: string };
 type AcademicSessionItem = { id: string; name: string; isCurrent: boolean };
 
 type Props = {

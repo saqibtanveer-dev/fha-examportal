@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireRole } from '@/lib/auth-utils';
 import { getExamsForStudent } from '@/modules/exams/exam-queries';
 import { prisma } from '@/lib/prisma';

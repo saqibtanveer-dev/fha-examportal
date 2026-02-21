@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireRole } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';

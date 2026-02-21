@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { listUsers } from '@/modules/users/user-queries';
 import { listSubjects } from '@/modules/subjects/subject-queries';
 import { listActiveClasses } from '@/modules/classes/class-queries';

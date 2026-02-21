@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireRole } from '@/lib/auth-utils';
 import { getResultsByStudent, getStudentAnalytics } from '@/modules/results/result-queries';
 import { ResultsTable, StudentAnalyticsChart } from '@/modules/results/components';

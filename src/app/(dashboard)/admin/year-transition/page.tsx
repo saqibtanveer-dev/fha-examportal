@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { PageHeader } from '@/components/shared';
 import { listAcademicSessions } from '@/modules/academic-sessions/session-queries';
 import {

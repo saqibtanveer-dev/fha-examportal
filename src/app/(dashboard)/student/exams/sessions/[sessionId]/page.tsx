@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireRole } from '@/lib/auth-utils';
 import { getSessionById } from '@/modules/sessions/session-queries';
 import { redirect } from 'next/navigation';

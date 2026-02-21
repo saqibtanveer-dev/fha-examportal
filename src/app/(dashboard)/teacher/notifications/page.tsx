@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { requireRole } from '@/lib/auth-utils';
 import { getNotificationsForUser } from '@/modules/notifications/notification-queries';
 import { NotificationList } from '@/modules/notifications/components';

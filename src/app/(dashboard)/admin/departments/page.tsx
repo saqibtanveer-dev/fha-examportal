@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 import { listDepartments } from '@/modules/departments/department-queries';
 import { DepartmentsPageClient } from './departments-page-client';
 
