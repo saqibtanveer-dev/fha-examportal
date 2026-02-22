@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,7 @@ type Props = {
 export function CreateClassDialog({ open, onOpenChange, mode, classes }: Props) {
   const [isPending, startTransition] = useTransition();
   const [classId, setClassId] = useState('');
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -48,7 +48,7 @@ export function CreateClassDialog({ open, onOpenChange, mode, classes }: Props) 
       if (result.success) {
         toast.success(`${mode === 'class' ? 'Class' : 'Section'} created`);
         onOpenChange(false);
-        router.refresh();
+        await invalidate.classes();
       } else {
         toast.error(result.error ?? 'Failed');
       }

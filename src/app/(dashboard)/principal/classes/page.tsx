@@ -1,11 +1,11 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth-utils';
 import { PageHeader } from '@/components/shared';
-import { getClassesList } from '@/modules/principal/principal-queries';
-import { ClassesListClient } from './classes-list-client';
+import { ClassesPageClient } from './classes-page-client';
+import { ClassesListSkeleton } from './classes-skeleton';
 
 export default async function PrincipalClassesPage() {
   await requireRole('PRINCIPAL');
-  const classes = await getClassesList();
 
   return (
     <div className="space-y-6">
@@ -13,7 +13,9 @@ export default async function PrincipalClassesPage() {
         title="Classes"
         description="Class-wise overview with student counts and performance metrics"
       />
-      <ClassesListClient classes={classes} />
+      <Suspense fallback={<ClassesListSkeleton />}>
+        <ClassesPageClient />
+      </Suspense>
     </div>
   );
 }

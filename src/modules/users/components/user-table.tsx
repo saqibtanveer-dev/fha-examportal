@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -42,14 +42,14 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
 export function UserTable({ users, allSubjects = [] }: UserTableProps) {
   const [isPending, startTransition] = useTransition();
   const [editingUser, setEditingUser] = useState<UserWithProfile | null>(null);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleToggleActive(userId: string) {
     startTransition(async () => {
       const result = await toggleUserActiveAction(userId);
       if (result.success) {
         toast.success('User status updated');
-        router.refresh();
+        await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -61,7 +61,7 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
       const result = await deleteUserAction(userId);
       if (result.success) {
         toast.success('User deleted');
-        router.refresh();
+        await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed');
       }

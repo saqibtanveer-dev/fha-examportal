@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,7 +48,7 @@ export function ExamGrid({ exams }: Props) {
   const [editingExam, setEditingExam] = useState<DeepSerialize<ExamWithRelations> | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [publishConfirm, setPublishConfirm] = useState<{ id: string; title: string } | null>(null);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   const startLoading = useCallback((key: LoadingKey) => {
     setLoadingKeys((prev) => new Set(prev).add(key));
@@ -74,7 +74,7 @@ export function ExamGrid({ exams }: Props) {
       const result = await publishExamAction(id);
       if (result.success) {
         toast.success('Exam published');
-        router.refresh();
+        await invalidate.afterExamPublish();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -93,7 +93,7 @@ export function ExamGrid({ exams }: Props) {
       const result = await deleteExamAction(id);
       if (result.success) {
         toast.success('Exam deleted');
-        router.refresh();
+        await invalidate.exams();
       } else {
         toast.error(result.error ?? 'Failed');
       }

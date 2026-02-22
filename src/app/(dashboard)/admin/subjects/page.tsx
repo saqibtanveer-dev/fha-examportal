@@ -1,20 +1,11 @@
-import { listSubjects } from '@/modules/subjects/subject-queries';
-import { listDepartments } from '@/modules/departments/department-queries';
-import { listActiveClasses } from '@/modules/classes/class-queries';
+import { Suspense } from 'react';
 import { SubjectsPageClient } from './subjects-page-client';
+import { SubjectsListSkeleton } from './subjects-skeleton';
 
-export default async function SubjectsPage() {
-  const [subjects, departments, classes] = await Promise.all([
-    listSubjects(),
-    listDepartments(),
-    listActiveClasses(),
-  ]);
-
+export default function SubjectsPage() {
   return (
-    <SubjectsPageClient
-      subjects={subjects}
-      departments={departments.map((d) => ({ id: d.id, name: d.name }))}
-      allClasses={classes.map((c) => ({ id: c.id, name: c.name, grade: c.grade }))}
-    />
+    <Suspense fallback={<SubjectsListSkeleton />}>
+      <SubjectsPageClient />
+    </Suspense>
   );
 }

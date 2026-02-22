@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -94,7 +94,7 @@ export function YearTransitionClient({
   currentSessionId,
   transitionDone,
 }: Props) {
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
   const [isPending, startTransition] = useTransition();
   const [step, setStep] = useState<'configure' | 'review' | 'done'>(
     transitionDone ? 'done' : 'configure',
@@ -227,7 +227,7 @@ export function YearTransitionClient({
           `Year transition complete! ${result.data!.promoted} promoted, ${result.data!.graduated} graduated, ${result.data!.heldBack} held back`,
         );
         setStep('done');
-        router.refresh();
+        await invalidate.all();
       } else {
         toast.error(result.error ?? 'Failed to execute transition');
       }
@@ -244,7 +244,7 @@ export function YearTransitionClient({
       if (result.success) {
         toast.success('Year transition undone successfully');
         setStep('configure');
-        router.refresh();
+        await invalidate.all();
       } else {
         toast.error(result.error ?? 'Failed to undo');
       }

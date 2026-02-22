@@ -1,7 +1,11 @@
-import { listClasses } from '@/modules/classes/class-queries';
+import { Suspense } from 'react';
 import { ClassesPageClient } from './classes-page-client';
+import { ClassesListSkeleton } from './classes-skeleton';
 
-export default async function ClassesPage() {
-  const classes = await listClasses();
-  return <ClassesPageClient classes={classes} />;
+export default function ClassesPage() {
+  return (
+    <Suspense fallback={<ClassesListSkeleton />}>
+      <ClassesPageClient />
+    </Suspense>
+  );
 }

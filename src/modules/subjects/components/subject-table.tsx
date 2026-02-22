@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -54,14 +54,14 @@ type Props = {
 export function SubjectTable({ subjects, departments, allClasses }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleDelete(id: string) {
     startTransition(async () => {
       const result = await deleteSubjectAction(id);
       if (result.success) {
         toast.success('Subject deleted');
-        router.refresh();
+        await invalidate.subjects();
       } else {
         toast.error(result.error ?? 'Failed');
       }

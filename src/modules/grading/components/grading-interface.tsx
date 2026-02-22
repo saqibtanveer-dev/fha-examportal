@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { Spinner } from '@/components/shared';
 import { gradeAnswerAction, batchGradeAnswersAction } from '@/modules/grading/grading-actions';
 import { approveAiGradeAction, finalizeSessionAction } from '@/modules/grading/ai-grading-actions';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
 import {
   CheckCircle, ChevronLeft, ChevronRight, Brain, Shield, ShieldAlert,
@@ -71,6 +72,7 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
   const [editingGradeId, setEditingGradeId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('step');
   const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   const startLoading = useCallback((key: string) => {
     setLoadingKeys((prev) => new Set(prev).add(key));
@@ -98,12 +100,12 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       const result = await gradeAnswerAction(answerId, m, f);
       if (result.success) {
         toast.success('Answer graded');
-        router.refresh();
+        await invalidate.afterGrading(sessionId);
       } else {
         toast.error(result.error ?? 'Failed');
       }
     } catch { toast.error('Grading failed'); } finally { stopLoading(key); }
-  }, [marks, feedback, router, startLoading, stopLoading]);
+  }, [marks, feedback, sessionId, invalidate, startLoading, stopLoading]);
 
   const handleApproveAi = useCallback(async (gradeId: string, overrides?: { marksAwarded?: number; feedback?: string }) => {
     const key = `approve:${gradeId}`;
@@ -113,12 +115,12 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       if (result.success) {
         toast.success(overrides ? 'AI grade updated & approved' : 'AI grade approved');
         setEditingGradeId(null);
-        router.refresh();
+        await invalidate.afterGrading(sessionId);
       } else {
         toast.error(result.error ?? 'Failed to approve');
       }
     } catch { toast.error('Approval failed'); } finally { stopLoading(key); }
-  }, [router, startLoading, stopLoading]);
+  }, [sessionId, invalidate, startLoading, stopLoading]);
 
   const handleBatchGrade = useCallback(async (autoFinalize: boolean) => {
     const grades = answers
@@ -147,12 +149,12 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
             ? `All ${graded} answers graded & result finalized!`
             : `${graded} answers graded successfully`);
         }
-        router.refresh();
+        await invalidate.afterGrading(sessionId);
       } else {
         toast.error(result.error ?? 'Batch grading failed');
       }
     } catch { toast.error('Batch grading failed'); } finally { stopLoading(key); }
-  }, [answers, marks, feedback, sessionId, router, startLoading, stopLoading]);
+  }, [answers, marks, feedback, sessionId, invalidate, startLoading, stopLoading]);
 
   const handleFinalize = useCallback(async () => {
     startLoading('finalize');
@@ -160,8 +162,8 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
       const result = await finalizeSessionAction(sessionId);
       if (result.success) {
         toast.success('Result finalized and published!');
+        await invalidate.afterGrading(sessionId);
         router.push('/teacher/grading');
-        router.refresh();
       } else {
         toast.error(result.error ?? 'Failed to finalize');
       }

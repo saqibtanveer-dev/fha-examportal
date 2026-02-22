@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -53,7 +53,7 @@ export function EditQuestionDialog({ open, onOpenChange, question }: Props) {
       ...(o.imageUrl ? { imageUrl: o.imageUrl } : {}),
     })),
   );
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -70,7 +70,7 @@ export function EditQuestionDialog({ open, onOpenChange, question }: Props) {
       if (result.success) {
         toast.success('Question updated');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.questions();
       } else {
         toast.error(result.error ?? 'Failed to update');
       }

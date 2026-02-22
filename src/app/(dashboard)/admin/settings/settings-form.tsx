@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,7 +27,7 @@ type Props = { settings: Settings };
 
 export function SettingsForm({ settings }: Props) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -42,7 +42,7 @@ export function SettingsForm({ settings }: Props) {
       });
       if (result.success) {
         toast.success('Settings updated');
-        router.refresh();
+        await invalidate.settings();
       } else {
         toast.error(result.error ?? 'Failed');
       }

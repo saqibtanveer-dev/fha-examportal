@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,7 +25,7 @@ type Props = {
 
 export function EditUserDialog({ open, onOpenChange, user }: Props) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -37,7 +37,7 @@ export function EditUserDialog({ open, onOpenChange, user }: Props) {
       if (result.success) {
         toast.success('User updated successfully');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed to update user');
       }

@@ -1,28 +1,35 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DashboardShell } from '@/components/layout';
 import { getNavigationByRole } from '@/components/layout';
 import { logoutAction } from '@/app/(public)/login/actions';
+import { useAuthStore } from '@/stores/auth-store';
 
 type Props = {
-  user: { firstName: string; lastName: string; email: string; role: string };
-  notificationCount?: number;
+  user: { id: string; firstName: string; lastName: string; email: string; role: string };
   children: React.ReactNode;
 };
 
-export function StudentShell({ user, notificationCount, children }: Props) {
+export function StudentShell({ user, children }: Props) {
   const router = useRouter();
   const navigation = getNavigationByRole('STUDENT');
 
+  // Hydrate auth store on mount
+  useEffect(() => {
+    useAuthStore.getState().setUser(user);
+  }, [user]);
+
   async function handleSignOut() {
+    useAuthStore.getState().reset();
     await logoutAction();
     router.push('/login');
     router.refresh();
   }
 
   return (
-    <DashboardShell navigation={navigation} user={user} notificationCount={notificationCount} onSignOut={handleSignOut}>
+    <DashboardShell navigation={navigation} user={user} onSignOut={handleSignOut}>
       {children}
     </DashboardShell>
   );

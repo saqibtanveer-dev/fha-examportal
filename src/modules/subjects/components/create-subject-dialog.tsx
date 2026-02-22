@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,7 +29,7 @@ type Props = {
 export function CreateSubjectDialog({ open, onOpenChange, departments }: Props) {
   const [isPending, startTransition] = useTransition();
   const [departmentId, setDepartmentId] = useState('');
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -42,7 +42,7 @@ export function CreateSubjectDialog({ open, onOpenChange, departments }: Props) 
       if (result.success) {
         toast.success('Subject created');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.subjects();
       } else {
         toast.error(result.error ?? 'Failed');
       }

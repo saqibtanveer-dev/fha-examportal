@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import type { ActionResult } from '@/types/action-result';
 
@@ -10,8 +10,8 @@ type UseServerActionOptions<TResult = unknown> = {
   successMessage?: string | false;
   /** Toast to show on error (set to false to suppress) */
   errorMessage?: string | false;
-  /** Call router.refresh() on success to re-render RSC */
-  refreshOnSuccess?: boolean;
+  /** Query keys to invalidate on success (replaces router.refresh) */
+  invalidateKeys?: readonly unknown[][];
   /** Callback after successful mutation */
   onSuccess?: (data?: TResult) => void;
   /** Callback after failed mutation */
@@ -22,15 +22,14 @@ type UseServerActionOptions<TResult = unknown> = {
  * Reusable hook for calling server actions with:
  * - Loading state management
  * - Toast notifications
- * - Router refresh
+ * - React Query cache invalidation
  * - Error handling
  *
  * Usage:
  *   const { execute, isPending } = useServerAction(deleteExamAction, {
  *     successMessage: 'Exam deleted',
- *     refreshOnSuccess: true,
+ *     invalidateKeys: [queryKeys.exams.all],
  *   });
- *   <Button onClick={() => execute(examId)} disabled={isPending}>Delete</Button>
  */
 export function useServerAction<TArgs extends unknown[], TResult = unknown>(
   action: (...args: TArgs) => Promise<ActionResult<TResult>>,
@@ -39,13 +38,13 @@ export function useServerAction<TArgs extends unknown[], TResult = unknown>(
   const {
     successMessage = 'Success',
     errorMessage,
-    refreshOnSuccess = true,
+    invalidateKeys = [],
     onSuccess,
     onError,
   } = options;
 
   const [isPending, setIsPending] = useState(false);
-  const router = useRouter();
+  const queryClient = useQueryClient();
 
   const execute = useCallback(
     async (...args: TArgs) => {
@@ -54,7 +53,10 @@ export function useServerAction<TArgs extends unknown[], TResult = unknown>(
         const result = await action(...args);
         if (result.success) {
           if (successMessage !== false) toast.success(successMessage);
-          if (refreshOnSuccess) router.refresh();
+          // Invalidate specified query keys
+          await Promise.all(
+            invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })),
+          );
           onSuccess?.(result.data as TResult | undefined);
           return result;
         } else {
@@ -72,7 +74,7 @@ export function useServerAction<TArgs extends unknown[], TResult = unknown>(
         setIsPending(false);
       }
     },
-    [action, successMessage, errorMessage, refreshOnSuccess, router, onSuccess, onError],
+    [action, successMessage, errorMessage, invalidateKeys, queryClient, onSuccess, onError],
   );
 
   return { execute, isPending };

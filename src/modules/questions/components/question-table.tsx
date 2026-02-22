@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -67,7 +67,7 @@ export function QuestionTable({ questions }: Props) {
   const [loadingKeys, setLoadingKeys] = useState<Set<LoadingKey>>(new Set());
   const [editingQuestion, setEditingQuestion] = useState<DeepSerialize<QuestionWithRelations> | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   const startLoading = useCallback((key: LoadingKey) => {
     setLoadingKeys((prev) => new Set(prev).add(key));
@@ -96,7 +96,7 @@ export function QuestionTable({ questions }: Props) {
       const result = await deleteQuestionAction(id);
       if (result.success) {
         toast.success('Question deleted');
-        router.refresh();
+        await invalidate.questions();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -115,7 +115,7 @@ export function QuestionTable({ questions }: Props) {
       const result = await duplicateQuestionAction(id);
       if (result.success) {
         toast.success('Question duplicated');
-        router.refresh();
+        await invalidate.questions();
       } else {
         toast.error(result.error ?? 'Failed');
       }

@@ -14,28 +14,30 @@ import {
 import { Plus, Search } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { ExamGrid, CreateExamDialog } from '@/modules/exams/components';
-import type { PaginatedResult } from '@/utils/pagination';
-import type { ExamWithRelations } from '@/modules/exams/exam-queries';
-import type { DeepSerialize } from '@/utils/serialize';
-
-type Subject = { id: string; name: string; code: string };
-type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
-type QuestionItem = { id: string; title: string; marks: number; type: string; subjectId: string };
-type AcademicSessionItem = { id: string; name: string; isCurrent: boolean };
+import { useExamsQuery } from '@/modules/exams/hooks/use-exams-query';
+import { useReferenceStore } from '@/stores';
+import { ExamsSkeleton } from './exams-skeleton';
+import type { PaginationParams } from '@/utils/pagination';
+import type { ExamListFilters } from '@/modules/exams/exam-queries';
 
 type Props = {
-  result: DeepSerialize<PaginatedResult<ExamWithRelations>>;
-  subjects: Subject[];
-  classes: ClassItem[];
-  questions: QuestionItem[];
-  academicSessions?: AcademicSessionItem[];
+  filters: ExamListFilters;
+  pagination: PaginationParams;
 };
 
-export function ExamsPageClient({ result, subjects, classes, questions, academicSessions = [] }: Props) {
+export function ExamsPageClient({ filters, pagination }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+
+  // Reference data from Zustand
+  const subjects = useReferenceStore((s) => s.subjects);
+  const classes = useReferenceStore((s) => s.classes);
+  const academicSessions = useReferenceStore((s) => s.academicSessions);
+
+  // React Query — client-first with caching
+  const { data: result, isLoading } = useExamsQuery(pagination, filters);
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -43,6 +45,10 @@ export function ExamsPageClient({ result, subjects, classes, questions, academic
     else params.delete(key);
     params.delete('page');
     router.push(`/teacher/exams?${params.toString()}`);
+  }
+
+  if (isLoading || !result) {
+    return <ExamsSkeleton />;
   }
 
   return (
@@ -96,12 +102,17 @@ export function ExamsPageClient({ result, subjects, classes, questions, academic
         <ExamGrid exams={result.data} />
       )}
 
+      {result.pagination.totalCount > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {result.data.length} of {result.pagination.totalCount} (page {result.pagination.page}/{result.pagination.totalPages})
+        </p>
+      )}
+
       <CreateExamDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         subjects={subjects}
         classes={classes}
-        questions={questions}
         academicSessions={academicSessions}
       />
     </div>

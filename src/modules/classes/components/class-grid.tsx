@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,14 +30,14 @@ type Props = { classes: ClassItem[] };
 export function ClassGrid({ classes }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleDeleteClass(id: string) {
     startTransition(async () => {
       const result = await deleteClassAction(id);
       if (result.success) {
         toast.success('Class deleted');
-        router.refresh();
+        await invalidate.classes();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -49,7 +49,7 @@ export function ClassGrid({ classes }: Props) {
       const result = await deleteSectionAction(id);
       if (result.success) {
         toast.success('Section deleted');
-        router.refresh();
+        await invalidate.classes();
       } else {
         toast.error(result.error ?? 'Failed');
       }

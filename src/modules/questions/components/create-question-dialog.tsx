@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -48,7 +48,7 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects, subjectClas
     { label: 'C', text: '', isCorrect: false, sortOrder: 2 },
     { label: 'D', text: '', isCorrect: false, sortOrder: 3 },
   ]);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   // Classes available for the selected subject
   const classesForSubject = subjectClassLinks.filter((l) => l.subjectId === subjectId);
@@ -78,7 +78,7 @@ export function CreateQuestionDialog({ open, onOpenChange, subjects, subjectClas
       if (result.success) {
         toast.success('Question created');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.questions();
       } else {
         toast.error(result.error ?? 'Failed');
       }

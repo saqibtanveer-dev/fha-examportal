@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,7 +30,7 @@ type Props = {
 
 export function EditClassDialog({ open, onOpenChange, classItem }: Props) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -41,7 +41,7 @@ export function EditClassDialog({ open, onOpenChange, classItem }: Props) {
       if (result.success) {
         toast.success('Class updated');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.classes();
       } else {
         toast.error(result.error ?? 'Failed to update');
       }

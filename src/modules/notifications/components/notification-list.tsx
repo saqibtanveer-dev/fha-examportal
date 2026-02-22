@@ -1,7 +1,7 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,13 +28,13 @@ type Props = { notifications: Notification[] };
 
 export function NotificationList({ notifications }: Props) {
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
   function handleMarkRead(id: string) {
     startTransition(async () => {
       await markNotificationReadAction(id);
-      router.refresh();
+      await invalidate.notifications();
     });
   }
 
@@ -42,14 +42,14 @@ export function NotificationList({ notifications }: Props) {
     startTransition(async () => {
       await markAllNotificationsReadAction();
       toast.success('All marked as read');
-      router.refresh();
+      await invalidate.notifications();
     });
   }
 
   function handleDelete(id: string) {
     startTransition(async () => {
       await deleteNotificationAction(id);
-      router.refresh();
+      await invalidate.notifications();
     });
   }
 

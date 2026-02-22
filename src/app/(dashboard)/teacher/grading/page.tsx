@@ -1,9 +1,13 @@
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth-utils';
-import { getSessionsForGrading } from '@/modules/sessions/session-queries';
 import { GradingPageClient } from './grading-page-client';
+import { GradingSkeleton } from './grading-skeleton';
 
 export default async function GradingPage() {
-  const session = await requireRole('TEACHER', 'ADMIN');
-  const sessions = await getSessionsForGrading(session.user.id, session.user.role === 'ADMIN');
-  return <GradingPageClient sessions={sessions} />;
+  await requireRole('TEACHER', 'ADMIN');
+  return (
+    <Suspense fallback={<GradingSkeleton />}>
+      <GradingPageClient />
+    </Suspense>
+  );
 }

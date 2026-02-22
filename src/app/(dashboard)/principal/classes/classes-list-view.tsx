@@ -30,7 +30,7 @@ type ClassOverview = {
 
 type Props = { classes: ClassOverview[] };
 
-export function ClassesListClient({ classes }: Props) {
+export function ClassesListView({ classes }: Props) {
   const chartData = classes.map((c) => ({
     name: c.name,
     avgScore: c.avgPercentage,

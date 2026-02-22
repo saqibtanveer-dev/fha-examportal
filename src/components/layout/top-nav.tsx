@@ -14,6 +14,7 @@ import {
 import { getInitials } from '@/utils/format';
 import { cn } from '@/utils/cn';
 import Link from 'next/link';
+import { useNotificationCount } from '@/modules/notifications/hooks/use-notifications-query';
 
 function getRolePaths(role: string) {
   const base = `/${role.toLowerCase()}`;
@@ -35,12 +36,13 @@ type TopNavProps = {
     role: string;
   };
   sidebarCollapsed: boolean;
-  notificationCount?: number;
   onSignOut: () => void;
   onMobileMenuToggle: () => void;
 };
 
-export function TopNav({ user, sidebarCollapsed, notificationCount = 0, onSignOut, onMobileMenuToggle }: TopNavProps) {
+export function TopNav({ user, sidebarCollapsed, onSignOut, onMobileMenuToggle }: TopNavProps) {
+  // Notification count from React Query with caching and polling
+  const { data: notificationCount = 0 } = useNotificationCount();
   return (
     <header
       className={cn(

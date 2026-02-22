@@ -20,7 +20,7 @@ type ExamItem = {
 
 type Props = { exams: ExamItem[] };
 
-export function StudentExamsClient({ exams }: Props) {
+export function StudentExamsView({ exams }: Props) {
   const router = useRouter();
 
   return (

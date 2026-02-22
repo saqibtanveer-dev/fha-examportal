@@ -1,13 +1,16 @@
 import { requireRole } from '@/lib/auth-utils';
-import { getUnreadCount } from '@/modules/notifications/notification-queries';
+import { fetchTeacherReferenceData } from '@/modules/settings/reference-actions';
 import { TeacherShell } from './teacher-shell';
 
 export default async function TeacherLayout({ children }: { children: React.ReactNode }) {
   const session = await requireRole('TEACHER', 'ADMIN');
-  const notificationCount = await getUnreadCount(session.user.id);
+  const refResult = await fetchTeacherReferenceData();
 
   return (
-    <TeacherShell user={session.user} notificationCount={notificationCount}>
+    <TeacherShell
+      user={session.user}
+      referenceData={refResult.success ? refResult.data : undefined}
+    >
       {children}
     </TeacherShell>
   );

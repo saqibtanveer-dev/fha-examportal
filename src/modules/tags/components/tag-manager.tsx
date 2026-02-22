@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -38,7 +38,7 @@ export function TagManager({ tags }: Props) {
   const [isPending, startTransition] = useTransition();
   const [name, setName] = useState('');
   const [category, setCategory] = useState<string>('TOPIC');
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleCreate() {
     if (!name.trim()) return;
@@ -50,7 +50,7 @@ export function TagManager({ tags }: Props) {
       if (result.success) {
         toast.success('Tag created');
         setName('');
-        router.refresh();
+        await invalidate.questions();
       } else {
         toast.error(result.error);
       }
@@ -62,7 +62,7 @@ export function TagManager({ tags }: Props) {
       const result = await deleteTagAction(id);
       if (result.success) {
         toast.success('Tag deleted');
-        router.refresh();
+        await invalidate.questions();
       } else {
         toast.error(result.error);
       }

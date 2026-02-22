@@ -86,7 +86,7 @@ const typeLabels: Record<string, string> = {
   CUSTOM: 'Custom',
 };
 
-export function ExamsListClient({
+export function ExamsListView({
   exams,
   total,
   currentPage,

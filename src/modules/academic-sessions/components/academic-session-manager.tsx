@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,7 +39,7 @@ type Props = {
 export function AcademicSessionManager({ sessions }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleCreate(formData: FormData) {
     startTransition(async () => {
@@ -57,7 +57,7 @@ export function AcademicSessionManager({ sessions }: Props) {
       if (result.success) {
         toast.success('Academic session created');
         setDialogOpen(false);
-        router.refresh();
+        await invalidate.academicSessions();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -69,7 +69,7 @@ export function AcademicSessionManager({ sessions }: Props) {
       const result = await setCurrentAcademicSessionAction(id);
       if (result.success) {
         toast.success('Current session updated');
-        router.refresh();
+        await invalidate.academicSessions();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -81,7 +81,7 @@ export function AcademicSessionManager({ sessions }: Props) {
       const result = await deleteAcademicSessionAction(id);
       if (result.success) {
         toast.success('Session deleted');
-        router.refresh();
+        await invalidate.academicSessions();
       } else {
         toast.error(result.error ?? 'Failed');
       }

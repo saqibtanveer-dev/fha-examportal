@@ -1,50 +1,56 @@
 import { prisma } from '@/lib/prisma';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 
 // ============================================
-// Dashboard Overview Stats
+// Dashboard Overview Stats (optimized — 3 queries instead of 12)
 // ============================================
 
 export async function getPrincipalDashboardStats() {
-  const [
-    totalTeachers,
-    totalStudents,
-    totalClasses,
-    totalSubjects,
-    totalExams,
-    totalResults,
-    activeExams,
-    pendingGrading,
-  ] = await Promise.all([
-    prisma.user.count({ where: { role: 'TEACHER', isActive: true, deletedAt: null } }),
-    prisma.user.count({ where: { role: 'STUDENT', isActive: true, deletedAt: null } }),
-    prisma.class.count({ where: { isActive: true } }),
-    prisma.subject.count({ where: { isActive: true } }),
-    prisma.exam.count({ where: { deletedAt: null } }),
-    prisma.examResult.count(),
-    prisma.exam.count({ where: { status: 'ACTIVE', deletedAt: null } }),
+  const [entityCounts, examCounts, resultStats, pendingGrading] = await Promise.all([
+    // Single raw query for all entity counts
+    prisma.$queryRaw<[{ teachers: bigint; students: bigint; classes: bigint; subjects: bigint }]>`
+      SELECT
+        (SELECT COUNT(*) FROM "user" WHERE role = 'TEACHER' AND "isActive" = true AND "deletedAt" IS NULL) as teachers,
+        (SELECT COUNT(*) FROM "user" WHERE role = 'STUDENT' AND "isActive" = true AND "deletedAt" IS NULL) as students,
+        (SELECT COUNT(*) FROM class WHERE "isActive" = true) as classes,
+        (SELECT COUNT(*) FROM subject WHERE "isActive" = true) as subjects
+    `,
+    // Single raw query for exam counts (total + active)
+    prisma.$queryRaw<[{ total: bigint; active: bigint }]>`
+      SELECT
+        COUNT(*) as total,
+        COUNT(*) FILTER (WHERE status = 'ACTIVE') as active
+      FROM exam WHERE "deletedAt" IS NULL
+    `,
+    // Single raw query for ALL result stats (count + passed + avg)
+    prisma.$queryRaw<[{ total: bigint; passed: bigint; avg_pct: number | null }]>`
+      SELECT
+        COUNT(*)::bigint as total,
+        COUNT(*) FILTER (WHERE "isPassed" = true)::bigint as passed,
+        AVG(percentage)::float as avg_pct
+      FROM exam_result
+    `,
     prisma.examSession.count({ where: { status: { in: ['SUBMITTED', 'GRADING'] } } }),
   ]);
 
-  const aggregates = await prisma.examResult.aggregate({
-    _avg: { percentage: true },
-  });
-
-  const passedCount = await prisma.examResult.count({ where: { isPassed: true } });
+  const ec = entityCounts[0]!;
+  const ex = examCounts[0]!;
+  const rs = resultStats[0]!;
+  const totalResults = Number(rs.total);
+  const passedCount = Number(rs.passed);
   const overallPassRate = totalResults > 0 ? (passedCount / totalResults) * 100 : 0;
-  const overallAvgPercentage = Number(aggregates._avg.percentage ?? 0);
 
   return {
-    totalTeachers,
-    totalStudents,
-    totalClasses,
-    totalSubjects,
-    totalExams,
+    totalTeachers: Number(ec.teachers),
+    totalStudents: Number(ec.students),
+    totalClasses: Number(ec.classes),
+    totalSubjects: Number(ec.subjects),
+    totalExams: Number(ex.total),
     totalResults,
-    activeExams,
+    activeExams: Number(ex.active),
     pendingGrading,
     overallPassRate: Math.round(overallPassRate * 100) / 100,
-    overallAvgPercentage: Math.round(overallAvgPercentage * 100) / 100,
+    overallAvgPercentage: Math.round(Number(rs.avg_pct ?? 0) * 100) / 100,
   };
 }
 
@@ -231,63 +237,68 @@ export async function getTeacherDetail(teacherUserId: string) {
 
   if (!user || !user.teacherProfile) return null;
 
-  // Get exams created by this teacher
-  const exams = await prisma.exam.findMany({
-    where: { createdById: teacherUserId, deletedAt: null },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      title: true,
-      type: true,
-      status: true,
-      totalMarks: true,
-      duration: true,
-      scheduledStartAt: true,
-      createdAt: true,
-      subject: { select: { name: true, code: true } },
-      _count: {
-        select: {
-          examQuestions: true,
-          examSessions: true,
-          examResults: true,
+  // Parallelize all independent queries
+  const [exams, questionStats, gradingStats, examResults] = await Promise.all([
+    // Get exams created by this teacher
+    prisma.exam.findMany({
+      where: { createdById: teacherUserId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        title: true,
+        type: true,
+        status: true,
+        totalMarks: true,
+        duration: true,
+        scheduledStartAt: true,
+        createdAt: true,
+        subject: { select: { name: true, code: true } },
+        _count: {
+          select: {
+            examQuestions: true,
+            examSessions: true,
+            examResults: true,
+          },
         },
       },
-    },
-  });
+    }),
+    // Get question stats
+    prisma.question.groupBy({
+      by: ['type'],
+      where: { createdById: teacherUserId, deletedAt: null },
+      _count: { _all: true },
+    }),
+    // Get grading stats (use groupBy instead of fetching rows)
+    prisma.examSession.groupBy({
+      by: ['status'],
+      where: {
+        exam: { createdById: teacherUserId },
+        status: { in: ['SUBMITTED', 'GRADING', 'GRADED'] },
+      },
+      _count: { _all: true },
+    }),
+    // Get exam performance summary via SQL aggregate
+    prisma.$queryRaw<[{ total: bigint; passed: bigint; avg_pct: number | null }]>`
+      SELECT
+        COUNT(*)::bigint as total,
+        COUNT(*) FILTER (WHERE er."isPassed" = true)::bigint as passed,
+        AVG(er.percentage)::float as avg_pct
+      FROM exam_result er
+      JOIN exam e ON er."examId" = e.id
+      WHERE e."createdById" = ${teacherUserId} AND e."deletedAt" IS NULL
+    `,
+  ]);
 
-  // Get question stats
-  const questionStats = await prisma.question.groupBy({
-    by: ['type'],
-    where: { createdById: teacherUserId, deletedAt: null },
-    _count: { _all: true },
-  });
+  const pendingGrading = gradingStats
+    .filter((s) => s.status === 'SUBMITTED' || s.status === 'GRADING')
+    .reduce((sum, s) => sum + s._count._all, 0);
+  const gradedCount = gradingStats
+    .filter((s) => s.status === 'GRADED')
+    .reduce((sum, s) => sum + s._count._all, 0);
 
-  // Get grading stats
-  const gradingStats = await prisma.examSession.findMany({
-    where: {
-      exam: { createdById: teacherUserId },
-      status: { in: ['SUBMITTED', 'GRADING', 'GRADED'] },
-    },
-    select: { status: true },
-  });
-
-  const pendingGrading = gradingStats.filter(
-    (s) => s.status === 'SUBMITTED' || s.status === 'GRADING',
-  ).length;
-  const gradedCount = gradingStats.filter((s) => s.status === 'GRADED').length;
-
-  // Get exam performance summary
-  const examResults = await prisma.examResult.findMany({
-    where: { exam: { createdById: teacherUserId } },
-    select: { percentage: true, isPassed: true },
-  });
-
-  const totalResults = examResults.length;
-  const passedResults = examResults.filter((r) => r.isPassed).length;
-  const avgPercentage =
-    totalResults > 0
-      ? examResults.reduce((sum, r) => sum + Number(r.percentage), 0) / totalResults
-      : 0;
+  const rs = examResults[0]!;
+  const totalResults = Number(rs.total);
+  const passedResults = Number(rs.passed);
 
   return {
     ...user,
@@ -303,7 +314,7 @@ export async function getTeacherDetail(teacherUserId: string) {
       passedResults,
       failedResults: totalResults - passedResults,
       passRate: totalResults > 0 ? Math.round((passedResults / totalResults) * 10000) / 100 : 0,
-      avgPercentage: Math.round(avgPercentage * 100) / 100,
+      avgPercentage: Math.round(Number(rs.avg_pct ?? 0) * 100) / 100,
     },
   };
 }
@@ -389,22 +400,28 @@ export async function getStudentsList(params?: {
             section: { select: { name: true } },
           },
         },
-        examResults: {
-          select: { percentage: true },
-        },
+        _count: { select: { examResults: true } },
       },
     }),
     prisma.user.count({ where }),
   ]);
 
+  // Batch-fetch average percentages via SQL for this page of students
+  const userIds = users.map((u) => u.id);
+  const avgStats =
+    userIds.length > 0
+      ? await prisma.$queryRaw<{ student_id: string; avg_pct: number; cnt: bigint }[]>`
+          SELECT "studentId" as student_id, AVG(percentage)::float as avg_pct, COUNT(*)::bigint as cnt
+          FROM exam_result WHERE "studentId" = ANY(${userIds})
+          GROUP BY "studentId"
+        `
+      : [];
+  const avgMap = new Map(avgStats.map((r) => [r.student_id, { avg: r.avg_pct, count: Number(r.cnt) }]));
+
   const students: StudentListItem[] = users
     .filter((u) => u.studentProfile)
     .map((u) => {
-      const results = u.examResults;
-      const avgPercentage =
-        results.length > 0
-          ? results.reduce((sum, r) => sum + Number(r.percentage), 0) / results.length
-          : 0;
+      const stats = avgMap.get(u.id);
 
       return {
         id: u.studentProfile!.id,
@@ -422,8 +439,8 @@ export async function getStudentsList(params?: {
         gender: u.studentProfile?.gender ?? null,
         isActive: u.isActive,
         lastLoginAt: u.lastLoginAt,
-        examsTaken: results.length,
-        avgPercentage: Math.round(avgPercentage * 100) / 100,
+        examsTaken: stats?.count ?? 0,
+        avgPercentage: Math.round((stats?.avg ?? 0) * 100) / 100,
       };
     });
 
@@ -462,8 +479,10 @@ export async function getStudentDetail(studentUserId: string) {
 
   if (!user || !user.studentProfile) return null;
 
-  // Get all exam results with details
-  const results = await prisma.examResult.findMany({
+  // Parallelize independent queries
+  const [results, sessions] = await Promise.all([
+    // Get all exam results with details
+    prisma.examResult.findMany({
     where: { studentId: studentUserId },
     orderBy: { createdAt: 'desc' },
     select: {
@@ -485,7 +504,23 @@ export async function getStudentDetail(studentUserId: string) {
         },
       },
     },
-  });
+    }),
+    // Exam sessions (including in-progress) — parallelized
+    prisma.examSession.findMany({
+      where: { studentId: studentUserId },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        status: true,
+        startedAt: true,
+        submittedAt: true,
+        timeSpent: true,
+        tabSwitchCount: true,
+        isFlagged: true,
+        exam: { select: { title: true, duration: true } },
+      },
+    }),
+  ]);
 
   // Calculate performance summary
   const totalExams = results.length;
@@ -529,22 +564,6 @@ export async function getStudentDetail(studentUserId: string) {
       exam: r.exam.title,
       subject: r.exam.subject.name,
     }));
-
-  // Exam sessions (including in-progress)
-  const sessions = await prisma.examSession.findMany({
-    where: { studentId: studentUserId },
-    orderBy: { createdAt: 'desc' },
-    select: {
-      id: true,
-      status: true,
-      startedAt: true,
-      submittedAt: true,
-      timeSpent: true,
-      tabSwitchCount: true,
-      isFlagged: true,
-      exam: { select: { title: true, duration: true } },
-    },
-  });
 
   return {
     ...user,
@@ -592,42 +611,54 @@ export async function getClassesList(): Promise<ClassOverview[]> {
       grade: true,
       isActive: true,
       sections: { select: { name: true } },
-      students: { select: { userId: true } },
-      examClassAssignments: {
-        select: {
-          exam: {
-            select: {
-              id: true,
-              examResults: { select: { percentage: true, isPassed: true } },
-            },
-          },
-        },
-      },
+      _count: { select: { students: true } },
     },
   });
 
-  return classes.map((cls) => {
-    const allResults = cls.examClassAssignments.flatMap((eca) => eca.exam.examResults);
-    const total = allResults.length;
-    const passed = allResults.filter((r) => r.isPassed).length;
-    const avgPercentage =
-      total > 0
-        ? allResults.reduce((sum, r) => sum + Number(r.percentage), 0) / total
-        : 0;
+  // Batch-fetch exam stats per class via SQL
+  const classIds = classes.map((c) => c.id);
+  const [examCounts, resultStats] = await Promise.all([
+    classIds.length > 0
+      ? prisma.$queryRaw<{ class_id: string; exam_count: bigint }[]>`
+          SELECT "classId" as class_id, COUNT(DISTINCT "examId")::bigint as exam_count
+          FROM exam_class_assignment WHERE "classId" = ANY(${classIds})
+          GROUP BY "classId"
+        `
+      : [],
+    classIds.length > 0
+      ? prisma.$queryRaw<{ class_id: string; total: bigint; passed: bigint; avg_pct: number | null }[]>`
+          SELECT eca."classId" as class_id,
+            COUNT(*)::bigint as total,
+            COUNT(*) FILTER (WHERE er."isPassed" = true)::bigint as passed,
+            AVG(er.percentage)::float as avg_pct
+          FROM exam_result er
+          JOIN exam_class_assignment eca ON eca."examId" = er."examId"
+          WHERE eca."classId" = ANY(${classIds})
+          GROUP BY eca."classId"
+        `
+      : [],
+  ]);
 
-    const uniqueExamIds = new Set(cls.examClassAssignments.map((eca) => eca.exam.id));
+  const examCountMap = new Map(examCounts.map((r) => [r.class_id, Number(r.exam_count)]));
+  const statsMap = new Map(
+    resultStats.map((r) => [r.class_id, { total: Number(r.total), passed: Number(r.passed), avg: r.avg_pct }]),
+  );
+
+  return classes.map((cls) => {
+    const s = statsMap.get(cls.id);
+    const total = s?.total ?? 0;
 
     return {
       id: cls.id,
       name: cls.name,
       grade: cls.grade,
       isActive: cls.isActive,
-      totalStudents: cls.students.length,
+      totalStudents: cls._count.students,
       totalSections: cls.sections.length,
       sectionNames: cls.sections.map((s) => s.name),
-      totalExams: uniqueExamIds.size,
-      avgPercentage: Math.round(avgPercentage * 100) / 100,
-      passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
+      totalExams: examCountMap.get(cls.id) ?? 0,
+      avgPercentage: Math.round(Number(s?.avg ?? 0) * 100) / 100,
+      passRate: total > 0 ? Math.round(((s?.passed ?? 0) / total) * 10000) / 100 : 0,
     };
   });
 }
@@ -677,36 +708,56 @@ export async function getClassDetail(classId: string) {
   // Get all students in this class
   const studentUserIds = cls.sections.flatMap((s) => s.students.map((st) => st.userId));
 
-  // Get exam results for students in this class
-  const results = await prisma.examResult.findMany({
-    where: { studentId: { in: studentUserIds } },
-    select: {
-      studentId: true,
-      percentage: true,
-      isPassed: true,
-      exam: { select: { id: true, title: true, type: true, subject: { select: { name: true } } } },
-    },
-  });
-
-  // Get exams assigned to this class
-  const assignedExams = await prisma.examClassAssignment.findMany({
-    where: { classId },
-    select: {
-      exam: {
-        select: {
-          id: true,
-          title: true,
-          type: true,
-          status: true,
-          totalMarks: true,
-          scheduledStartAt: true,
-          subject: { select: { name: true, code: true } },
-          createdBy: { select: { firstName: true, lastName: true } },
-          examResults: { select: { percentage: true, isPassed: true } },
+  // Parallelize independent queries
+  const [results, assignedExams] = await Promise.all([
+    // Get exam results for students in this class
+    prisma.examResult.findMany({
+      where: { studentId: { in: studentUserIds } },
+      select: {
+        studentId: true,
+        percentage: true,
+        isPassed: true,
+        exam: { select: { id: true, title: true, type: true, subject: { select: { name: true } } } },
+      },
+    }),
+    // Get exams assigned to this class (use SQL aggregate for result stats)
+    prisma.examClassAssignment.findMany({
+      where: { classId },
+      select: {
+        exam: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            status: true,
+            totalMarks: true,
+            scheduledStartAt: true,
+            subject: { select: { name: true, code: true } },
+            createdBy: { select: { firstName: true, lastName: true } },
+            _count: { select: { examResults: true } },
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
+
+  // Batch-fetch exam result stats for assigned exams
+  const assignedExamIds = assignedExams.map((ae) => ae.exam.id);
+  const examResultStats =
+    assignedExamIds.length > 0
+      ? await prisma.$queryRaw<
+          { exam_id: string; total: bigint; passed: bigint; avg_pct: number | null }[]
+        >`
+          SELECT "examId" as exam_id, COUNT(*)::bigint as total,
+            COUNT(*) FILTER (WHERE "isPassed" = true)::bigint as passed,
+            AVG(percentage)::float as avg_pct
+          FROM exam_result WHERE "examId" = ANY(${assignedExamIds})
+          GROUP BY "examId"
+        `
+      : [];
+  const examStatsMap = new Map(
+    examResultStats.map((r) => [r.exam_id, { total: Number(r.total), passed: Number(r.passed), avg: r.avg_pct }]),
+  );
 
   // Calculate class-level stats
   const allPercentages = results.map((r) => Number(r.percentage));
@@ -764,26 +815,17 @@ export async function getClassDetail(classId: string) {
 
   return {
     ...cls,
-    assignedExams: assignedExams.map((ae) => ({
-      ...ae.exam,
-      totalMarks: Number(ae.exam.totalMarks),
-      resultsCount: ae.exam.examResults.length,
-      avgPercentage:
-        ae.exam.examResults.length > 0
-          ? Math.round(
-              (ae.exam.examResults.reduce((s, r) => s + Number(r.percentage), 0) /
-                ae.exam.examResults.length) *
-                100,
-            ) / 100
-          : 0,
-      passRate:
-        ae.exam.examResults.length > 0
-          ? Math.round(
-              (ae.exam.examResults.filter((r) => r.isPassed).length / ae.exam.examResults.length) *
-                10000,
-            ) / 100
-          : 0,
-    })),
+    assignedExams: assignedExams.map((ae) => {
+      const es = examStatsMap.get(ae.exam.id);
+      const totalResults = es?.total ?? 0;
+      return {
+        ...ae.exam,
+        totalMarks: Number(ae.exam.totalMarks),
+        resultsCount: totalResults,
+        avgPercentage: Math.round(Number(es?.avg ?? 0) * 100) / 100,
+        passRate: totalResults > 0 ? Math.round(((es?.passed ?? 0) / totalResults) * 10000) / 100 : 0,
+      };
+    }),
     classStats: {
       totalStudents: studentUserIds.length,
       totalResults: totalResultsCount,
@@ -862,19 +904,32 @@ export async function getExamsList(params?: {
         subject: { select: { name: true, code: true } },
         createdBy: { select: { firstName: true, lastName: true } },
         _count: { select: { examQuestions: true } },
-        examResults: { select: { percentage: true, isPassed: true } },
       },
     }),
     prisma.exam.count({ where }),
   ]);
 
+  // Batch-fetch exam result stats via SQL for this page of exams
+  const examIds = exams.map((e) => e.id);
+  const examStats =
+    examIds.length > 0
+      ? await prisma.$queryRaw<
+          { exam_id: string; total: bigint; passed: bigint; avg_pct: number | null }[]
+        >`
+          SELECT "examId" as exam_id, COUNT(*)::bigint as total,
+            COUNT(*) FILTER (WHERE "isPassed" = true)::bigint as passed,
+            AVG(percentage)::float as avg_pct
+          FROM exam_result WHERE "examId" = ANY(${examIds})
+          GROUP BY "examId"
+        `
+      : [];
+  const statsMap = new Map(
+    examStats.map((r) => [r.exam_id, { total: Number(r.total), passed: Number(r.passed), avg: r.avg_pct }]),
+  );
+
   const examList: ExamListItem[] = exams.map((e) => {
-    const total = e.examResults.length;
-    const passed = e.examResults.filter((r) => r.isPassed).length;
-    const avgPct =
-      total > 0
-        ? e.examResults.reduce((s, r) => s + Number(r.percentage), 0) / total
-        : 0;
+    const s = statsMap.get(e.id);
+    const totalStudents = s?.total ?? 0;
 
     return {
       id: e.id,
@@ -888,9 +943,9 @@ export async function getExamsList(params?: {
       duration: e.duration,
       scheduledStartAt: e.scheduledStartAt,
       totalQuestions: e._count.examQuestions,
-      totalStudents: total,
-      avgPercentage: Math.round(avgPct * 100) / 100,
-      passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
+      totalStudents,
+      avgPercentage: Math.round(Number(s?.avg ?? 0) * 100) / 100,
+      passRate: totalStudents > 0 ? Math.round(((s?.passed ?? 0) / totalStudents) * 10000) / 100 : 0,
       createdAt: e.createdAt,
     };
   });
@@ -948,157 +1003,182 @@ export async function getExamDetail(examId: string) {
 // ============================================
 
 export async function getTeacherWiseAnalytics() {
-  const teachers = await prisma.user.findMany({
-    where: { role: 'TEACHER', deletedAt: null, isActive: true },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      _count: {
-        select: {
-          examsCreated: { where: { deletedAt: null } },
-          questions: { where: { deletedAt: null } },
-        },
-      },
-      examsCreated: {
-        where: { deletedAt: null },
-        select: {
-          examResults: { select: { percentage: true, isPassed: true } },
-        },
-      },
-    },
-  });
+  // SQL aggregate — no more loading ALL teachers×exams×results into JS
+  const rows = await prisma.$queryRaw<
+    {
+      teacher_id: string;
+      first_name: string;
+      last_name: string;
+      exams_created: bigint;
+      questions_created: bigint;
+      total_results: bigint;
+      avg_pct: number | null;
+      pass_rate: number;
+    }[]
+  >`
+    SELECT
+      u.id as teacher_id,
+      u."firstName" as first_name,
+      u."lastName" as last_name,
+      (SELECT COUNT(*) FROM exam e WHERE e."createdById" = u.id AND e."deletedAt" IS NULL)::bigint as exams_created,
+      (SELECT COUNT(*) FROM question q WHERE q."createdById" = u.id AND q."deletedAt" IS NULL)::bigint as questions_created,
+      COALESCE(stats.total_results, 0)::bigint as total_results,
+      stats.avg_pct,
+      COALESCE(stats.pass_rate, 0)::float as pass_rate
+    FROM "user" u
+    LEFT JOIN LATERAL (
+      SELECT
+        COUNT(*)::bigint as total_results,
+        AVG(er.percentage)::float as avg_pct,
+        CASE WHEN COUNT(*) > 0
+          THEN (COUNT(*) FILTER (WHERE er."isPassed"))::float / COUNT(*)::float * 100
+          ELSE 0
+        END as pass_rate
+      FROM exam_result er
+      JOIN exam e ON er."examId" = e.id
+      WHERE e."createdById" = u.id AND e."deletedAt" IS NULL
+    ) stats ON true
+    WHERE u.role = 'TEACHER' AND u."deletedAt" IS NULL AND u."isActive" = true
+    ORDER BY u."firstName" ASC
+  `;
 
-  return teachers.map((t) => {
-    const allResults = t.examsCreated.flatMap((e) => e.examResults);
-    const total = allResults.length;
-    const passed = allResults.filter((r) => r.isPassed).length;
-    const avgPct =
-      total > 0
-        ? allResults.reduce((s, r) => s + Number(r.percentage), 0) / total
-        : 0;
-
-    return {
-      teacherId: t.id,
-      teacherName: `${t.firstName} ${t.lastName}`,
-      examsCreated: t._count.examsCreated,
-      questionsCreated: t._count.questions,
-      totalResults: total,
-      avgPercentage: Math.round(avgPct * 100) / 100,
-      passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
-    };
-  });
+  return rows.map((r) => ({
+    teacherId: r.teacher_id,
+    teacherName: `${r.first_name} ${r.last_name}`,
+    examsCreated: Number(r.exams_created),
+    questionsCreated: Number(r.questions_created),
+    totalResults: Number(r.total_results),
+    avgPercentage: Math.round(Number(r.avg_pct ?? 0) * 100) / 100,
+    passRate: Math.round(r.pass_rate * 100) / 100,
+  }));
 }
 
 export async function getClassWiseAnalytics() {
-  const classes = await prisma.class.findMany({
-    where: { isActive: true },
-    orderBy: { grade: 'asc' },
-    select: {
-      id: true,
-      name: true,
-      grade: true,
-      students: { select: { userId: true } },
-      examClassAssignments: {
-        select: {
-          exam: {
-            select: {
-              examResults: { select: { percentage: true, isPassed: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  // SQL aggregate — no more loading ALL classes×assignments×results into JS
+  const rows = await prisma.$queryRaw<
+    {
+      class_id: string;
+      class_name: string;
+      grade: number;
+      total_students: bigint;
+      total_results: bigint;
+      avg_pct: number | null;
+      pass_rate: number;
+    }[]
+  >`
+    SELECT
+      c.id as class_id,
+      c.name as class_name,
+      c.grade,
+      (SELECT COUNT(*) FROM student_profile sp WHERE sp."classId" = c.id)::bigint as total_students,
+      COALESCE(stats.total_results, 0)::bigint as total_results,
+      stats.avg_pct,
+      COALESCE(stats.pass_rate, 0)::float as pass_rate
+    FROM class c
+    LEFT JOIN LATERAL (
+      SELECT
+        COUNT(*)::bigint as total_results,
+        AVG(er.percentage)::float as avg_pct,
+        CASE WHEN COUNT(*) > 0
+          THEN (COUNT(*) FILTER (WHERE er."isPassed"))::float / COUNT(*)::float * 100
+          ELSE 0
+        END as pass_rate
+      FROM exam_result er
+      JOIN exam_class_assignment eca ON eca."examId" = er."examId"
+      WHERE eca."classId" = c.id
+    ) stats ON true
+    WHERE c."isActive" = true
+    ORDER BY c.grade ASC
+  `;
 
-  return classes.map((cls) => {
-    const allResults = cls.examClassAssignments.flatMap((e) => e.exam.examResults);
-    const total = allResults.length;
-    const passed = allResults.filter((r) => r.isPassed).length;
-    const avgPct =
-      total > 0
-        ? allResults.reduce((s, r) => s + Number(r.percentage), 0) / total
-        : 0;
-
-    return {
-      classId: cls.id,
-      className: cls.name,
-      grade: cls.grade,
-      totalStudents: cls.students.length,
-      totalResults: total,
-      avgPercentage: Math.round(avgPct * 100) / 100,
-      passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
-    };
-  });
+  return rows.map((r) => ({
+    classId: r.class_id,
+    className: r.class_name,
+    grade: r.grade,
+    totalStudents: Number(r.total_students),
+    totalResults: Number(r.total_results),
+    avgPercentage: Math.round(Number(r.avg_pct ?? 0) * 100) / 100,
+    passRate: Math.round(r.pass_rate * 100) / 100,
+  }));
 }
 
 export async function getSubjectWiseAnalytics() {
-  const subjects = await prisma.subject.findMany({
-    where: { isActive: true },
-    select: {
-      id: true,
-      name: true,
-      code: true,
-      department: { select: { name: true } },
-      exams: {
-        where: { deletedAt: null },
-        select: {
-          examResults: { select: { percentage: true, isPassed: true } },
-        },
-      },
-    },
-  });
+  // SQL aggregate — no more loading ALL subjects×exams×results into JS
+  const rows = await prisma.$queryRaw<
+    {
+      subject_id: string;
+      subject_name: string;
+      subject_code: string;
+      department_name: string;
+      total_exams: bigint;
+      total_results: bigint;
+      avg_pct: number | null;
+      pass_rate: number;
+    }[]
+  >`
+    SELECT
+      s.id as subject_id,
+      s.name as subject_name,
+      s.code as subject_code,
+      COALESCE(d.name, 'Unassigned') as department_name,
+      (SELECT COUNT(*) FROM exam e WHERE e."subjectId" = s.id AND e."deletedAt" IS NULL)::bigint as total_exams,
+      COALESCE(stats.total_results, 0)::bigint as total_results,
+      stats.avg_pct,
+      COALESCE(stats.pass_rate, 0)::float as pass_rate
+    FROM subject s
+    LEFT JOIN department d ON s."departmentId" = d.id
+    LEFT JOIN LATERAL (
+      SELECT
+        COUNT(*)::bigint as total_results,
+        AVG(er.percentage)::float as avg_pct,
+        CASE WHEN COUNT(*) > 0
+          THEN (COUNT(*) FILTER (WHERE er."isPassed"))::float / COUNT(*)::float * 100
+          ELSE 0
+        END as pass_rate
+      FROM exam_result er
+      JOIN exam e ON er."examId" = e.id
+      WHERE e."subjectId" = s.id AND e."deletedAt" IS NULL
+    ) stats ON true
+    WHERE s."isActive" = true
+    ORDER BY s.name ASC
+  `;
 
-  return subjects.map((sub) => {
-    const allResults = sub.exams.flatMap((e) => e.examResults);
-    const total = allResults.length;
-    const passed = allResults.filter((r) => r.isPassed).length;
-    const avgPct =
-      total > 0
-        ? allResults.reduce((s, r) => s + Number(r.percentage), 0) / total
-        : 0;
-
-    return {
-      subjectId: sub.id,
-      subjectName: sub.name,
-      subjectCode: sub.code,
-      department: sub.department.name,
-      totalExams: sub.exams.length,
-      totalResults: total,
-      avgPercentage: Math.round(avgPct * 100) / 100,
-      passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
-    };
-  });
+  return rows.map((r) => ({
+    subjectId: r.subject_id,
+    subjectName: r.subject_name,
+    subjectCode: r.subject_code,
+    department: r.department_name,
+    totalExams: Number(r.total_exams),
+    totalResults: Number(r.total_results),
+    avgPercentage: Math.round(Number(r.avg_pct ?? 0) * 100) / 100,
+    passRate: Math.round(r.pass_rate * 100) / 100,
+  }));
 }
 
 export async function getPerformanceTrends() {
-  // Get results grouped by month
-  const results = await prisma.examResult.findMany({
-    select: {
-      percentage: true,
-      isPassed: true,
-      createdAt: true,
-    },
-    orderBy: { createdAt: 'asc' },
-  });
+  // SQL aggregate instead of loading ALL rows into memory
+  const rows = await prisma.$queryRaw<
+    { month: string; avg_pct: number; pass_rate: number; total: bigint }[]
+  >`
+    SELECT
+      TO_CHAR("createdAt", 'YYYY-MM') as month,
+      AVG(percentage)::float as avg_pct,
+      CASE WHEN COUNT(*) > 0
+        THEN (COUNT(*) FILTER (WHERE "isPassed" = true))::float / COUNT(*)::float * 100
+        ELSE 0
+      END as pass_rate,
+      COUNT(*)::bigint as total
+    FROM exam_result
+    GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
+    ORDER BY month ASC
+  `;
 
-  const byMonth: Record<string, { sum: number; total: number; passed: number }> = {};
-  for (const r of results) {
-    const month = r.createdAt.toISOString().slice(0, 7); // YYYY-MM
-    if (!byMonth[month]) byMonth[month] = { sum: 0, total: 0, passed: 0 };
-    byMonth[month]!.sum += Number(r.percentage);
-    byMonth[month]!.total += 1;
-    if (r.isPassed) byMonth[month]!.passed += 1;
-  }
-
-  return Object.entries(byMonth)
-    .map(([month, data]) => ({
-      month,
-      avgPercentage: Math.round((data.sum / data.total) * 100) / 100,
-      passRate: Math.round((data.passed / data.total) * 10000) / 100,
-      totalExams: data.total,
-    }))
-    .sort((a, b) => a.month.localeCompare(b.month));
+  return rows.map((r) => ({
+    month: r.month,
+    avgPercentage: Math.round(r.avg_pct * 100) / 100,
+    passRate: Math.round(r.pass_rate * 100) / 100,
+    totalExams: Number(r.total),
+  }));
 }
 
 export async function getGradeDistributionOverall() {
@@ -1115,88 +1195,78 @@ export async function getGradeDistributionOverall() {
   }));
 }
 
+type StudentPerformanceRow = {
+  studentId: string;
+  studentName: string;
+  rollNumber: string;
+  className: string;
+  section: string;
+  examsTaken: number;
+  avgPercentage: number;
+  passRate: number;
+};
+
+async function getStudentPerformanceRanked(
+  order: 'DESC' | 'ASC',
+  limit = 10,
+): Promise<StudentPerformanceRow[]> {
+  // Single SQL aggregate with JOIN — no full table scan into JS
+  const rows = await prisma.$queryRaw<
+    {
+      student_id: string;
+      first_name: string;
+      last_name: string;
+      roll_number: string | null;
+      class_name: string | null;
+      section_name: string | null;
+      exams_taken: bigint;
+      avg_pct: number;
+      pass_rate: number;
+    }[]
+  >`
+    SELECT
+      er."studentId" as student_id,
+      u."firstName" as first_name,
+      u."lastName" as last_name,
+      sp."rollNumber" as roll_number,
+      c.name as class_name,
+      s.name as section_name,
+      COUNT(*)::bigint as exams_taken,
+      AVG(er.percentage)::float as avg_pct,
+      CASE WHEN COUNT(*) > 0
+        THEN (COUNT(*) FILTER (WHERE er."isPassed" = true))::float / COUNT(*)::float * 100
+        ELSE 0
+      END as pass_rate
+    FROM exam_result er
+    JOIN "user" u ON er."studentId" = u.id
+    LEFT JOIN student_profile sp ON sp."userId" = u.id
+    LEFT JOIN class c ON sp."classId" = c.id
+    LEFT JOIN section s ON sp."sectionId" = s.id
+    WHERE u."isActive" = true AND u."deletedAt" IS NULL
+    GROUP BY er."studentId", u."firstName", u."lastName", sp."rollNumber", c.name, s.name
+    HAVING COUNT(*) > 0
+    ORDER BY avg_pct ${order === 'DESC' ? Prisma.sql`DESC` : Prisma.sql`ASC`}
+    LIMIT ${limit}
+  `;
+
+  return rows.map((r) => ({
+    studentId: r.student_id,
+    studentName: `${r.first_name} ${r.last_name}`,
+    rollNumber: r.roll_number ?? '',
+    className: r.class_name ?? '',
+    section: r.section_name ?? '',
+    examsTaken: Number(r.exams_taken),
+    avgPercentage: Math.round(r.avg_pct * 100) / 100,
+    passRate: Math.round(r.pass_rate * 100) / 100,
+  }));
+}
+
 export async function getTopPerformingStudents(limit = 10) {
-  const students = await prisma.user.findMany({
-    where: { role: 'STUDENT', deletedAt: null, isActive: true },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      studentProfile: {
-        select: {
-          rollNumber: true,
-          class: { select: { name: true } },
-          section: { select: { name: true } },
-        },
-      },
-      examResults: {
-        select: { percentage: true, isPassed: true },
-      },
-    },
-  });
-
-  return students
-    .filter((s) => s.examResults.length > 0)
-    .map((s) => {
-      const totalResults = s.examResults.length;
-      const avgPct = s.examResults.reduce((sum, r) => sum + Number(r.percentage), 0) / totalResults;
-      const passed = s.examResults.filter((r) => r.isPassed).length;
-
-      return {
-        studentId: s.id,
-        studentName: `${s.firstName} ${s.lastName}`,
-        rollNumber: s.studentProfile?.rollNumber ?? '',
-        className: s.studentProfile?.class.name ?? '',
-        section: s.studentProfile?.section.name ?? '',
-        examsTaken: totalResults,
-        avgPercentage: Math.round(avgPct * 100) / 100,
-        passRate: Math.round((passed / totalResults) * 10000) / 100,
-      };
-    })
-    .sort((a, b) => b.avgPercentage - a.avgPercentage)
-    .slice(0, limit);
+  return getStudentPerformanceRanked('DESC', limit);
 }
 
 export async function getBottomPerformingStudents(limit = 10) {
-  const students = await prisma.user.findMany({
-    where: { role: 'STUDENT', deletedAt: null, isActive: true },
-    select: {
-      id: true,
-      firstName: true,
-      lastName: true,
-      studentProfile: {
-        select: {
-          rollNumber: true,
-          class: { select: { name: true } },
-          section: { select: { name: true } },
-        },
-      },
-      examResults: {
-        select: { percentage: true, isPassed: true },
-      },
-    },
-  });
-
-  return students
-    .filter((s) => s.examResults.length > 0)
-    .map((s) => {
-      const totalResults = s.examResults.length;
-      const avgPct = s.examResults.reduce((sum, r) => sum + Number(r.percentage), 0) / totalResults;
-      const passed = s.examResults.filter((r) => r.isPassed).length;
-
-      return {
-        studentId: s.id,
-        studentName: `${s.firstName} ${s.lastName}`,
-        rollNumber: s.studentProfile?.rollNumber ?? '',
-        className: s.studentProfile?.class.name ?? '',
-        section: s.studentProfile?.section.name ?? '',
-        examsTaken: totalResults,
-        avgPercentage: Math.round(avgPct * 100) / 100,
-        passRate: Math.round((passed / totalResults) * 10000) / 100,
-      };
-    })
-    .sort((a, b) => a.avgPercentage - b.avgPercentage)
-    .slice(0, limit);
+  return getStudentPerformanceRanked('ASC', limit);
 }
 
 // ============================================

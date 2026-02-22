@@ -88,4 +88,29 @@ export const queryKeys = {
     all: ['departments'] as const,
     list: () => [...queryKeys.departments.all, 'list'] as const,
   },
+
+  // ── Principal ──
+  principal: {
+    all: ['principal'] as const,
+    dashboard: {
+      stats: () => ['principal', 'dashboard', 'stats'] as const,
+      activity: () => ['principal', 'dashboard', 'activity'] as const,
+      trends: () => ['principal', 'dashboard', 'trends'] as const,
+      gradeDistribution: () => ['principal', 'dashboard', 'gradeDistribution'] as const,
+    },
+    students: (filters: Record<string, unknown>) => ['principal', 'students', filters] as const,
+    teachers: (filters: Record<string, unknown>) => ['principal', 'teachers', filters] as const,
+    exams: (filters: Record<string, unknown>) => ['principal', 'exams', filters] as const,
+    classes: (filters: Record<string, unknown>) => ['principal', 'classes', filters] as const,
+    filterOptions: () => ['principal', 'filterOptions'] as const,
+  },
+
+  // ── Sessions (Exam Sessions) ──
+  sessions: {
+    all: ['sessions'] as const,
+    studentDashboard: () => ['student', 'dashboard', 'stats'] as const,
+  },
 } as const;
+
+// Alias for sessions to match import pattern
+export const sessionKeys = queryKeys.sessions;

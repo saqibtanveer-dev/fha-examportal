@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,12 +28,14 @@ import {
 } from '@/components/ui/tooltip';
 import { Spinner } from '@/components/shared';
 import { createExamAction } from '@/modules/exams/exam-actions';
+import { useQuestionsForPicker } from '@/modules/questions/hooks/use-questions-query';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
-import { Clock, Award, HelpCircle } from 'lucide-react';
+import { Clock, Award, Loader2 } from 'lucide-react';
 
 type Subject = { id: string; name: string; code: string };
 type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
-type QuestionItem = { id: string; title: string; marks: number; type: string; subjectId: string; estimatedTime?: number };
+type QuestionItem = { id: string; title: string; marks: number; type: string; subjectId?: string; estimatedTime?: number };
 type AcademicSessionItem = { id: string; name: string; isCurrent: boolean };
 
 /** Estimated time per question type (in minutes) */
@@ -52,11 +53,10 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   subjects: Subject[];
   classes: ClassItem[];
-  questions: QuestionItem[];
   academicSessions?: AcademicSessionItem[];
 };
 
-export function CreateExamDialog({ open, onOpenChange, subjects, classes, questions, academicSessions = [] }: Props) {
+export function CreateExamDialog({ open, onOpenChange, subjects, classes, academicSessions = [] }: Props) {
   const [isPending, startTransition] = useTransition();
   const [subjectId, setSubjectId] = useState('');
   const [type, setType] = useState('QUIZ');
@@ -68,20 +68,20 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [questionSearch, setQuestionSearch] = useState('');
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
-  // Fix: Actually filter questions by selected subject
+  // Lazy-load questions when subject is selected (no more 200-question upfront fetch)
+  const { data: pickerQuestions = [], isLoading: isLoadingQuestions } = useQuestionsForPicker(subjectId);
+  const questions: QuestionItem[] = useMemo(
+    () => (pickerQuestions as any[]).map((q: any) => ({ id: q.id, title: q.title, marks: Number(q.marks), type: q.type, subjectId: q.subjectId })),
+    [pickerQuestions],
+  );
+
   const filteredQuestions = useMemo(() => {
-    let filtered = questions;
-    if (subjectId) {
-      filtered = filtered.filter((q) => q.subjectId === subjectId);
-    }
-    if (questionSearch.trim()) {
-      const search = questionSearch.toLowerCase();
-      filtered = filtered.filter((q) => q.title.toLowerCase().includes(search));
-    }
-    return filtered;
-  }, [questions, subjectId, questionSearch]);
+    if (!questionSearch.trim()) return questions;
+    const search = questionSearch.toLowerCase();
+    return questions.filter((q) => q.title.toLowerCase().includes(search));
+  }, [questions, questionSearch]);
 
   // Calculate total marks from selected questions
   const totalMarks = useMemo(() => {
@@ -122,18 +122,11 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
     });
   }
 
-  // Clear selection when subject changes
+  // Clear selection when subject changes — questions auto-refresh via React Query
   function handleSubjectChange(newSubjectId: string) {
     setSubjectId(newSubjectId);
-    // Remove questions that don't belong to the new subject
-    if (newSubjectId) {
-      setSelectedQuestions((prev) =>
-        prev.filter((qId) => {
-          const q = questions.find((x) => x.id === qId);
-          return q?.subjectId === newSubjectId;
-        }),
-      );
-    }
+    setSelectedQuestions([]);
+    setQuestionSearch('');
   }
 
   function handleSubmit(formData: FormData) {
@@ -164,7 +157,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
         toast.success('Exam created');
         onOpenChange(false);
         resetForm();
-        router.refresh();
+        await invalidate.afterExamCreate();
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -301,7 +294,16 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
               className="h-8 text-sm"
             />
             <div className="max-h-48 overflow-y-auto rounded border p-2 space-y-1">
-              {filteredQuestions.map((q) => (
+              {isLoadingQuestions ? (
+                <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />Loading questions...
+                </div>
+              ) : filteredQuestions.length === 0 ? (
+                <p className="text-sm text-muted-foreground p-2">
+                  {subjectId ? 'No questions for this subject' : 'Select a subject to load questions'}
+                </p>
+              ) : (
+                filteredQuestions.map((q) => (
                 <label
                   key={q.id}
                   className="flex items-start gap-2 cursor-pointer hover:bg-accent rounded px-2 py-1.5 group"
@@ -328,11 +330,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, questi
                     </Badge>
                   </div>
                 </label>
-              ))}
-              {filteredQuestions.length === 0 && (
-                <p className="text-sm text-muted-foreground p-2">
-                  {subjectId ? 'No questions for this subject' : 'No questions available'}
-                </p>
+              ))
               )}
             </div>
           </div>

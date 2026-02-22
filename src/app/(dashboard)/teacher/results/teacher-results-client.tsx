@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { PageHeader, EmptyState } from '@/components/shared';
+import { useTeacherExamsForResults } from '@/modules/results/hooks/use-results-query';
+import { ResultsSkeleton } from './results-skeleton';
 import { BarChart3, Users } from 'lucide-react';
 
 type Exam = {
@@ -14,9 +16,13 @@ type Exam = {
   _count: { examResults: number };
 };
 
-type Props = { exams: Exam[] };
+export function TeacherResultsClient() {
+  const { data: exams = [], isLoading } = useTeacherExamsForResults() as { data: Exam[]; isLoading: boolean };
 
-export function TeacherResultsClient({ exams }: Props) {
+  if (isLoading) {
+    return <ResultsSkeleton />;
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader

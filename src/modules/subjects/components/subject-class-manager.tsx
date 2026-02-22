@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,7 +39,7 @@ export function SubjectClassManager({ subjectId, subjectName, currentLinks, allC
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>(
     currentLinks.filter((l) => l.isActive).map((l) => l.classId),
   );
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   const activeLinks = currentLinks.filter((l) => l.isActive);
 
@@ -65,7 +65,7 @@ export function SubjectClassManager({ subjectId, subjectName, currentLinks, allC
       if (result.success) {
         toast.success('Class assignments updated');
         setOpen(false);
-        router.refresh();
+        await invalidate.subjects();
       } else {
         toast.error(result.error ?? 'Failed to update');
       }

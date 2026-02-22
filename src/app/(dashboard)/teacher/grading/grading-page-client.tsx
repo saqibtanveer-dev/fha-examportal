@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader, EmptyState, Spinner } from '@/components/shared';
+import { PageHeader, EmptyState } from '@/components/shared';
 import { autoGradeSessionAction } from '@/modules/grading/grading-actions';
 import { aiGradeSessionAction, finalizeSessionAction } from '@/modules/grading/ai-grading-actions';
+import { useGradingSessionsQuery } from '@/modules/grading/hooks/use-grading-sessions';
+import { useInvalidateCache } from '@/lib/cache-utils';
+import { GradingSkeleton } from './grading-skeleton';
 import { toast } from 'sonner';
-import { Zap, PenLine, Brain, ShieldAlert, Send } from 'lucide-react';
+import { Zap, PenLine, Brain, ShieldAlert, Send, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 type Session = {
@@ -24,14 +26,15 @@ type Session = {
   _count: { studentAnswers: number };
 };
 
-type Props = { sessions: Session[] };
-
 /** Track loading state per session + action type */
 type LoadingKey = `${string}:${'auto' | 'ai' | 'finalize'}`;
 
-export function GradingPageClient({ sessions }: Props) {
+export function GradingPageClient() {
   const [loadingKeys, setLoadingKeys] = useState<Set<LoadingKey>>(new Set());
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
+
+  // React Query — client-first with caching
+  const { data: sessions = [], isLoading: isQueryLoading } = useGradingSessionsQuery() as { data: Session[]; isLoading: boolean };
 
   const startLoading = useCallback((key: LoadingKey) => {
     setLoadingKeys((prev) => new Set(prev).add(key));
@@ -54,6 +57,11 @@ export function GradingPageClient({ sessions }: Props) {
     );
   }, [loadingKeys]);
 
+  if (isQueryLoading) {
+    return <GradingSkeleton />;
+  }
+
+
   async function handleAutoGrade(sessionId: string) {
     const key: LoadingKey = `${sessionId}:auto`;
     startLoading(key);
@@ -62,7 +70,7 @@ export function GradingPageClient({ sessions }: Props) {
       if (result.success) {
         const data = result.data as { mcqMarks: number; fullyGraded: boolean };
         toast.success(data.fullyGraded ? 'Fully graded!' : `MCQs graded (${data.mcqMarks} marks). Manual grading needed.`);
-        router.refresh();
+        await invalidate.afterGrading(sessionId);
       } else {
         toast.error(result.error ?? 'Failed');
       }
@@ -82,7 +90,7 @@ export function GradingPageClient({ sessions }: Props) {
         const { graded, failed, needsReview } = result.data;
         const msg = `AI graded ${graded} answers.${needsReview > 0 ? ` ${needsReview} need review.` : ''}${failed > 0 ? ` ${failed} failed.` : ''}`;
         toast.success(msg);
-        router.refresh();
+        await invalidate.afterGrading(sessionId);
       } else {
         toast.error(result.error ?? 'AI grading failed');
       }
@@ -100,7 +108,7 @@ export function GradingPageClient({ sessions }: Props) {
       const result = await finalizeSessionAction(sessionId);
       if (result.success) {
         toast.success('Result finalized and published!');
-        router.refresh();
+        await invalidate.afterGrading(sessionId);
       } else {
         toast.error(result.error ?? 'Failed to finalize');
       }
@@ -158,7 +166,7 @@ export function GradingPageClient({ sessions }: Props) {
                       onClick={() => handleAutoGrade(s.id)}
                       disabled={sessionPending}
                     >
-                      {isLoading(s.id, 'auto') ? <Spinner size="sm" className="mr-1" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
+                      {isLoading(s.id, 'auto') ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Zap className="mr-1 h-3.5 w-3.5" />}
                       Auto-grade
                     </Button>
                     <Button
@@ -167,7 +175,7 @@ export function GradingPageClient({ sessions }: Props) {
                       onClick={() => handleAiGrade(s.id)}
                       disabled={sessionPending}
                     >
-                      {isLoading(s.id, 'ai') ? <Spinner size="sm" className="mr-1" /> : <Brain className="mr-1 h-3.5 w-3.5" />}
+                      {isLoading(s.id, 'ai') ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Brain className="mr-1 h-3.5 w-3.5" />}
                       AI Grade
                     </Button>
                     <Button size="sm" asChild>
@@ -182,7 +190,7 @@ export function GradingPageClient({ sessions }: Props) {
                         onClick={() => handleFinalize(s.id)}
                         disabled={sessionPending}
                       >
-                        {isLoading(s.id, 'finalize') ? <Spinner size="sm" className="mr-1" /> : <Send className="mr-1 h-3.5 w-3.5" />}
+                        {isLoading(s.id, 'finalize') ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" /> : <Send className="mr-1 h-3.5 w-3.5" />}
                         Finalize
                       </Button>
                     )}

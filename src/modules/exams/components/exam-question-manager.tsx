@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +31,7 @@ import {
   addQuestionToExamAction,
   removeQuestionFromExamAction,
 } from '@/modules/exams/exam-question-actions';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
 
 /* ─── Types ─── */
@@ -77,7 +77,7 @@ export function ExamQuestionManager({
   const [loadingKeys, setLoadingKeys] = useState<Set<LoadingKey>>(new Set());
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   const startLoading = useCallback((key: LoadingKey) => {
     setLoadingKeys((prev) => new Set(prev).add(key));
@@ -117,7 +117,7 @@ export function ExamQuestionManager({
       const result = await addQuestionToExamAction(examId, questionId);
       if (result.success) {
         toast.success('Question added');
-        router.refresh();
+        await invalidate.exams();
       } else {
         toast.error(result.error ?? 'Failed to add question');
       }
@@ -135,7 +135,7 @@ export function ExamQuestionManager({
       const result = await removeQuestionFromExamAction(examId, questionId);
       if (result.success) {
         toast.success('Question removed');
-        router.refresh();
+        await invalidate.exams();
       } else {
         toast.error(result.error ?? 'Failed to remove question');
       }

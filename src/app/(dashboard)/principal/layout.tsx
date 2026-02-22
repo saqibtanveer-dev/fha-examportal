@@ -1,5 +1,5 @@
 import { requireRole } from '@/lib/auth-utils';
-import { getUnreadCount } from '@/modules/notifications/notification-queries';
+import { fetchPrincipalReferenceData } from '@/modules/settings/reference-actions';
 import { PrincipalShell } from './principal-shell';
 
 export default async function PrincipalLayout({
@@ -8,10 +8,13 @@ export default async function PrincipalLayout({
   children: React.ReactNode;
 }) {
   const session = await requireRole('PRINCIPAL');
-  const notificationCount = await getUnreadCount(session.user.id);
+  const referenceResult = await fetchPrincipalReferenceData();
 
   return (
-    <PrincipalShell user={session.user} notificationCount={notificationCount}>
+    <PrincipalShell
+      user={session.user}
+      referenceData={referenceResult.success ? referenceResult.data : undefined}
+    >
       {children}
     </PrincipalShell>
   );

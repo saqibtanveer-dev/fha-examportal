@@ -17,29 +17,35 @@ import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
 import { QuestionTable, CreateQuestionDialog } from '@/modules/questions/components';
 import { importQuestionsFromCsvAction } from '@/modules/questions/import-actions';
 import { TagManager } from '@/modules/tags/components';
-import type { PaginatedResult } from '@/utils/pagination';
-import type { QuestionWithRelations } from '@/modules/questions/question-queries';
-import type { DeepSerialize } from '@/utils/serialize';
+import { useQuestionsQuery } from '@/modules/questions/hooks/use-questions-query';
+import { useReferenceStore } from '@/stores';
+import { useInvalidateCache } from '@/lib/cache-utils';
+import { QuestionsSkeleton } from './questions-skeleton';
+import type { PaginationParams } from '@/utils/pagination';
+import type { QuestionListFilters } from '@/modules/questions/question-queries';
 
 const Q_CSV_SAMPLE =
   'title,type,difficulty,marks,subjectId,modelAnswer,explanation,description,mcqOptions\n"What is 2+2?",MCQ,EASY,1,<subject-id>,"B","Basic arithmetic","Choose the correct answer","2|*4|6|8"\n"Explain gravity",SHORT_ANSWER,MEDIUM,5,<subject-id>,"Gravity is the force of attraction between objects",,"Briefly explain the concept of gravity",\n"Discuss photosynthesis in detail",LONG_ANSWER,HARD,10,<subject-id>,"Photosynthesis is the process by which plants convert light energy into chemical energy","Include the light and dark reactions","Write a detailed essay on photosynthesis",';
 
-type Subject = { id: string; name: string; code: string };
-type SubjectClassMap = { subjectId: string; classId: string; className: string };
-type TagItem = { id: string; name: string; category: string; _count: { questionTags: number } };
-
 type Props = {
-  result: DeepSerialize<PaginatedResult<QuestionWithRelations>>;
-  subjects: Subject[];
-  subjectClassLinks?: SubjectClassMap[];
-  tags: TagItem[];
+  filters: QuestionListFilters;
+  pagination: PaginationParams;
 };
 
-export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], tags }: Props) {
+export function QuestionsPageClient({ filters, pagination }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const invalidate = useInvalidateCache();
+
+  // Reference data from Zustand (hydrated at layout level)
+  const subjects = useReferenceStore((s) => s.subjects);
+  const subjectClassLinks = useReferenceStore((s) => s.subjectClassLinks);
+  const tags = useReferenceStore((s) => s.tags);
+
+  // React Query — client-first fetching with 5-min cache
+  const { data: result, isLoading } = useQuestionsQuery(pagination, filters);
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -47,6 +53,11 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
     else params.delete(key);
     params.delete('page');
     router.push(`/teacher/questions?${params.toString()}`);
+  }
+
+  // Show skeleton while loading (only on first visit or cache miss)
+  if (isLoading || !result) {
+    return <QuestionsSkeleton />;
   }
 
   return (
@@ -66,6 +77,7 @@ export function QuestionsPageClient({ result, subjects, subjectClassLinks = [], 
               onImport={async (rows) => {
                 const res = await importQuestionsFromCsvAction(rows as any);
                 if (!res.success) throw new Error(res.error);
+                await invalidate.questions();
                 return res.data!;
               }}
             />

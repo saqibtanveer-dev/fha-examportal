@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -39,7 +39,7 @@ export function TeacherSubjectAssigner({
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>(
     currentAssignments.map((a) => a.subjectId),
   );
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleOpenChange(isOpen: boolean) {
     setOpen(isOpen);
@@ -63,7 +63,7 @@ export function TeacherSubjectAssigner({
       if (result.success) {
         toast.success('Subject assignments updated');
         setOpen(false);
-        router.refresh();
+        await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed to update');
       }

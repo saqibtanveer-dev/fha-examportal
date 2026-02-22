@@ -1,7 +1,11 @@
-import { listDepartments } from '@/modules/departments/department-queries';
+import { Suspense } from 'react';
 import { DepartmentsPageClient } from './departments-page-client';
+import { DepartmentsListSkeleton } from './departments-skeleton';
 
-export default async function DepartmentsPage() {
-  const departments = await listDepartments();
-  return <DepartmentsPageClient departments={departments} />;
+export default function DepartmentsPage() {
+  return (
+    <Suspense fallback={<DepartmentsListSkeleton />}>
+      <DepartmentsPageClient />
+    </Suspense>
+  );
 }

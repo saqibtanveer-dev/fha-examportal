@@ -34,6 +34,10 @@ export function useInvalidateCache() {
     academicSessions: () => invalidateQueries(queryKeys.academicSessions.all),
     users: () => invalidateQueries(queryKeys.users.all),
     notifications: () => invalidateQueries(queryKeys.notifications.all),
+    departments: () => invalidateQueries(queryKeys.departments.all),
+    settings: () => invalidateQueries(queryKeys.settings.all),
+    principal: () => invalidateQueries(queryKeys.principal.all),
+    principalDashboard: () => invalidateQueries(['principal', 'dashboard']),
 
     // ── Granular invalidation ──
     examLists: () => invalidateQueries(queryKeys.exams.lists()),

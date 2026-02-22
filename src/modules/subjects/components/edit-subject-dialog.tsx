@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -47,7 +47,7 @@ export function EditSubjectDialog({ open, onOpenChange, subject, departments }: 
   const [isPending, startTransition] = useTransition();
   const [departmentId, setDepartmentId] = useState(subject.departmentId);
   const [isActive, setIsActive] = useState(subject.isActive);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -61,7 +61,7 @@ export function EditSubjectDialog({ open, onOpenChange, subject, departments }: 
       if (result.success) {
         toast.success('Subject updated');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.subjects();
       } else {
         toast.error(result.error ?? 'Failed to update');
       }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -42,7 +42,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedSectionId, setSelectedSectionId] = useState<string>('');
   const [gender, setGender] = useState<string>('');
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   // Get sections for the selected class
   const selectedClass = classes.find((c) => c.id === selectedClassId);
@@ -95,7 +95,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
       if (result.success) {
         toast.success('User created successfully');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed to create user');
       }

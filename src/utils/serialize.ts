@@ -1,12 +1,13 @@
 import type { Decimal } from '@prisma/client/runtime/library';
 
 /**
- * Recursively maps Prisma Decimal → number in the type system,
+ * Recursively maps Prisma Decimal → number and Date → string in the type system,
  * so serialized data has correct types for client components.
+ * Note: JSON.stringify converts Date objects to ISO strings.
  */
 export type DeepSerialize<T> =
   T extends Decimal ? number :
-  T extends Date ? Date :
+  T extends Date ? string :
   T extends Array<infer U> ? DeepSerialize<U>[] :
   T extends object ? { [K in keyof T]: DeepSerialize<T[K]> } :
   T;

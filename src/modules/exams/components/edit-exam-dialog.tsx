@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Spinner } from '@/components/shared';
 import { updateExamAction } from '@/modules/exams/exam-actions';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
 import type { ExamWithRelations } from '@/modules/exams/exam-queries';
 import type { DeepSerialize } from '@/utils/serialize';
@@ -39,7 +39,7 @@ export function EditExamDialog({ open, onOpenChange, exam }: Props) {
   const [showResultAfter, setShowResultAfter] = useState<string>(exam.showResultAfter);
   const [shuffleQuestions, setShuffleQuestions] = useState(exam.shuffleQuestions);
   const [allowReview, setAllowReview] = useState(exam.allowReview);
-  const router = useRouter();
+  const invalidate = useInvalidateCache();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -58,7 +58,7 @@ export function EditExamDialog({ open, onOpenChange, exam }: Props) {
       if (result.success) {
         toast.success('Exam updated');
         onOpenChange(false);
-        router.refresh();
+        await invalidate.exams();
       } else {
         toast.error(result.error ?? 'Failed to update');
       }

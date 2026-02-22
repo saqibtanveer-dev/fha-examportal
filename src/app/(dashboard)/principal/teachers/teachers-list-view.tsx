@@ -42,7 +42,7 @@ type Props = {
   search: string;
 };
 
-export function TeachersListClient({ teachers, total, currentPage, search }: Props) {
+export function TeachersListView({ teachers, total, currentPage, search }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchValue, setSearchValue] = useState(search);

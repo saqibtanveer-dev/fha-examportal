@@ -65,7 +65,7 @@ const statusOptions = [
   { value: 'WITHDRAWN', label: 'Withdrawn' },
 ];
 
-export function StudentsListClient({
+export function StudentsListView({
   students,
   total,
   currentPage,
