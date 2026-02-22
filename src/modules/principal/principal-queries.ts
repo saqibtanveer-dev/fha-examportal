@@ -10,17 +10,17 @@ export async function getPrincipalDashboardStats() {
     // Single raw query for all entity counts
     prisma.$queryRaw<[{ teachers: bigint; students: bigint; classes: bigint; subjects: bigint }]>`
       SELECT
-        (SELECT COUNT(*) FROM "user" WHERE role = 'TEACHER' AND "isActive" = true AND "deletedAt" IS NULL) as teachers,
-        (SELECT COUNT(*) FROM "user" WHERE role = 'STUDENT' AND "isActive" = true AND "deletedAt" IS NULL) as students,
-        (SELECT COUNT(*) FROM class WHERE "isActive" = true) as classes,
-        (SELECT COUNT(*) FROM subject WHERE "isActive" = true) as subjects
+        (SELECT COUNT(*) FROM "User" WHERE role = 'TEACHER' AND "isActive" = true AND "deletedAt" IS NULL) as teachers,
+        (SELECT COUNT(*) FROM "User" WHERE role = 'STUDENT' AND "isActive" = true AND "deletedAt" IS NULL) as students,
+        (SELECT COUNT(*) FROM "Class" WHERE "isActive" = true) as classes,
+        (SELECT COUNT(*) FROM "Subject" WHERE "isActive" = true) as subjects
     `,
     // Single raw query for exam counts (total + active)
     prisma.$queryRaw<[{ total: bigint; active: bigint }]>`
       SELECT
         COUNT(*) as total,
         COUNT(*) FILTER (WHERE status = 'ACTIVE') as active
-      FROM exam WHERE "deletedAt" IS NULL
+      FROM "Exam" WHERE "deletedAt" IS NULL
     `,
     // Single raw query for ALL result stats (count + passed + avg)
     prisma.$queryRaw<[{ total: bigint; passed: bigint; avg_pct: number | null }]>`
@@ -28,7 +28,7 @@ export async function getPrincipalDashboardStats() {
         COUNT(*)::bigint as total,
         COUNT(*) FILTER (WHERE "isPassed" = true)::bigint as passed,
         AVG(percentage)::float as avg_pct
-      FROM exam_result
+      FROM "ExamResult"
     `,
     prisma.examSession.count({ where: { status: { in: ['SUBMITTED', 'GRADING'] } } }),
   ]);
@@ -283,8 +283,8 @@ export async function getTeacherDetail(teacherUserId: string) {
         COUNT(*)::bigint as total,
         COUNT(*) FILTER (WHERE er."isPassed" = true)::bigint as passed,
         AVG(er.percentage)::float as avg_pct
-      FROM exam_result er
-      JOIN exam e ON er."examId" = e.id
+      FROM "ExamResult" er
+      JOIN "Exam" e ON er."examId" = e.id
       WHERE e."createdById" = ${teacherUserId} AND e."deletedAt" IS NULL
     `,
   ]);
@@ -412,7 +412,7 @@ export async function getStudentsList(params?: {
     userIds.length > 0
       ? await prisma.$queryRaw<{ student_id: string; avg_pct: number; cnt: bigint }[]>`
           SELECT "studentId" as student_id, AVG(percentage)::float as avg_pct, COUNT(*)::bigint as cnt
-          FROM exam_result WHERE "studentId" = ANY(${userIds})
+          FROM "ExamResult" WHERE "studentId" = ANY(${userIds})
           GROUP BY "studentId"
         `
       : [];
@@ -621,7 +621,7 @@ export async function getClassesList(): Promise<ClassOverview[]> {
     classIds.length > 0
       ? prisma.$queryRaw<{ class_id: string; exam_count: bigint }[]>`
           SELECT "classId" as class_id, COUNT(DISTINCT "examId")::bigint as exam_count
-          FROM exam_class_assignment WHERE "classId" = ANY(${classIds})
+          FROM "ExamClassAssignment" WHERE "classId" = ANY(${classIds})
           GROUP BY "classId"
         `
       : [],
@@ -631,8 +631,8 @@ export async function getClassesList(): Promise<ClassOverview[]> {
             COUNT(*)::bigint as total,
             COUNT(*) FILTER (WHERE er."isPassed" = true)::bigint as passed,
             AVG(er.percentage)::float as avg_pct
-          FROM exam_result er
-          JOIN exam_class_assignment eca ON eca."examId" = er."examId"
+          FROM "ExamResult" er
+          JOIN "ExamClassAssignment" eca ON eca."examId" = er."examId"
           WHERE eca."classId" = ANY(${classIds})
           GROUP BY eca."classId"
         `
@@ -751,7 +751,7 @@ export async function getClassDetail(classId: string) {
           SELECT "examId" as exam_id, COUNT(*)::bigint as total,
             COUNT(*) FILTER (WHERE "isPassed" = true)::bigint as passed,
             AVG(percentage)::float as avg_pct
-          FROM exam_result WHERE "examId" = ANY(${assignedExamIds})
+          FROM "ExamResult" WHERE "examId" = ANY(${assignedExamIds})
           GROUP BY "examId"
         `
       : [];
@@ -919,7 +919,7 @@ export async function getExamsList(params?: {
           SELECT "examId" as exam_id, COUNT(*)::bigint as total,
             COUNT(*) FILTER (WHERE "isPassed" = true)::bigint as passed,
             AVG(percentage)::float as avg_pct
-          FROM exam_result WHERE "examId" = ANY(${examIds})
+          FROM "ExamResult" WHERE "examId" = ANY(${examIds})
           GROUP BY "examId"
         `
       : [];
@@ -1020,12 +1020,12 @@ export async function getTeacherWiseAnalytics() {
       u.id as teacher_id,
       u."firstName" as first_name,
       u."lastName" as last_name,
-      (SELECT COUNT(*) FROM exam e WHERE e."createdById" = u.id AND e."deletedAt" IS NULL)::bigint as exams_created,
-      (SELECT COUNT(*) FROM question q WHERE q."createdById" = u.id AND q."deletedAt" IS NULL)::bigint as questions_created,
+      (SELECT COUNT(*) FROM "Exam" e WHERE e."createdById" = u.id AND e."deletedAt" IS NULL)::bigint as exams_created,
+      (SELECT COUNT(*) FROM "Question" q WHERE q."createdById" = u.id AND q."deletedAt" IS NULL)::bigint as questions_created,
       COALESCE(stats.total_results, 0)::bigint as total_results,
       stats.avg_pct,
       COALESCE(stats.pass_rate, 0)::float as pass_rate
-    FROM "user" u
+    FROM "User" u
     LEFT JOIN LATERAL (
       SELECT
         COUNT(*)::bigint as total_results,
@@ -1034,8 +1034,8 @@ export async function getTeacherWiseAnalytics() {
           THEN (COUNT(*) FILTER (WHERE er."isPassed"))::float / COUNT(*)::float * 100
           ELSE 0
         END as pass_rate
-      FROM exam_result er
-      JOIN exam e ON er."examId" = e.id
+      FROM "ExamResult" er
+      JOIN "Exam" e ON er."examId" = e.id
       WHERE e."createdById" = u.id AND e."deletedAt" IS NULL
     ) stats ON true
     WHERE u.role = 'TEACHER' AND u."deletedAt" IS NULL AND u."isActive" = true
@@ -1070,11 +1070,11 @@ export async function getClassWiseAnalytics() {
       c.id as class_id,
       c.name as class_name,
       c.grade,
-      (SELECT COUNT(*) FROM student_profile sp WHERE sp."classId" = c.id)::bigint as total_students,
+      (SELECT COUNT(*) FROM "StudentProfile" sp WHERE sp."classId" = c.id)::bigint as total_students,
       COALESCE(stats.total_results, 0)::bigint as total_results,
       stats.avg_pct,
       COALESCE(stats.pass_rate, 0)::float as pass_rate
-    FROM class c
+    FROM "Class" c
     LEFT JOIN LATERAL (
       SELECT
         COUNT(*)::bigint as total_results,
@@ -1083,8 +1083,8 @@ export async function getClassWiseAnalytics() {
           THEN (COUNT(*) FILTER (WHERE er."isPassed"))::float / COUNT(*)::float * 100
           ELSE 0
         END as pass_rate
-      FROM exam_result er
-      JOIN exam_class_assignment eca ON eca."examId" = er."examId"
+      FROM "ExamResult" er
+      JOIN "ExamClassAssignment" eca ON eca."examId" = er."examId"
       WHERE eca."classId" = c.id
     ) stats ON true
     WHERE c."isActive" = true
@@ -1121,12 +1121,12 @@ export async function getSubjectWiseAnalytics() {
       s.name as subject_name,
       s.code as subject_code,
       COALESCE(d.name, 'Unassigned') as department_name,
-      (SELECT COUNT(*) FROM exam e WHERE e."subjectId" = s.id AND e."deletedAt" IS NULL)::bigint as total_exams,
+      (SELECT COUNT(*) FROM "Exam" e WHERE e."subjectId" = s.id AND e."deletedAt" IS NULL)::bigint as total_exams,
       COALESCE(stats.total_results, 0)::bigint as total_results,
       stats.avg_pct,
       COALESCE(stats.pass_rate, 0)::float as pass_rate
-    FROM subject s
-    LEFT JOIN department d ON s."departmentId" = d.id
+    FROM "Subject" s
+    LEFT JOIN "Department" d ON s."departmentId" = d.id
     LEFT JOIN LATERAL (
       SELECT
         COUNT(*)::bigint as total_results,
@@ -1135,8 +1135,8 @@ export async function getSubjectWiseAnalytics() {
           THEN (COUNT(*) FILTER (WHERE er."isPassed"))::float / COUNT(*)::float * 100
           ELSE 0
         END as pass_rate
-      FROM exam_result er
-      JOIN exam e ON er."examId" = e.id
+      FROM "ExamResult" er
+      JOIN "Exam" e ON er."examId" = e.id
       WHERE e."subjectId" = s.id AND e."deletedAt" IS NULL
     ) stats ON true
     WHERE s."isActive" = true
@@ -1168,7 +1168,7 @@ export async function getPerformanceTrends() {
         ELSE 0
       END as pass_rate,
       COUNT(*)::bigint as total
-    FROM exam_result
+    FROM "ExamResult"
     GROUP BY TO_CHAR("createdAt", 'YYYY-MM')
     ORDER BY month ASC
   `;
@@ -1237,11 +1237,11 @@ async function getStudentPerformanceRanked(
         THEN (COUNT(*) FILTER (WHERE er."isPassed" = true))::float / COUNT(*)::float * 100
         ELSE 0
       END as pass_rate
-    FROM exam_result er
-    JOIN "user" u ON er."studentId" = u.id
-    LEFT JOIN student_profile sp ON sp."userId" = u.id
-    LEFT JOIN class c ON sp."classId" = c.id
-    LEFT JOIN section s ON sp."sectionId" = s.id
+    FROM "ExamResult" er
+    JOIN "User" u ON er."studentId" = u.id
+    LEFT JOIN "StudentProfile" sp ON sp."userId" = u.id
+    LEFT JOIN "Class" c ON sp."classId" = c.id
+    LEFT JOIN "Section" s ON sp."sectionId" = s.id
     WHERE u."isActive" = true AND u."deletedAt" IS NULL
     GROUP BY er."studentId", u."firstName", u."lastName", sp."rollNumber", c.name, s.name
     HAVING COUNT(*) > 0
