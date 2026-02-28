@@ -58,7 +58,7 @@ export default async function QuestionDetailPage({ params }: Props) {
         <InfoCard
           icon={<Award className="h-4 w-4 text-muted-foreground" />}
           label="Marks"
-          value={String(q.marks)}
+          value={String(Number(q.marks))}
         />
         <InfoCard
           icon={<Clock className="h-4 w-4 text-muted-foreground" />}

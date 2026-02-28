@@ -58,7 +58,7 @@ export function GradingInterface({ sessionId, answers, studentName, antiCheatInf
   const [marks, setMarks] = useState<Record<string, string>>(() => {
     const initial: Record<string, string> = {};
     for (const a of answers) {
-      if (a.answerGrade) initial[a.id] = String(a.answerGrade.marksAwarded);
+      if (a.answerGrade) initial[a.id] = String(Number(a.answerGrade.marksAwarded));
     }
     return initial;
   });
@@ -371,7 +371,7 @@ function AnswerCard({
             <Badge variant="outline">Q{index + 1}{!compact && ` / ${total}`}</Badge>
             <Badge variant="secondary" className="text-xs">{answer.question.type.replace('_', ' ')}</Badge>
           </div>
-          <Badge variant="secondary">{String(answer.question.marks)} marks</Badge>
+          <Badge variant="secondary">{Number(answer.question.marks)} marks</Badge>
         </div>
         <CardTitle className={compact ? 'text-sm' : 'text-lg'}>{answer.question.title}</CardTitle>
       </CardHeader>
@@ -447,11 +447,11 @@ function GradeInput({
       )}
       <div className="flex gap-3">
         <div className="space-y-1">
-          <Label className="text-xs">Marks (max {answer.question.marks})</Label>
+          <Label className="text-xs">Marks (max {Number(answer.question.marks)})</Label>
           <Input
             type="number"
             min={0}
-            max={answer.question.marks}
+            max={Number(answer.question.marks)}
             step="0.5"
             value={marks[answer.id] ?? ''}
             onChange={(e) => onMarksChange(answer.id, e.target.value)}
@@ -534,7 +534,7 @@ function GradeDisplay({
           <CheckCircle className="h-4 w-4 text-green-600" />
         )}
         <span className="font-medium">
-          {String(grade.marksAwarded)} marks
+          {Number(grade.marksAwarded)} marks
         </span>
         <Badge variant="outline" className="text-xs">
           {grade.gradedBy}

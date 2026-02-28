@@ -63,7 +63,7 @@ export default async function ExamDetailPage({ params }: Props) {
         <InfoCard
           icon={<Award className="h-4 w-4 text-muted-foreground" />}
           label="Total / Passing"
-          value={`${e.totalMarks} / ${e.passingMarks}`}
+          value={`${Number(e.totalMarks)} / ${Number(e.passingMarks)}`}
         />
         <InfoCard
           icon={<FileText className="h-4 w-4 text-muted-foreground" />}

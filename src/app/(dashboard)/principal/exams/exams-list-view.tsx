@@ -275,7 +275,7 @@ export function ExamsListView({
                     <div>
                       <p className="max-w-50 truncate font-medium">{exam.title}</p>
                       <p className="text-muted-foreground text-xs">
-                        {exam.totalMarks} marks · {exam.duration} min
+                        {Number(exam.totalMarks)} marks · {exam.duration} min
                       </p>
                     </div>
                   </TableCell>

@@ -119,7 +119,7 @@ export default async function TeacherResultDetailPage({ params }: Props) {
         <InfoCard
           icon={<Target className="h-4 w-4 text-muted-foreground" />}
           label="Passing Marks"
-          value={String(result.passingMarks)}
+          value={String(Number(result.passingMarks))}
         />
         <InfoCard
           icon={<Clock className="h-4 w-4 text-muted-foreground" />}

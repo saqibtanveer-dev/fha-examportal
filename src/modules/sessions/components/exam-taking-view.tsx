@@ -189,7 +189,7 @@ export function ExamTakingView({ session }: Props) {
                 <Flag className="mr-1 h-3.5 w-3.5" />
                 {markedForReview.has(current.id) ? 'Unflag' : 'Flag for Review'}
               </Button>
-              <Badge variant="secondary">{String(current.marks)} marks</Badge>
+              <Badge variant="secondary">{Number(current.marks)} marks</Badge>
             </div>
           </div>
           <CardTitle className="text-lg wrap-break-word">{q.title}</CardTitle>

@@ -45,8 +45,8 @@ export function formatPercentage(value: number | string, decimals = 1): string {
   return `${Number(value).toFixed(decimals)}%`;
 }
 
-export function formatMarks(obtained: number, total: number): string {
-  return `${obtained}/${total}`;
+export function formatMarks(obtained: number | string, total: number | string): string {
+  return `${Number(obtained)}/${Number(total)}`;
 }
 
 // ============================================

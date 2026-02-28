@@ -263,7 +263,7 @@ function ExamQuestionsTable({
               <TableCell>
                 <Badge variant="outline">{eq.question.difficulty}</Badge>
               </TableCell>
-              <TableCell className="text-right font-medium">{String(eq.marks)}</TableCell>
+              <TableCell className="text-right font-medium">{Number(eq.marks)}</TableCell>
               {isDraft && (
                 <TableCell>
                   <Button
@@ -336,7 +336,7 @@ function QuestionPickerList({
                   {q.difficulty}
                 </Badge>
                 <Badge variant="secondary" className="text-xs font-semibold">
-                  {String(q.marks)}m
+                  {Number(q.marks)}m
                 </Badge>
               </div>
             </div>

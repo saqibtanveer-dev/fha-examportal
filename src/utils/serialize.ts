@@ -21,8 +21,12 @@ export type DeepSerialize<T> =
 function convertDecimals(obj: unknown): unknown {
   if (obj === null || obj === undefined) return obj;
 
-  // Detect Prisma Decimal (has toFixed, d, e, s properties from decimal.js)
-  if (typeof obj === 'object' && obj.constructor?.name === 'Decimal') {
+  if (typeof obj !== 'object') return obj;
+
+  // Detect Prisma Decimal by structural signature.
+  // Prisma minifies the Decimal class (constructor.name becomes "i"),
+  // so we detect by the {s, e, d} shape + toFixed method from decimal.js.
+  if (isDecimalLike(obj)) {
     return Number(obj as Decimal);
   }
 
@@ -32,15 +36,22 @@ function convertDecimals(obj: unknown): unknown {
     return obj.map(convertDecimals);
   }
 
-  if (typeof obj === 'object') {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[key] = convertDecimals(value);
-    }
-    return result;
+  const result: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    result[key] = convertDecimals(value);
   }
+  return result;
+}
 
-  return obj;
+/** Detect decimal.js objects by their internal structure: {s, e, d} + toFixed */
+function isDecimalLike(obj: unknown): boolean {
+  if (typeof obj !== 'object' || obj === null) return false;
+  return (
+    'd' in obj &&
+    'e' in obj &&
+    's' in obj &&
+    typeof (obj as Record<string, unknown>).toFixed === 'function'
+  );
 }
 
 /**

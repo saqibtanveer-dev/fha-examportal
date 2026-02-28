@@ -63,8 +63,8 @@ export function ExamInstructionsClient({ exam }: Props) {
           <div className="grid gap-4 sm:grid-cols-2">
             <InfoRow icon={<Clock className="h-4 w-4" />} label="Duration" value={`${exam.duration} minutes`} />
             <InfoRow icon={<FileText className="h-4 w-4" />} label="Questions" value={String(exam._count.examQuestions)} />
-            <InfoRow icon={<Award className="h-4 w-4" />} label="Total Marks" value={String(exam.totalMarks)} />
-            <InfoRow icon={<Award className="h-4 w-4" />} label="Passing Marks" value={String(exam.passingMarks)} />
+            <InfoRow icon={<Award className="h-4 w-4" />} label="Total Marks" value={String(Number(exam.totalMarks))} />
+            <InfoRow icon={<Award className="h-4 w-4" />} label="Passing Marks" value={String(Number(exam.passingMarks))} />
           </div>
         </CardContent>
       </Card>

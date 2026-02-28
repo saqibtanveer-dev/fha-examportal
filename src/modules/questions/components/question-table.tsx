@@ -167,7 +167,7 @@ export function QuestionTable({ questions }: Props) {
                     {q.difficulty}
                   </Badge>
                 </TableCell>
-                <TableCell>{String(q.marks)}</TableCell>
+                <TableCell>{Number(q.marks)}</TableCell>
                 <TableCell className="hidden lg:table-cell">{q._count.examQuestions} exams</TableCell>
                 <TableCell>
                   <DropdownMenu>

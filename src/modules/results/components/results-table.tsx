@@ -65,7 +65,7 @@ export function ResultsTable({ results, viewMode = 'student', examId }: Props) {
                 <Badge variant="outline">{r.exam.subject.code}</Badge>
               </TableCell>
               <TableCell className="text-center">
-                {String(r.obtainedMarks)} / {String(r.totalMarks)}
+                {Number(r.obtainedMarks)} / {Number(r.totalMarks)}
               </TableCell>
               <TableCell className="hidden sm:table-cell text-center font-medium">
                 {formatPercentage(Number(r.percentage))}

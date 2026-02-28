@@ -129,10 +129,10 @@ function GradeDisplay({
       {/* Marks */}
       <div className="flex flex-wrap items-center gap-2">
         <Badge
-          variant={g.isCorrect ? 'default' : g.marksAwarded > 0 ? 'secondary' : 'destructive'}
+          variant={g.isCorrect ? 'default' : Number(g.marksAwarded) > 0 ? 'secondary' : 'destructive'}
           className="text-sm"
         >
-          {g.marksAwarded} / {g.maxMarks}
+          {Number(g.marksAwarded)} / {Number(g.maxMarks)}
         </Badge>
         <span className="text-xs text-muted-foreground">
           Graded by {g.gradedBy === 'SYSTEM' ? 'Auto-grader' : g.gradedBy === 'AI' ? 'AI' : 'Teacher'}
@@ -150,7 +150,7 @@ function GradeDisplay({
       {/* AI Confidence — TEACHER ONLY (aiInfo is only passed from teacher view) */}
       {aiInfo && aiInfo.aiConfidence != null && (
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span>AI Confidence: {(aiInfo.aiConfidence * 100).toFixed(0)}%</span>
+          <span>AI Confidence: {(Number(aiInfo.aiConfidence) * 100).toFixed(0)}%</span>
           {aiInfo.aiModelUsed && <span>• Model: {aiInfo.aiModelUsed}</span>}
           {aiInfo.isReviewed && (
             <Badge variant="outline" className="text-xs">Reviewed</Badge>
@@ -174,8 +174,8 @@ function QuestionCard({
 }) {
   const isCorrect = answer.grade?.isCorrect ?? false;
   const isPartial =
-    answer.grade && !isCorrect && answer.grade.marksAwarded > 0;
-  const isWrong = answer.grade && !isCorrect && answer.grade.marksAwarded === 0;
+    answer.grade && !isCorrect && Number(answer.grade.marksAwarded) > 0;
+  const isWrong = answer.grade && !isCorrect && Number(answer.grade.marksAwarded) === 0;
   const notGraded = !answer.grade;
 
   let statusColor = 'border-l-border';
@@ -257,10 +257,10 @@ export function AnswerBreakdown({ answers, aiGradeMap }: Props) {
   const graded = answers.filter((a) => a.grade).length;
   const correct = answers.filter((a) => a.grade?.isCorrect).length;
   const partial = answers.filter(
-    (a) => a.grade && !a.grade.isCorrect && a.grade.marksAwarded > 0,
+    (a) => a.grade && !a.grade.isCorrect && Number(a.grade.marksAwarded) > 0,
   ).length;
   const wrong = answers.filter(
-    (a) => a.grade && !a.grade.isCorrect && a.grade.marksAwarded === 0,
+    (a) => a.grade && !a.grade.isCorrect && Number(a.grade.marksAwarded) === 0,
   ).length;
   const unanswered = answers.filter(
     (a) => !a.answerText && !a.selectedOptionId,

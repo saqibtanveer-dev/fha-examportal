@@ -164,7 +164,7 @@ export function ExamGrid({ exams }: Props) {
                 </div>
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
-                {String(exam.totalMarks)} marks &middot; Pass: {String(exam.passingMarks)}
+                {Number(exam.totalMarks)} marks &middot; Pass: {Number(exam.passingMarks)}
               </p>
               {exam.scheduledStartAt && (
                 <p className="mt-1 text-xs text-muted-foreground">

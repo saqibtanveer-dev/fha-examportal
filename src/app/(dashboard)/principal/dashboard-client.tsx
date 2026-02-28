@@ -415,7 +415,7 @@ export function PrincipalDashboardClient({
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-sm font-bold">{result.percentage}%</p>
+                    <p className="text-sm font-bold">{Number(result.percentage)}%</p>
                     {result.grade && (
                       <p className="text-xs text-muted-foreground">{result.grade}</p>
                     )}

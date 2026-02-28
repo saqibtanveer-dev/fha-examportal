@@ -145,8 +145,8 @@ export function ExamDetailClient({ exam, analytics }: Props) {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <InfoCard icon={FileText} label="Questions" value={exam._count.examQuestions} />
         <InfoCard icon={Users} label="Attempts" value={exam._count.examResults} />
-        <InfoCard icon={Target} label="Total Marks" value={exam.totalMarks} />
-        <InfoCard icon={Award} label="Passing" value={exam.passingMarks} />
+        <InfoCard icon={Target} label="Total Marks" value={Number(exam.totalMarks)} />
+        <InfoCard icon={Award} label="Passing" value={Number(exam.passingMarks)} />
         <InfoCard icon={Clock} label="Duration" value={`${exam.duration}m`} />
         <InfoCard icon={TrendingUp} label="Max Attempts" value={exam.maxAttempts} />
       </div>

@@ -58,7 +58,7 @@ export function StudentExamsView({ exams }: Props) {
                 </CardHeader>
                 <CardContent>
                   <div className="mb-3 text-sm text-muted-foreground">
-                    {exam._count.examQuestions} questions &middot; {exam.duration} min &middot; {String(exam.totalMarks)} marks
+                    {exam._count.examQuestions} questions &middot; {exam.duration} min &middot; {Number(exam.totalMarks)} marks
                   </div>
                   {activeSession ? (
                     <Button className="w-full" onClick={() => router.push(`/student/exams/sessions/${activeSession.id}`)}>
