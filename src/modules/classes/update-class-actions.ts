@@ -7,6 +7,7 @@ import { z } from 'zod/v4';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
+import { safeAction } from '@/lib/safe-action';
 
 const updateClassSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -16,7 +17,7 @@ const updateClassSchema = z.object({
 
 export type UpdateClassInput = z.infer<typeof updateClassSchema>;
 
-export async function updateClassAction(
+export const updateClassAction = safeAction(async function updateClassAction(
   id: string,
   input: UpdateClassInput,
 ): Promise<ActionResult> {
@@ -34,7 +35,7 @@ export async function updateClassAction(
   createAuditLog(session.user.id, 'UPDATE_CLASS', 'CLASS', id, parsed.data).catch(() => {});
   revalidatePath('/admin/classes');
   return actionSuccess();
-}
+});
 
 const updateSectionSchema = z.object({
   name: z.string().min(1).max(50).optional(),
@@ -43,7 +44,7 @@ const updateSectionSchema = z.object({
 
 export type UpdateSectionInput = z.infer<typeof updateSectionSchema>;
 
-export async function updateSectionAction(
+export const updateSectionAction = safeAction(async function updateSectionAction(
   id: string,
   input: UpdateSectionInput,
 ): Promise<ActionResult> {
@@ -58,4 +59,4 @@ export async function updateSectionAction(
   createAuditLog(session.user.id, 'UPDATE_SECTION', 'SECTION', id, parsed.data).catch(() => {});
   revalidatePath('/admin/classes');
   return actionSuccess();
-}
+});

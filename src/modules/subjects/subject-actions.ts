@@ -19,12 +19,13 @@ import {
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 // ============================================
 // Subject CRUD
 // ============================================
 
-export async function createSubjectAction(input: CreateSubjectInput): Promise<ActionResult<{ id: string }>> {
+export const createSubjectAction = safeAction(async function createSubjectAction(input: CreateSubjectInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('ADMIN');
   const parsed = createSubjectSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -36,9 +37,9 @@ export async function createSubjectAction(input: CreateSubjectInput): Promise<Ac
   createAuditLog(session.user.id, 'CREATE_SUBJECT', 'SUBJECT', subject.id, parsed.data).catch(() => {});
   revalidatePath('/admin/subjects');
   return { success: true, data: { id: subject.id } };
-}
+});
 
-export async function updateSubjectAction(
+export const updateSubjectAction = safeAction(async function updateSubjectAction(
   id: string,
   input: UpdateSubjectInput,
 ): Promise<ActionResult> {
@@ -50,9 +51,9 @@ export async function updateSubjectAction(
   createAuditLog(session.user.id, 'UPDATE_SUBJECT', 'SUBJECT', id, parsed.data).catch(() => {});
   revalidatePath('/admin/subjects');
   return { success: true };
-}
+});
 
-export async function deleteSubjectAction(id: string): Promise<ActionResult> {
+export const deleteSubjectAction = safeAction(async function deleteSubjectAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
   const [questions, exams] = await Promise.all([
     prisma.question.count({ where: { subjectId: id } }),
@@ -65,13 +66,13 @@ export async function deleteSubjectAction(id: string): Promise<ActionResult> {
   createAuditLog(session.user.id, 'DELETE_SUBJECT', 'SUBJECT', id).catch(() => {});
   revalidatePath('/admin/subjects');
   return { success: true };
-}
+});
 
 // ============================================
 // Subject-Class Link Actions
 // ============================================
 
-export async function assignSubjectToClassAction(input: AssignSubjectToClassInput): Promise<ActionResult> {
+export const assignSubjectToClassAction = safeAction(async function assignSubjectToClassAction(input: AssignSubjectToClassInput): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
   const parsed = assignSubjectToClassSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -92,9 +93,9 @@ export async function assignSubjectToClassAction(input: AssignSubjectToClassInpu
   createAuditLog(session.user.id, 'ASSIGN_SUBJECT_CLASS', 'SUBJECT_CLASS_LINK', parsed.data.subjectId, parsed.data).catch(() => {});
   revalidatePath('/admin/subjects');
   return { success: true };
-}
+});
 
-export async function bulkAssignSubjectToClassesAction(input: BulkAssignSubjectToClassesInput): Promise<ActionResult> {
+export const bulkAssignSubjectToClassesAction = safeAction(async function bulkAssignSubjectToClassesAction(input: BulkAssignSubjectToClassesInput): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
   const parsed = bulkAssignSubjectToClassesSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -140,9 +141,9 @@ export async function bulkAssignSubjectToClassesAction(input: BulkAssignSubjectT
   createAuditLog(session.user.id, 'BULK_ASSIGN_SUBJECT_CLASSES', 'SUBJECT', subjectId, { classIds }).catch(() => {});
   revalidatePath('/admin/subjects');
   return { success: true };
-}
+});
 
-export async function removeSubjectFromClassAction(subjectId: string, classId: string): Promise<ActionResult> {
+export const removeSubjectFromClassAction = safeAction(async function removeSubjectFromClassAction(subjectId: string, classId: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   const questionsCount = await prisma.question.count({ where: { subjectId, classId, deletedAt: null } });
@@ -158,13 +159,13 @@ export async function removeSubjectFromClassAction(subjectId: string, classId: s
   createAuditLog(session.user.id, 'REMOVE_SUBJECT_CLASS', 'SUBJECT_CLASS_LINK', subjectId, { classId }).catch(() => {});
   revalidatePath('/admin/subjects');
   return { success: true };
-}
+});
 
 // ============================================
 // Teacher-Subject Assignment Actions
 // ============================================
 
-export async function assignTeacherToSubjectAction(input: AssignTeacherToSubjectInput): Promise<ActionResult> {
+export const assignTeacherToSubjectAction = safeAction(async function assignTeacherToSubjectAction(input: AssignTeacherToSubjectInput): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
   const parsed = assignTeacherToSubjectSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -179,9 +180,9 @@ export async function assignTeacherToSubjectAction(input: AssignTeacherToSubject
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };
-}
+});
 
-export async function bulkAssignTeacherSubjectsAction(input: BulkAssignTeacherSubjectsInput): Promise<ActionResult> {
+export const bulkAssignTeacherSubjectsAction = safeAction(async function bulkAssignTeacherSubjectsAction(input: BulkAssignTeacherSubjectsInput): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
   const parsed = bulkAssignTeacherSubjectsSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -211,9 +212,9 @@ export async function bulkAssignTeacherSubjectsAction(input: BulkAssignTeacherSu
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };
-}
+});
 
-export async function removeTeacherFromSubjectAction(teacherId: string, subjectId: string): Promise<ActionResult> {
+export const removeTeacherFromSubjectAction = safeAction(async function removeTeacherFromSubjectAction(teacherId: string, subjectId: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   await prisma.teacherSubject.deleteMany({ where: { teacherId, subjectId } });
@@ -221,4 +222,4 @@ export async function removeTeacherFromSubjectAction(teacherId: string, subjectI
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };
-}
+});

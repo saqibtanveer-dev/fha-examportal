@@ -33,9 +33,9 @@ export async function getPrincipalDashboardStats() {
     prisma.examSession.count({ where: { status: { in: ['SUBMITTED', 'GRADING'] } } }),
   ]);
 
-  const ec = entityCounts[0]!;
-  const ex = examCounts[0]!;
-  const rs = resultStats[0]!;
+  const ec = entityCounts[0] ?? { teachers: 0, students: 0, classes: 0, subjects: 0 };
+  const ex = examCounts[0] ?? { total: 0, active: 0 };
+  const rs = resultStats[0] ?? { total: 0, passed: 0, avg_pct: null };
   const totalResults = Number(rs.total);
   const passedCount = Number(rs.passed);
   const overallPassRate = totalResults > 0 ? (passedCount / totalResults) * 100 : 0;

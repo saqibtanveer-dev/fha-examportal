@@ -6,10 +6,11 @@ import { changePasswordSchema, type ChangePasswordInput } from '@/validations/pa
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import bcrypt from 'bcryptjs';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 const SALT_ROUNDS = 12;
 
-export async function changePasswordAction(input: ChangePasswordInput): Promise<ActionResult> {
+export const changePasswordAction = safeAction(async function changePasswordAction(input: ChangePasswordInput): Promise<ActionResult> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: 'Unauthorized' };
 
@@ -35,4 +36,4 @@ export async function changePasswordAction(input: ChangePasswordInput): Promise<
   createAuditLog(session.user.id, 'CHANGE_PASSWORD', 'USER', session.user.id).catch(() => {});
 
   return { success: true };
-}
+});

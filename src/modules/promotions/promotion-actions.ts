@@ -8,13 +8,14 @@ import {
 } from '@/validations/organization-schemas';
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Execute Full Year Transition
 // ============================================
 
-export async function executeYearTransitionAction(
+export const executeYearTransitionAction = safeAction(async function executeYearTransitionAction(
   input: YearTransitionInput,
 ): Promise<ActionResult<{ promoted: number; graduated: number; heldBack: number }>> {
   const session = await requireRole('ADMIN');
@@ -213,13 +214,13 @@ export async function executeYearTransitionAction(
     success: true,
     data: { promoted: totalPromoted, graduated: totalGraduated, heldBack: totalHeldBack },
   };
-}
+});
 
 // ============================================
 // Undo Year Transition (Emergency Rollback)
 // ============================================
 
-export async function undoYearTransitionAction(
+export const undoYearTransitionAction = safeAction(async function undoYearTransitionAction(
   academicSessionId: string,
 ): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
@@ -273,4 +274,4 @@ export async function undoYearTransitionAction(
   revalidatePath('/admin/users');
 
   return { success: true };
-}
+});

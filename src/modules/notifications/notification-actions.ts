@@ -5,8 +5,9 @@ import { getAuthSession } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
-export async function markNotificationReadAction(id: string): Promise<ActionResult> {
+export const markNotificationReadAction = safeAction(async function markNotificationReadAction(id: string): Promise<ActionResult> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: 'Unauthorized' };
 
@@ -18,9 +19,9 @@ export async function markNotificationReadAction(id: string): Promise<ActionResu
   createAuditLog(session.user.id, 'MARK_NOTIFICATION_READ', 'NOTIFICATION', id).catch(() => {});
   revalidatePath('/');
   return { success: true };
-}
+});
 
-export async function markAllNotificationsReadAction(): Promise<ActionResult> {
+export const markAllNotificationsReadAction = safeAction(async function markAllNotificationsReadAction(): Promise<ActionResult> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: 'Unauthorized' };
 
@@ -32,9 +33,9 @@ export async function markAllNotificationsReadAction(): Promise<ActionResult> {
   createAuditLog(session.user.id, 'MARK_ALL_NOTIFICATIONS_READ', 'NOTIFICATION', 'all').catch(() => {});
   revalidatePath('/');
   return { success: true };
-}
+});
 
-export async function deleteNotificationAction(id: string): Promise<ActionResult> {
+export const deleteNotificationAction = safeAction(async function deleteNotificationAction(id: string): Promise<ActionResult> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: 'Unauthorized' };
 
@@ -45,4 +46,4 @@ export async function deleteNotificationAction(id: string): Promise<ActionResult
   createAuditLog(session.user.id, 'DELETE_NOTIFICATION', 'NOTIFICATION', id).catch(() => {});
   revalidatePath('/');
   return { success: true };
-}
+});

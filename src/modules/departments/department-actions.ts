@@ -11,8 +11,9 @@ import {
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
-export async function createDepartmentAction(input: CreateDepartmentInput): Promise<ActionResult<{ id: string }>> {
+export const createDepartmentAction = safeAction(async function createDepartmentAction(input: CreateDepartmentInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('ADMIN');
   const parsed = createDepartmentSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
@@ -21,9 +22,9 @@ export async function createDepartmentAction(input: CreateDepartmentInput): Prom
   createAuditLog(session.user.id, 'CREATE_DEPARTMENT', 'DEPARTMENT', dept.id, parsed.data).catch(() => {});
   revalidatePath('/admin/departments');
   return { success: true, data: { id: dept.id } };
-}
+});
 
-export async function updateDepartmentAction(
+export const updateDepartmentAction = safeAction(async function updateDepartmentAction(
   id: string,
   input: UpdateDepartmentInput,
 ): Promise<ActionResult> {
@@ -35,9 +36,9 @@ export async function updateDepartmentAction(
   createAuditLog(session.user.id, 'UPDATE_DEPARTMENT', 'DEPARTMENT', id, parsed.data).catch(() => {});
   revalidatePath('/admin/departments');
   return { success: true };
-}
+});
 
-export async function deleteDepartmentAction(id: string): Promise<ActionResult> {
+export const deleteDepartmentAction = safeAction(async function deleteDepartmentAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
   const subjects = await prisma.subject.count({ where: { departmentId: id } });
   if (subjects > 0) {
@@ -47,4 +48,4 @@ export async function deleteDepartmentAction(id: string): Promise<ActionResult> 
   createAuditLog(session.user.id, 'DELETE_DEPARTMENT', 'DEPARTMENT', id).catch(() => {});
   revalidatePath('/admin/departments');
   return { success: true };
-}
+});

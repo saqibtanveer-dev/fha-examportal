@@ -6,6 +6,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 const createTagSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50),
@@ -20,7 +21,7 @@ const updateTagSchema = z.object({
 export type CreateTagInput = z.infer<typeof createTagSchema>;
 export type UpdateTagInput = z.infer<typeof updateTagSchema>;
 
-export async function createTagAction(input: CreateTagInput): Promise<ActionResult<{ id: string }>> {
+export const createTagAction = safeAction(async function createTagAction(input: CreateTagInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const parsed = createTagSchema.safeParse(input);
@@ -34,9 +35,9 @@ export async function createTagAction(input: CreateTagInput): Promise<ActionResu
   createAuditLog(session.user.id, 'CREATE_TAG', 'TAG', tag.id, { name: tag.name }).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true, data: { id: tag.id } };
-}
+});
 
-export async function updateTagAction(id: string, input: UpdateTagInput): Promise<ActionResult> {
+export const updateTagAction = safeAction(async function updateTagAction(id: string, input: UpdateTagInput): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const parsed = updateTagSchema.safeParse(input);
@@ -55,9 +56,9 @@ export async function updateTagAction(id: string, input: UpdateTagInput): Promis
   createAuditLog(session.user.id, 'UPDATE_TAG', 'TAG', id).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true };
-}
+});
 
-export async function deleteTagAction(id: string): Promise<ActionResult> {
+export const deleteTagAction = safeAction(async function deleteTagAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const usageCount = await prisma.questionTag.count({ where: { tagId: id } });
@@ -70,4 +71,4 @@ export async function deleteTagAction(id: string): Promise<ActionResult> {
   createAuditLog(session.user.id, 'DELETE_TAG', 'TAG', id).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true };
-}
+});

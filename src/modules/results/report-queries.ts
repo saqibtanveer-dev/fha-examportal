@@ -57,40 +57,34 @@ export type DepartmentPerformance = {
 export async function getDepartmentPerformance(): Promise<
   DepartmentPerformance[]
 > {
-  const departments = await prisma.department.findMany({
-    include: {
-      subjects: {
-        include: {
-          exams: {
-            where: { deletedAt: null },
-            include: {
-              examResults: { select: { percentage: true, isPassed: true } },
-            },
-          },
-        },
-      },
-    },
-  });
+  // Use SQL aggregate instead of loading all examResults into memory
+  const rows = await prisma.$queryRaw<
+    { departmentId: string; departmentName: string; examCount: bigint; avgPercentage: number | null; passRate: number | null }[]
+  >`
+    SELECT
+      d.id AS "departmentId",
+      d.name AS "departmentName",
+      COUNT(DISTINCT e.id)::bigint AS "examCount",
+      AVG(er.percentage)::float AS "avgPercentage",
+      CASE WHEN COUNT(er.id) > 0
+        THEN (SUM(CASE WHEN er."isPassed" THEN 1 ELSE 0 END)::float / COUNT(er.id)::float) * 100
+        ELSE 0
+      END AS "passRate"
+    FROM "Department" d
+    LEFT JOIN "Subject" s ON s."departmentId" = d.id
+    LEFT JOIN "Exam" e ON e."subjectId" = s.id AND e."deletedAt" IS NULL
+    LEFT JOIN "ExamResult" er ON er."examId" = e.id
+    GROUP BY d.id, d.name
+    ORDER BY d.name
+  `;
 
-  return departments.map((dept) => {
-    const allResults = dept.subjects.flatMap((s: any) =>
-      s.exams.flatMap((e: any) => e.examResults),
-    );
-    const total = allResults.length;
-    const passed = allResults.filter((r: any) => r.isPassed).length;
-    const avgPercentage =
-      total > 0
-        ? allResults.reduce((sum: number, r: any) => sum + Number(r.percentage), 0) / total
-        : 0;
-
-    return {
-      departmentId: dept.id,
-      departmentName: dept.name,
-      examCount: dept.subjects.reduce((s: number, sub: any) => s + sub.exams.length, 0),
-      avgPercentage: Math.round(avgPercentage * 100) / 100,
-      passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
-    };
-  });
+  return rows.map((r) => ({
+    departmentId: r.departmentId,
+    departmentName: r.departmentName,
+    examCount: Number(r.examCount),
+    avgPercentage: Math.round((r.avgPercentage ?? 0) * 100) / 100,
+    passRate: Math.round((r.passRate ?? 0) * 100) / 100,
+  }));
 }
 
 /* ─── Subject Performance ─── */
@@ -105,38 +99,36 @@ export type SubjectPerformance = {
 };
 
 export async function getSubjectPerformance(): Promise<SubjectPerformance[]> {
-  const subjects = await prisma.subject.findMany({
-    include: {
-      exams: {
-        where: { deletedAt: null },
-        include: {
-          examResults: { select: { percentage: true, isPassed: true } },
-        },
-      },
-    },
-  });
+  // Use SQL aggregate instead of loading all examResults into memory
+  const rows = await prisma.$queryRaw<
+    { subjectId: string; subjectName: string; subjectCode: string; resultCount: bigint; avgPercentage: number | null; passRate: number | null }[]
+  >`
+    SELECT
+      s.id AS "subjectId",
+      s.name AS "subjectName",
+      s.code AS "subjectCode",
+      COUNT(er.id)::bigint AS "resultCount",
+      AVG(er.percentage)::float AS "avgPercentage",
+      CASE WHEN COUNT(er.id) > 0
+        THEN (SUM(CASE WHEN er."isPassed" THEN 1 ELSE 0 END)::float / COUNT(er.id)::float) * 100
+        ELSE 0
+      END AS "passRate"
+    FROM "Subject" s
+    LEFT JOIN "Exam" e ON e."subjectId" = s.id AND e."deletedAt" IS NULL
+    LEFT JOIN "ExamResult" er ON er."examId" = e.id
+    GROUP BY s.id, s.name, s.code
+    HAVING COUNT(er.id) > 0
+    ORDER BY AVG(er.percentage)::float DESC NULLS LAST
+  `;
 
-  return subjects
-    .map((sub) => {
-      const allResults = sub.exams.flatMap((e: any) => e.examResults);
-      const total = allResults.length;
-      const passed = allResults.filter((r: any) => r.isPassed).length;
-      const avgPercentage =
-        total > 0
-          ? allResults.reduce((s: number, r: any) => s + Number(r.percentage), 0) / total
-          : 0;
-
-      return {
-        subjectId: sub.id,
-        subjectName: sub.name,
-        subjectCode: sub.code,
-        resultCount: total,
-        avgPercentage: Math.round(avgPercentage * 100) / 100,
-        passRate: total > 0 ? Math.round((passed / total) * 10000) / 100 : 0,
-      };
-    })
-    .filter((s) => s.resultCount > 0)
-    .sort((a, b) => b.avgPercentage - a.avgPercentage);
+  return rows.map((r) => ({
+    subjectId: r.subjectId,
+    subjectName: r.subjectName,
+    subjectCode: r.subjectCode,
+    resultCount: Number(r.resultCount),
+    avgPercentage: Math.round((r.avgPercentage ?? 0) * 100) / 100,
+    passRate: Math.round((r.passRate ?? 0) * 100) / 100,
+  }));
 }
 
 /* ─── Recent Exam Results (top 10 exams) ─── */

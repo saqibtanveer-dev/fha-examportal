@@ -7,8 +7,9 @@ import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
+import { safeAction } from '@/lib/safe-action';
 
-export async function updateQuestionAction(
+export const updateQuestionAction = safeAction(async function updateQuestionAction(
   id: string,
   input: UpdateQuestionInput,
 ): Promise<ActionResult> {
@@ -77,9 +78,9 @@ export async function updateQuestionAction(
   createAuditLog(session.user.id, 'UPDATE_QUESTION', 'QUESTION', id).catch(() => {});
   revalidatePath('/teacher/questions');
   return actionSuccess();
-}
+});
 
-export async function duplicateQuestionAction(id: string): Promise<ActionResult> {
+export const duplicateQuestionAction = safeAction(async function duplicateQuestionAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const original = await prisma.question.findUnique({
@@ -125,4 +126,4 @@ export async function duplicateQuestionAction(id: string): Promise<ActionResult>
   createAuditLog(session.user.id, 'DUPLICATE_QUESTION', 'QUESTION', duplicate.id, { originalId: id }).catch(() => {});
   revalidatePath('/teacher/questions');
   return actionSuccess({ id: duplicate.id });
-}
+});

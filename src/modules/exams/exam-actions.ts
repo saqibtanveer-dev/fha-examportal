@@ -12,12 +12,13 @@ import { createBulkNotifications } from '@/modules/notifications/notification-qu
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 // ============================================
 // Create Exam
 // ============================================
 
-export async function createExamAction(input: CreateExamInput): Promise<ActionResult<{ id: string }>> {
+export const createExamAction = safeAction(async function createExamAction(input: CreateExamInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const parsed = createExamSchema.safeParse(input);
@@ -56,13 +57,13 @@ export async function createExamAction(input: CreateExamInput): Promise<ActionRe
   createAuditLog(session.user.id, 'CREATE_EXAM', 'EXAM', exam.id, { title: examData.title }).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true, data: { id: exam.id } };
-}
+});
 
 // ============================================
 // Update Exam (Draft only)
 // ============================================
 
-export async function updateExamAction(id: string, input: UpdateExamInput): Promise<ActionResult> {
+export const updateExamAction = safeAction(async function updateExamAction(id: string, input: UpdateExamInput): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const exam = await prisma.exam.findUnique({ where: { id } });
@@ -79,13 +80,13 @@ export async function updateExamAction(id: string, input: UpdateExamInput): Prom
   createAuditLog(session.user.id, 'UPDATE_EXAM', 'EXAM', id, parsed.data).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true };
-}
+});
 
 // ============================================
 // Publish Exam
 // ============================================
 
-export async function publishExamAction(id: string): Promise<ActionResult> {
+export const publishExamAction = safeAction(async function publishExamAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const exam = await prisma.exam.findUnique({
@@ -127,13 +128,13 @@ export async function publishExamAction(id: string): Promise<ActionResult> {
   createAuditLog(session.user.id, 'PUBLISH_EXAM', 'EXAM', id).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true };
-}
+});
 
 // ============================================
 // Delete Exam (Soft)
 // ============================================
 
-export async function deleteExamAction(id: string): Promise<ActionResult> {
+export const deleteExamAction = safeAction(async function deleteExamAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const exam = await prisma.exam.findUnique({ where: { id, deletedAt: null } });
@@ -149,4 +150,4 @@ export async function deleteExamAction(id: string): Promise<ActionResult> {
   createAuditLog(session.user.id, 'DELETE_EXAM', 'EXAM', id).catch(() => {});
   revalidatePath('/teacher/exams');
   return { success: true };
-}
+});

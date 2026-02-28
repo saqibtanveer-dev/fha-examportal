@@ -7,6 +7,7 @@ import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from './gr
 import { createNotification } from '@/modules/notifications/notification-queries';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 /** Notify student when their session is fully graded */
 async function notifyStudentIfGraded(sessionId: string) {
@@ -28,7 +29,7 @@ async function notifyStudentIfGraded(sessionId: string) {
 // Auto-grade MCQs for a session
 // ============================================
 
-export async function autoGradeSessionAction(sessionId: string): Promise<ActionResult<{ mcqMarks: number; fullyGraded: boolean }>> {
+export const autoGradeSessionAction = safeAction(async function autoGradeSessionAction(sessionId: string): Promise<ActionResult<{ mcqMarks: number; fullyGraded: boolean }>> {
   const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const session = await prisma.examSession.findUnique({
@@ -64,13 +65,13 @@ export async function autoGradeSessionAction(sessionId: string): Promise<ActionR
   createAuditLog(authSession.user.id, 'AUTO_GRADE_SESSION', 'EXAM_SESSION', sessionId, { mcqMarks, fullyGraded }).catch(() => {});
   revalidatePath('/teacher/grading');
   return { success: true, data: { mcqMarks, fullyGraded } };
-}
+});
 
 // ============================================
 // Manual grade a single answer
 // ============================================
 
-export async function gradeAnswerAction(
+export const gradeAnswerAction = safeAction(async function gradeAnswerAction(
   answerId: string,
   marksAwarded: number,
   feedback: string,
@@ -121,7 +122,7 @@ export async function gradeAnswerAction(
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true };
-}
+});
 
 // ============================================
 // Batch grade multiple answers at once
@@ -133,7 +134,7 @@ type BatchGradeItem = {
   feedback: string;
 };
 
-export async function batchGradeAnswersAction(
+export const batchGradeAnswersAction = safeAction(async function batchGradeAnswersAction(
   sessionId: string,
   grades: BatchGradeItem[],
   autoFinalize = false,
@@ -243,13 +244,13 @@ export async function batchGradeAnswersAction(
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true, data: { graded, errors } };
-}
+});
 
 // ============================================
 // Batch auto-grade all submitted sessions for an exam
 // ============================================
 
-export async function batchAutoGradeAction(examId: string): Promise<ActionResult<{ totalSessions: number; fullyGraded: number }>> {
+export const batchAutoGradeAction = safeAction(async function batchAutoGradeAction(examId: string): Promise<ActionResult<{ totalSessions: number; fullyGraded: number }>> {
   const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const sessions = await prisma.examSession.findMany({
@@ -276,4 +277,4 @@ export async function batchAutoGradeAction(examId: string): Promise<ActionResult
   createAuditLog(authSession.user.id, 'BATCH_AUTO_GRADE', 'EXAM', examId, { totalSessions: sessions.length, fullyGraded: graded }).catch(() => {});
   revalidatePath('/teacher/grading');
   return { success: true, data: { totalSessions: sessions.length, fullyGraded: graded } };
-}
+});

@@ -41,8 +41,8 @@ export function formatSeconds(seconds: number): string {
 // Number Formatting
 // ============================================
 
-export function formatPercentage(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
+export function formatPercentage(value: number | string, decimals = 1): string {
+  return `${Number(value).toFixed(decimals)}%`;
 }
 
 export function formatMarks(obtained: number, total: number): string {

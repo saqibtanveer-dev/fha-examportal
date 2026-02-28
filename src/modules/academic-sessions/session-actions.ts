@@ -11,8 +11,9 @@ import {
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
-export async function createAcademicSessionAction(
+export const createAcademicSessionAction = safeAction(async function createAcademicSessionAction(
   input: CreateAcademicSessionInput,
 ): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('ADMIN');
@@ -43,9 +44,9 @@ export async function createAcademicSessionAction(
   createAuditLog(session.user.id, 'CREATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', academicSession.id, rest).catch(() => {});
   revalidatePath('/admin/settings');
   return { success: true, data: { id: academicSession.id } };
-}
+});
 
-export async function updateAcademicSessionAction(
+export const updateAcademicSessionAction = safeAction(async function updateAcademicSessionAction(
   id: string,
   input: UpdateAcademicSessionInput,
 ): Promise<ActionResult> {
@@ -78,9 +79,9 @@ export async function updateAcademicSessionAction(
   createAuditLog(session.user.id, 'UPDATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id, parsed.data).catch(() => {});
   revalidatePath('/admin/settings');
   return { success: true };
-}
+});
 
-export async function setCurrentAcademicSessionAction(id: string): Promise<ActionResult> {
+export const setCurrentAcademicSessionAction = safeAction(async function setCurrentAcademicSessionAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   await prisma.$transaction([
@@ -97,9 +98,9 @@ export async function setCurrentAcademicSessionAction(id: string): Promise<Actio
   createAuditLog(session.user.id, 'SET_CURRENT_SESSION', 'ACADEMIC_SESSION', id).catch(() => {});
   revalidatePath('/admin/settings');
   return { success: true };
-}
+});
 
-export async function deleteAcademicSessionAction(id: string): Promise<ActionResult> {
+export const deleteAcademicSessionAction = safeAction(async function deleteAcademicSessionAction(id: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   const [examCount, promotionCount] = await Promise.all([
@@ -122,4 +123,4 @@ export async function deleteAcademicSessionAction(id: string): Promise<ActionRes
   createAuditLog(session.user.id, 'DELETE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id).catch(() => {});
   revalidatePath('/admin/settings');
   return { success: true };
-}
+});

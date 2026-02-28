@@ -5,9 +5,10 @@ import { requireRole } from '@/lib/auth-utils';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 /** Add a question to an exam (draft only) */
-export async function addQuestionToExamAction(
+export const addQuestionToExamAction = safeAction(async function addQuestionToExamAction(
   examId: string,
   questionId: string,
   marks?: number,
@@ -37,12 +38,16 @@ export async function addQuestionToExamAction(
     select: { marks: true },
   });
 
+  if (!question) {
+    return { success: false, error: 'Question not found' };
+  }
+
   await prisma.examQuestion.create({
     data: {
       examId,
       questionId,
       sortOrder: (lastOrder?.sortOrder ?? 0) + 1,
-      marks: marks ?? Number(question?.marks ?? 0),
+      marks: marks ?? Number(question.marks),
     },
   });
 
@@ -52,10 +57,10 @@ export async function addQuestionToExamAction(
   createAuditLog(session.user.id, 'ADD_EXAM_QUESTION', 'EXAM', examId, { questionId }).catch(() => {});
   revalidatePath(`/teacher/exams/${examId}`);
   return { success: true };
-}
+});
 
 /** Remove a question from an exam (draft only) */
-export async function removeQuestionFromExamAction(
+export const removeQuestionFromExamAction = safeAction(async function removeQuestionFromExamAction(
   examId: string,
   questionId: string,
 ): Promise<ActionResult> {
@@ -74,10 +79,10 @@ export async function removeQuestionFromExamAction(
   createAuditLog(session.user.id, 'REMOVE_EXAM_QUESTION', 'EXAM', examId, { questionId }).catch(() => {});
   revalidatePath(`/teacher/exams/${examId}`);
   return { success: true };
-}
+});
 
 /** Reorder questions in an exam */
-export async function reorderExamQuestionsAction(
+export const reorderExamQuestionsAction = safeAction(async function reorderExamQuestionsAction(
   examId: string,
   orderedQuestionIds: string[],
 ): Promise<ActionResult> {
@@ -101,7 +106,7 @@ export async function reorderExamQuestionsAction(
 
   revalidatePath(`/teacher/exams/${examId}`);
   return { success: true };
-}
+});
 
 /** Recalculate total marks for an exam based on its questions */
 async function recalculateExamMarks(examId: string) {

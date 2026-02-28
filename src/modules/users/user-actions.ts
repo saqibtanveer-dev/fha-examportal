@@ -7,13 +7,14 @@ import bcrypt from 'bcryptjs';
 import { revalidatePath } from 'next/cache';
 import { toggleUserActive, softDeleteUser } from './user-queries';
 import { createAuditLog } from '@/modules/audit/audit-queries';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Create User
 // ============================================
 
-export async function createUserAction(input: CreateUserInput): Promise<ActionResult<{ id: string }>> {
+export const createUserAction = safeAction(async function createUserAction(input: CreateUserInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('ADMIN');
 
   const parsed = createUserSchema.safeParse(input);
@@ -107,13 +108,13 @@ export async function createUserAction(input: CreateUserInput): Promise<ActionRe
   createAuditLog(session.user.id, 'CREATE_USER', 'USER', user.id, { email, role }).catch(() => {});
   revalidatePath('/admin/users');
   return { success: true, data: { id: user.id } };
-}
+});
 
 // ============================================
 // Toggle User Active
 // ============================================
 
-export async function toggleUserActiveAction(userId: string): Promise<ActionResult> {
+export const toggleUserActiveAction = safeAction(async function toggleUserActiveAction(userId: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   const user = await toggleUserActive(userId);
@@ -122,20 +123,20 @@ export async function toggleUserActiveAction(userId: string): Promise<ActionResu
   createAuditLog(session.user.id, 'TOGGLE_USER_ACTIVE', 'USER', userId, { isActive: user.isActive }).catch(() => {});
   revalidatePath('/admin/users');
   return { success: true };
-}
+});
 
 // ============================================
 // Delete User (Soft)
 // ============================================
 
-export async function deleteUserAction(userId: string): Promise<ActionResult> {
+export const deleteUserAction = safeAction(async function deleteUserAction(userId: string): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   await softDeleteUser(userId);
   createAuditLog(session.user.id, 'DELETE_USER', 'USER', userId).catch(() => {});
   revalidatePath('/admin/users');
   return { success: true };
-}
+});
 
 // ============================================
 // Find Orphaned Users
@@ -143,7 +144,7 @@ export async function deleteUserAction(userId: string): Promise<ActionResult> {
 // have no corresponding profile record.
 // ============================================
 
-export async function findOrphanedUsersAction(): Promise<ActionResult<{ students: { id: string; name: string; email: string }[]; teachers: { id: string; name: string; email: string }[] }>> {
+export const findOrphanedUsersAction = safeAction(async function findOrphanedUsersAction(): Promise<ActionResult<{ students: { id: string; name: string; email: string }[]; teachers: { id: string; name: string; email: string }[] }>> {
   await requireRole('ADMIN');
 
   const orphanedStudents = await prisma.user.findMany({
@@ -173,4 +174,4 @@ export async function findOrphanedUsersAction(): Promise<ActionResult<{ students
       teachers: orphanedTeachers.map((u) => ({ id: u.id, name: `${u.firstName} ${u.lastName}`, email: u.email })),
     },
   };
-}
+});

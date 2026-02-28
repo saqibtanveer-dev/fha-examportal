@@ -68,6 +68,6 @@ export async function fetchStudentDashboardStatsAction(): Promise<StudentDashboa
     newExams,
     inProgress,
     completed,
-    avgScore: avgScore._avg.percentage ?? 0,
+    avgScore: Number(avgScore._avg.percentage ?? 0),
   });
 }

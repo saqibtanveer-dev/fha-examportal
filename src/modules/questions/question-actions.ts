@@ -7,12 +7,13 @@ import { createQuestionSchema, type CreateQuestionInput } from '@/validations/qu
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 // ============================================
 // Create Question
 // ============================================
 
-export async function createQuestionAction(input: CreateQuestionInput): Promise<ActionResult<{ id: string }>> {
+export const createQuestionAction = safeAction(async function createQuestionAction(input: CreateQuestionInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const parsed = createQuestionSchema.safeParse(input);
@@ -61,13 +62,13 @@ export async function createQuestionAction(input: CreateQuestionInput): Promise<
   createAuditLog(session.user.id, 'CREATE_QUESTION', 'QUESTION', question.id, { subjectId: questionData.subjectId, classId: questionData.classId, type: questionData.type }).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true, data: { id: question.id } };
-}
+});
 
 // ============================================
 // Delete Question (Soft)
 // ============================================
 
-export async function deleteQuestionAction(id: string): Promise<ActionResult> {
+export const deleteQuestionAction = safeAction(async function deleteQuestionAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const question = await prisma.question.findUnique({ where: { id } });
@@ -98,13 +99,13 @@ export async function deleteQuestionAction(id: string): Promise<ActionResult> {
   createAuditLog(session.user.id, 'DELETE_QUESTION', 'QUESTION', id).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true };
-}
+});
 
 // ============================================
 // Toggle Question Active
 // ============================================
 
-export async function toggleQuestionActiveAction(id: string): Promise<ActionResult> {
+export const toggleQuestionActiveAction = safeAction(async function toggleQuestionActiveAction(id: string): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const question = await prisma.question.findUnique({ where: { id, deletedAt: null } });
@@ -118,4 +119,4 @@ export async function toggleQuestionActiveAction(id: string): Promise<ActionResu
   createAuditLog(session.user.id, 'TOGGLE_QUESTION_ACTIVE', 'QUESTION', id, { isActive: !question.isActive }).catch(() => {});
   revalidatePath('/teacher/questions');
   return { success: true };
-}
+});

@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod/v4';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { safeAction } from '@/lib/safe-action';
 
 const updateSettingsSchema = z.object({
   schoolName: z.string().min(1).max(200),
@@ -17,7 +18,7 @@ const updateSettingsSchema = z.object({
   schoolLogo: z.string().url().optional().or(z.literal('')),
 });
 
-export async function updateSettingsAction(input: unknown): Promise<ActionResult> {
+export const updateSettingsAction = safeAction(async function updateSettingsAction(input: unknown): Promise<ActionResult> {
   const session = await requireRole('ADMIN');
 
   const parsed = updateSettingsSchema.safeParse(input);
@@ -36,4 +37,4 @@ export async function updateSettingsAction(input: unknown): Promise<ActionResult
   createAuditLog(session.user.id, 'UPDATE_SETTINGS', 'SETTINGS', 'global', parsed.data).catch(() => {});
   revalidatePath('/admin/settings');
   return { success: true };
-}
+});

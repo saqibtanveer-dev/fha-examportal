@@ -44,6 +44,13 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Block deactivated users — force them back to login
+  if (!req.auth.user.isActive) {
+    const loginUrl = new URL(LOGIN, req.url);
+    loginUrl.searchParams.set('error', 'AccountDisabled');
+    return NextResponse.redirect(loginUrl);
+  }
+
   const { role } = req.auth.user;
 
   // Root / => redirect to role dashboard

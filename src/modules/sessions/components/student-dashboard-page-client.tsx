@@ -34,7 +34,7 @@ function StudentDashboardContent() {
     { label: 'New Exams', value: stats.newExams, icon: FileText, description: 'Not yet attempted' },
     { label: 'In Progress', value: stats.inProgress, icon: Clock, description: 'Started but not submitted' },
     { label: 'Completed', value: stats.completed, icon: CheckCircle, description: 'Submitted / Graded' },
-    { label: 'Avg Score', value: `${stats.avgScore.toFixed(1)}%`, icon: Trophy, description: 'Overall average' },
+    { label: 'Avg Score', value: `${Number(stats.avgScore).toFixed(1)}%`, icon: Trophy, description: 'Overall average' },
   ];
 
   return (
