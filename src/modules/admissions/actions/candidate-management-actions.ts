@@ -17,9 +17,11 @@ import {
   addCandidateSchema,
   bulkAddCandidatesSchema,
   regenerateTestPinSchema,
+  updateCandidateSchema,
   type AddCandidateInput,
   type BulkAddCandidatesInput,
   type RegenerateTestPinInput,
+  type UpdateCandidateInput,
 } from '../admission-schemas';
 import { generateTestPin, sanitizeString } from '@/lib/admission-utils';
 import { getNextApplicationNumber } from '../admission-queries';
@@ -214,4 +216,41 @@ export const regenerateTestPinAction = safeAction(async function regenerateTestP
   });
 
   return actionSuccess({ testPin: pin });
+});
+
+export const updateCandidateAction = safeAction(async function updateCandidateAction(
+  input: UpdateCandidateInput,
+): Promise<ActionResult> {
+  await requireRole('ADMIN');
+
+  const parsed = updateCandidateSchema.safeParse(input);
+  if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
+
+  const applicant = await prisma.applicant.findUnique({
+    where: { id: parsed.data.applicantId },
+    select: { id: true, campaignId: true },
+  });
+  if (!applicant) return actionError(ADMISSION_ERRORS.APPLICANT_NOT_FOUND);
+
+  const { applicantId: _id, ...fields } = parsed.data;
+  const updateData: Record<string, unknown> = {};
+
+  if (fields.firstName) updateData.firstName = sanitizeString(fields.firstName);
+  if (fields.lastName) updateData.lastName = sanitizeString(fields.lastName);
+  if (fields.email) updateData.email = fields.email.toLowerCase().trim();
+  if (fields.phone !== undefined) updateData.phone = fields.phone?.trim() || null;
+  if (fields.dateOfBirth) updateData.dateOfBirth = new Date(fields.dateOfBirth);
+  if (fields.gender) updateData.gender = fields.gender;
+  if (fields.guardianName !== undefined) updateData.guardianName = fields.guardianName ? sanitizeString(fields.guardianName) : null;
+  if (fields.guardianPhone !== undefined) updateData.guardianPhone = fields.guardianPhone?.trim() || null;
+  if (fields.address !== undefined) updateData.address = fields.address ? sanitizeString(fields.address, 1000) : null;
+  if (fields.previousSchool !== undefined) updateData.previousSchool = fields.previousSchool ? sanitizeString(fields.previousSchool) : null;
+  if (fields.previousClass !== undefined) updateData.previousClass = fields.previousClass ? sanitizeString(fields.previousClass) : null;
+
+  if (Object.keys(updateData).length === 0) return actionError('No fields to update');
+
+  await prisma.applicant.update({ where: { id: applicant.id }, data: updateData });
+
+  revalidatePath('/admin/admissions');
+  return actionSuccess();
 });

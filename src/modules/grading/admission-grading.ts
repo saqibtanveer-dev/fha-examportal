@@ -119,67 +119,70 @@ export async function isAdmissionSessionFullyGraded(sessionId: string): Promise<
  * Calculate and save admission test result.
  */
 export async function calculateAdmissionResult(applicantId: string) {
-  return prisma.$transaction(async (tx) => {
-    const applicant = await tx.applicant.findUnique({
-      where: { id: applicantId },
-      include: {
-        campaign: true,
-        testSession: {
-          include: {
-            applicantAnswers: {
-              include: {
-                grade: true,
-                campaignQuestion: { select: { sectionLabel: true, marks: true } },
-              },
+  // Fetch data OUTSIDE the transaction to minimize time inside it.
+  // Neon serverless Postgres has high per-query latency; keeping the
+  // transaction short avoids P2028 timeout errors.
+  const applicant = await prisma.applicant.findUnique({
+    where: { id: applicantId },
+    include: {
+      campaign: true,
+      testSession: {
+        include: {
+          applicantAnswers: {
+            include: {
+              grade: true,
+              campaignQuestion: { select: { sectionLabel: true, marks: true } },
             },
           },
         },
       },
-    });
+    },
+  });
 
-    if (!applicant?.testSession) return null;
+  if (!applicant?.testSession) return null;
 
-    const session = applicant.testSession;
-    const campaign = applicant.campaign;
+  const session = applicant.testSession;
+  const campaign = applicant.campaign;
 
-    // Calculate total obtained marks
-    const obtainedMarks = session.applicantAnswers.reduce(
-      (sum, a) => {
-        if (!a.grade) return sum;
-        return sum + Number(a.grade.marksAwarded) - Number(a.grade.negativeMarks);
-      },
-      0,
-    );
+  // Calculate total obtained marks
+  const obtainedMarks = session.applicantAnswers.reduce(
+    (sum, a) => {
+      if (!a.grade) return sum;
+      return sum + Number(a.grade.marksAwarded) - Number(a.grade.negativeMarks);
+    },
+    0,
+  );
 
-    const clampedMarks = Math.max(0, obtainedMarks);
+  const clampedMarks = Math.max(0, obtainedMarks);
 
-    const score = calculateScore({
-      totalMarks: Number(campaign.totalMarks),
-      obtainedMarks: clampedMarks,
-      passingMarks: Number(campaign.passingMarks),
-    });
+  const score = calculateScore({
+    totalMarks: Number(campaign.totalMarks),
+    obtainedMarks: clampedMarks,
+    passingMarks: Number(campaign.passingMarks),
+  });
 
-    // Calculate section scores
-    const sectionScores: Record<string, { marks: number; total: number; percentage: number }> = {};
-    for (const answer of session.applicantAnswers) {
-      const label = answer.campaignQuestion.sectionLabel ?? 'General';
-      if (!sectionScores[label]) {
-        sectionScores[label] = { marks: 0, total: 0, percentage: 0 };
-      }
-      sectionScores[label].total += Number(answer.campaignQuestion.marks);
-      if (answer.grade) {
-        sectionScores[label].marks += Number(answer.grade.marksAwarded) - Number(answer.grade.negativeMarks);
-      }
+  // Calculate section scores
+  const sectionScores: Record<string, { marks: number; total: number; percentage: number }> = {};
+  for (const answer of session.applicantAnswers) {
+    const label = answer.campaignQuestion.sectionLabel ?? 'General';
+    if (!sectionScores[label]) {
+      sectionScores[label] = { marks: 0, total: 0, percentage: 0 };
     }
-    // Calculate section percentages
-    for (const key of Object.keys(sectionScores)) {
-      const s = sectionScores[key];
-      if (!s) continue;
-      s.marks = Math.max(0, s.marks);
-      s.percentage = s.total > 0 ? Math.round((s.marks / s.total) * 10000) / 100 : 0;
+    sectionScores[label].total += Number(answer.campaignQuestion.marks);
+    if (answer.grade) {
+      sectionScores[label].marks += Number(answer.grade.marksAwarded) - Number(answer.grade.negativeMarks);
     }
+  }
+  for (const key of Object.keys(sectionScores)) {
+    const s = sectionScores[key];
+    if (!s) continue;
+    s.marks = Math.max(0, s.marks);
+    s.percentage = s.total > 0 ? Math.round((s.marks / s.total) * 10000) / 100 : 0;
+  }
 
-    const result = await tx.applicantResult.upsert({
+  // Only the two writes go inside the transaction — keeps it fast
+  const result = await prisma.$transaction(async (tx) => {
+    const r = await tx.applicantResult.upsert({
       where: { applicantId },
       create: {
         applicantId,
@@ -203,14 +206,15 @@ export async function calculateAdmissionResult(applicantId: string) {
       },
     });
 
-    // Update applicant status to GRADED
     await tx.applicant.update({
       where: { id: applicantId },
       data: { status: 'GRADED' },
     });
 
-    return result;
-  }, { isolationLevel: 'Serializable' });
+    return r;
+  }, { timeout: 15_000 });
+
+  return result;
 }
 
 /**

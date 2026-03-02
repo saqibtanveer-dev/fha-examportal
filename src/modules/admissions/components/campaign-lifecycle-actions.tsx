@@ -19,7 +19,6 @@ import {
   XCircle,
   Award,
   CheckCircle,
-  BarChart3,
   Archive,
   Send,
 } from 'lucide-react';

@@ -200,6 +200,22 @@ export const regenerateTestPinSchema = z.object({
 });
 export type RegenerateTestPinInput = z.infer<typeof regenerateTestPinSchema>;
 
+export const updateCandidateSchema = z.object({
+  applicantId: z.string().uuid(),
+  firstName: z.string().min(1).max(100).optional(),
+  lastName: z.string().min(1).max(100).optional(),
+  email: z.string().email().optional(),
+  phone: z.string().max(20).optional(),
+  dateOfBirth: z.string().date().optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
+  guardianName: z.string().max(100).optional(),
+  guardianPhone: z.string().max(20).optional(),
+  address: z.string().max(500).optional(),
+  previousSchool: z.string().max(200).optional(),
+  previousClass: z.string().max(50).optional(),
+});
+export type UpdateCandidateInput = z.infer<typeof updateCandidateSchema>;
+
 // ============================================
 // Decision Schemas
 // ============================================

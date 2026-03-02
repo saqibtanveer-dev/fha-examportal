@@ -44,9 +44,10 @@ export async function listApplicants(
         phone: true,
         status: true,
         applicationNumber: true,
+        accessToken: true,
         createdAt: true,
         result: {
-          select: { percentage: true, rank: true, isPassed: true, grade: true },
+          select: { obtainedMarks: true, totalMarks: true, percentage: true, rank: true, isPassed: true, grade: true },
         },
         scholarship: { select: { tier: true, isAccepted: true } },
       },

@@ -1,7 +1,7 @@
 'use client';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, FileCheck, Trophy, UserPlus, TrendingUp, BarChart3 } from 'lucide-react';
+import { Users, FileCheck, Trophy, UserPlus, TrendingUp } from 'lucide-react';
 
 type CampaignStatsData = {
   totalApplicants: number;

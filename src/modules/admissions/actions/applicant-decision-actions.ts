@@ -18,16 +18,7 @@ import {
   type SingleDecisionInput,
   type BulkDecisionInput,
 } from '../admission-schemas';
-import { sendEmail } from '@/lib/email';
-import {
-  decisionAcceptedEmail,
-  decisionRejectedEmail,
-  decisionWaitlistedEmail,
-  scholarshipOfferedEmail,
-  waitlistPromotedEmail,
-  ADMISSION_EMAIL_SUBJECTS,
-} from '@/lib/email-templates';
-import { getSchoolBranding } from './shared';
+
 
 type ApplicantStatusType = 'REGISTERED' | 'VERIFIED' | 'TEST_IN_PROGRESS' | 'TEST_COMPLETED' | 'GRADED' | 'SHORTLISTED' | 'INTERVIEW_SCHEDULED' | 'ACCEPTED' | 'REJECTED' | 'WAITLISTED' | 'ENROLLED' | 'WITHDRAWN' | 'EXPIRED';
 
@@ -80,54 +71,6 @@ export const makeDecisionAction = safeAction(async function makeDecisionAction(
       },
     }),
   ]);
-
-  // Send email notification
-  const branding = await getSchoolBranding();
-  const emailTemplates: Record<string, () => string> = {
-    ACCEPTED: () => decisionAcceptedEmail({
-      firstName: applicant.firstName,
-      campaignName: applicant.campaign.name,
-      conditions: parsed.data.conditions,
-      branding,
-    }),
-    REJECTED: () => decisionRejectedEmail({
-      firstName: applicant.firstName,
-      campaignName: applicant.campaign.name,
-      remarks: parsed.data.remarks,
-      branding,
-    }),
-    WAITLISTED: () => decisionWaitlistedEmail({
-      firstName: applicant.firstName,
-      campaignName: applicant.campaign.name,
-      branding,
-    }),
-    SCHOLARSHIP_OFFERED: () => scholarshipOfferedEmail({
-      firstName: applicant.firstName,
-      campaignName: applicant.campaign.name,
-      tierName: parsed.data.conditions ?? 'Scholarship',
-      percentage: 0,
-      benefitDetails: parsed.data.remarks,
-      branding,
-    }),
-  };
-
-  const templateFn = emailTemplates[parsed.data.decision];
-  if (templateFn) {
-    const subjectMap: Record<string, (c: string) => string> = {
-      ACCEPTED: ADMISSION_EMAIL_SUBJECTS['decision-accepted'],
-      REJECTED: ADMISSION_EMAIL_SUBJECTS['decision-rejected'],
-      WAITLISTED: ADMISSION_EMAIL_SUBJECTS['decision-waitlisted'],
-      SCHOLARSHIP_OFFERED: ADMISSION_EMAIL_SUBJECTS['scholarship-offered'],
-    };
-    const subjectFn = subjectMap[parsed.data.decision];
-    if (subjectFn) {
-      sendEmail({
-        to: applicant.email,
-        subject: subjectFn(applicant.campaign.name),
-        html: templateFn(),
-      }).catch(() => {});
-    }
-  }
 
   createAuditLog(session.user.id, 'MAKE_DECISION', 'APPLICANT', parsed.data.applicantId, {
     decision: parsed.data.decision,
@@ -205,8 +148,6 @@ export const promoteFromWaitlistAction = safeAction(async function promoteFromWa
 
   if (waitlisted.length === 0) return actionError('No waitlisted applicants found');
 
-  const branding = await getSchoolBranding();
-
   await prisma.$transaction([
     prisma.applicant.updateMany({
       where: { id: { in: waitlisted.map((a) => a.id) } },
@@ -224,19 +165,6 @@ export const promoteFromWaitlistAction = safeAction(async function promoteFromWa
       }),
     ),
   ]);
-
-  // Send emails
-  for (const applicant of waitlisted) {
-    sendEmail({
-      to: applicant.email,
-      subject: ADMISSION_EMAIL_SUBJECTS['waitlist-promoted'](applicant.campaign.name),
-      html: waitlistPromotedEmail({
-        firstName: applicant.firstName,
-        campaignName: applicant.campaign.name,
-        branding,
-      }),
-    }).catch(() => {});
-  }
 
   createAuditLog(session.user.id, 'PROMOTE_WAITLIST', 'TEST_CAMPAIGN', campaignId, {
     count: waitlisted.length,

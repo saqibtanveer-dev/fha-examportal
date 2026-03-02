@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { useApplicantsQuery } from '@/modules/admissions/hooks/use-admissions-query';
 import { ApplicantTable } from '@/modules/admissions/components/applicant-table';
 import { AddCandidateDialog } from '@/modules/admissions/components/add-candidate-dialog';
+import { ApplicantDetailSheet } from '@/modules/admissions/components/applicant-detail-sheet';
 import { EmptyState, Spinner } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { bulkDecisionAction } from '@/modules/admissions/admission-actions';
@@ -17,6 +18,7 @@ type Props = {
 
 export function ApplicantsTabContent({ campaignId }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string | null>(null);
   const { data, isLoading } = useApplicantsQuery(
     { page: 1, pageSize: 100 },
     { campaignId },
@@ -28,6 +30,9 @@ export function ApplicantsTabContent({ campaignId }: Props) {
 
   const result = data as any;
   const applicants = result?.success ? (result.data?.data ?? []) : [];
+  const selectedApplicant = selectedApplicantId
+    ? applicants.find((a: any) => a.id === selectedApplicantId) ?? null
+    : null;
 
   function handleBulkAction(ids: string[], decision: string) {
     startTransition(async () => {
@@ -66,6 +71,7 @@ export function ApplicantsTabContent({ campaignId }: Props) {
         <ApplicantTable
           applicants={applicants}
           campaignId={campaignId}
+          onViewDetail={(id) => setSelectedApplicantId(id)}
           onBulkAction={handleBulkAction}
         />
       )}
@@ -74,6 +80,12 @@ export function ApplicantsTabContent({ campaignId }: Props) {
         campaignId={campaignId}
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+      />
+
+      <ApplicantDetailSheet
+        applicant={selectedApplicant}
+        open={!!selectedApplicantId}
+        onOpenChange={(open) => { if (!open) setSelectedApplicantId(null); }}
       />
     </div>
   );

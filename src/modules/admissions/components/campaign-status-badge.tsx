@@ -1,7 +1,6 @@
 'use client';
 
 import { StatusBadge } from '@/components/shared';
-import type { CampaignStatus } from '@prisma/client';
 
 const statusConfig: Record<string, { label: string; variant: 'default' | 'success' | 'warning' | 'destructive' | 'secondary' }> = {
   DRAFT: { label: 'Draft', variant: 'secondary' },

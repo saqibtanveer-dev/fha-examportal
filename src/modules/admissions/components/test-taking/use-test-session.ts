@@ -1,24 +1,23 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { useState, useEffect, useCallback, useRef, useTransition } from 'react';
 import { toast } from 'sonner';
 import {
-  startTestSessionAction,
   submitAnswerAction,
   submitTestAction,
   heartbeatAction,
-  recordProctoringEventAction,
-} from '@/modules/admissions/portal-actions';
-import {
-  ADMISSION_AUTO_SAVE_INTERVAL_MS,
-  ADMISSION_HEARTBEAT_INTERVAL_MS,
-} from '@/lib/constants';
+} from '@/modules/admissions/portal/portal-test-actions';
+import { startTestSessionAction } from '@/modules/admissions/portal/portal-test-start-actions';
+import { useAntiCheat } from './use-anti-cheat';
 import type { Question, AnswerState } from './test-taking-types';
+
+const HEARTBEAT_INTERVAL = 30_000;
+const AUTO_SAVE_DEBOUNCE = 2_000;
+const SAVE_RETRY_ATTEMPTS = 3;
+const SAVE_RETRY_DELAY = 500;
 
 export function useTestSession(accessToken: string) {
   const [isPending, startTransition] = useTransition();
-
-  const [sessionId, setSessionId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<AnswerState>({});
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -26,66 +25,81 @@ export function useTestSession(accessToken: string) {
   const [isStarting, setIsStarting] = useState(true);
   const [startError, setStartError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [applicationNumber, setApplicationNumber] = useState('');
+  const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
+  const [violationWarning, setViolationWarning] = useState('');
 
-  const tabSwitchRef = useRef(0);
-  const fullscreenExitRef = useRef(0);
+  const sessionIdRef = useRef<string | null>(null);
+  const pendingSaveRef = useRef<Set<string>>(new Set());
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const savingRef = useRef(false);
 
-  // ── Start test session ──────────────────────────────────────
+  // Refs for latest state — avoids stale closures in callbacks/timers
+  const answersRef = useRef<AnswerState>(answers);
+  answersRef.current = answers;
+  const markedForReviewRef = useRef<Set<string>>(markedForReview);
+  markedForReviewRef.current = markedForReview;
+
+  // Anti-cheat
+  const antiCheatCounts = useAntiCheat({
+    sessionId: sessionIdRef.current,
+    accessToken,
+    onViolation: (type, count) => {
+      if (type === 'TAB_SWITCH') {
+        setViolationWarning(`Warning: Tab switch detected (${count}). This is being recorded.`);
+        toast.warning(`Tab switch detected (${count}x). Activity is monitored.`);
+      } else if (type === 'COPY_PASTE') {
+        toast.warning('Copy/paste is not allowed during the test.');
+      }
+      setTimeout(() => setViolationWarning(''), 5000);
+    },
+  });
+
+  // ── Start session ──
   useEffect(() => {
-    startTestSessionAction({ token: accessToken }).then((result) => {
-      if (result.success && result.data) {
-        const data = result.data as {
-          sessionId: string;
-          questions: Question[];
-          endsAt: string | null;
-        };
-        setSessionId(data.sessionId);
-        setQuestions(data.questions);
-
-        const restored: AnswerState = {};
-        for (const q of data.questions) {
-          if (q.existingAnswer) {
-            restored[q.campaignQuestionId] = {
-              selectedOptionId: q.existingAnswer.selectedOptionId ?? undefined,
-              answerText: q.existingAnswer.answerText ?? undefined,
-              dirty: false,
-            };
-          }
-        }
-        setAnswers(restored);
-        setIsStarting(false);
-      } else {
+    let cancelled = false;
+    (async () => {
+      const result = await startTestSessionAction({ token: accessToken });
+      if (cancelled) return;
+      if (!result.success || !result.data) {
         setStartError(result.error ?? 'Failed to start test');
         setIsStarting(false);
+        return;
       }
-    });
+      sessionIdRef.current = result.data.sessionId;
+      const qs = result.data.questions as Question[];
+      setQuestions(qs);
+
+      // Restore saved answers
+      const restored: AnswerState = {};
+      for (const q of qs) {
+        if (q.existingAnswer) {
+          restored[q.campaignQuestionId] = {
+            selectedOptionId: q.existingAnswer.selectedOptionId ?? undefined,
+            answerText: q.existingAnswer.answerText ?? undefined,
+            dirty: false,
+          };
+        }
+      }
+      setAnswers(restored);
+
+      if (result.data.endsAt) {
+        const remaining = Math.max(0, Math.floor((new Date(result.data.endsAt).getTime() - Date.now()) / 1000));
+        setRemainingSeconds(remaining);
+      }
+      setIsStarting(false);
+    })();
+    return () => { cancelled = true; };
   }, [accessToken]);
 
-  // ── Heartbeat ───────────────────────────────────────────────
+  // ── Countdown timer ──
   useEffect(() => {
-    if (!sessionId) return;
-    const fetchHeartbeat = async () => {
-      const r = await heartbeatAction({ sessionId, accessToken });
-      if (r.success && r.data) {
-        setRemainingSeconds(
-          (r.data as { remainingSeconds: number | null }).remainingSeconds,
-        );
-      }
-    };
-    fetchHeartbeat();
-    const interval = setInterval(fetchHeartbeat, ADMISSION_HEARTBEAT_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [sessionId, accessToken]);
-
-  // ── Countdown timer ─────────────────────────────────────────
-  useEffect(() => {
-    if (remainingSeconds === null || remainingSeconds <= 0) return;
+    if (remainingSeconds === null || remainingSeconds <= 0 || isSubmitted) return;
     const interval = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev === null) return null;
         if (prev <= 1) {
+          clearInterval(interval);
           handleSubmitTest();
           return 0;
         }
@@ -94,110 +108,156 @@ export function useTestSession(accessToken: string) {
     }, 1000);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds]);
+  }, [remainingSeconds !== null, isSubmitted]);
 
-  // ── Auto-save dirty answers ─────────────────────────────────
-  const saveDirtyAnswers = useCallback(async () => {
-    if (!sessionId) return;
-    for (const [campaignQuestionId, answer] of Object.entries(answers)) {
-      if (!answer.dirty) continue;
-      await submitAnswerAction({
-        sessionId,
-        campaignQuestionId,
-        selectedOptionId: answer.selectedOptionId,
-        answerText: answer.answerText,
-      });
-      setAnswers((prev) => ({
-        ...prev,
-        [campaignQuestionId]: { ...prev[campaignQuestionId]!, dirty: false },
-      }));
-    }
-  }, [sessionId, answers]);
-
+  // ── Heartbeat ──
   useEffect(() => {
-    if (!sessionId) return;
-    const interval = setInterval(saveDirtyAnswers, ADMISSION_AUTO_SAVE_INTERVAL_MS);
+    if (!sessionIdRef.current || isSubmitted) return;
+    const interval = setInterval(async () => {
+      const sid = sessionIdRef.current;
+      if (!sid) return;
+      const result = await heartbeatAction({ sessionId: sid, accessToken });
+      if (result.success && result.data) {
+        setRemainingSeconds(result.data.remainingSeconds);
+      }
+    }, HEARTBEAT_INTERVAL);
     return () => clearInterval(interval);
-  }, [sessionId, saveDirtyAnswers]);
+  }, [accessToken, isSubmitted]);
 
-  // ── Tab visibility proctoring ───────────────────────────────
-  useEffect(() => {
-    if (!sessionId) return;
-    function handleVisibility() {
-      if (document.hidden) {
-        tabSwitchRef.current++;
-        recordProctoringEventAction({
-          sessionId: sessionId!,
-          accessToken,
-          eventType: 'TAB_SWITCH',
-        }).catch(() => {});
-        if (tabSwitchRef.current >= 3) {
-          toast.warning(
-            'Warning: Multiple tab switches detected. Your test may be flagged.',
-          );
+  // ── Save a single answer with retry ──
+  async function saveOneAnswer(sid: string, cqId: string): Promise<boolean> {
+    for (let attempt = 1; attempt <= SAVE_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const a = answersRef.current[cqId];
+        if (!a) return true; // nothing to save
+        const result = await submitAnswerAction({
+          sessionId: sid,
+          campaignQuestionId: cqId,
+          selectedOptionId: a.selectedOptionId,
+          answerText: a.answerText,
+          isMarkedForReview: markedForReviewRef.current.has(cqId),
+        });
+        if (result.success) return true;
+        // Validation or business logic error — don't retry
+        if (result.error?.includes('Validation') || result.error?.includes('not active')) {
+          console.error(`[TestSession] Save answer failed (no retry): ${result.error}`);
+          return false;
+        }
+        console.warn(`[TestSession] Save attempt ${attempt}/${SAVE_RETRY_ATTEMPTS} failed: ${result.error}`);
+      } catch (err) {
+        console.error(`[TestSession] Save answer threw (attempt ${attempt}):`, err);
+      }
+      if (attempt < SAVE_RETRY_ATTEMPTS) {
+        await new Promise((r) => setTimeout(r, SAVE_RETRY_DELAY * attempt));
+      }
+    }
+    return false;
+  }
+
+  // ── Flush all pending saves ──
+  const flushPending = useCallback(async (): Promise<number> => {
+    const sid = sessionIdRef.current;
+    if (!sid) return 0;
+    if (savingRef.current) return 0; // prevent concurrent flushes
+    savingRef.current = true;
+
+    try {
+      const ids = Array.from(pendingSaveRef.current);
+      if (ids.length === 0) return 0;
+
+      let savedCount = 0;
+      // Save answers in parallel (max 5 concurrent)
+      const batchSize = 5;
+      for (let i = 0; i < ids.length; i += batchSize) {
+        const batch = ids.slice(i, i + batchSize);
+        const results = await Promise.allSettled(
+          batch.map((cqId) => saveOneAnswer(sid, cqId)),
+        );
+        for (let j = 0; j < results.length; j++) {
+          const r = results[j];
+          const cqId = batch[j]!;
+          if (r?.status === 'fulfilled' && r.value) {
+            pendingSaveRef.current.delete(cqId);
+            savedCount++;
+          }
+          // On failure, leave in pendingSaveRef for retry
         }
       }
+      return savedCount;
+    } finally {
+      savingRef.current = false;
     }
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [sessionId, accessToken]);
+  }, []);
 
-  // ── Fullscreen proctoring ───────────────────────────────────
-  useEffect(() => {
-    if (!sessionId) return;
-    function handleFullscreenChange() {
-      if (!document.fullscreenElement) {
-        fullscreenExitRef.current++;
-        recordProctoringEventAction({
-          sessionId: sessionId!,
-          accessToken,
-          eventType: 'FULLSCREEN_EXIT',
-        }).catch(() => {});
-      }
-    }
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.documentElement.requestFullscreen?.().catch(() => {});
-    return () =>
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, [sessionId, accessToken]);
-
-  // ── Handlers ────────────────────────────────────────────────
-  function updateAnswer(
-    campaignQuestionId: string,
-    update: Partial<{ selectedOptionId: string; answerText: string }>,
-  ) {
+  function updateAnswer(cqId: string, update: Partial<{ selectedOptionId: string; answerText: string }>) {
     setAnswers((prev) => ({
       ...prev,
-      [campaignQuestionId]: { ...prev[campaignQuestionId], ...update, dirty: true },
+      [cqId]: { ...prev[cqId], ...update, dirty: true },
     }));
+    pendingSaveRef.current.add(cqId);
+
+    // For MCQ selections: save eagerly (shorter debounce)
+    // For text answers: use longer debounce
+    clearTimeout(autoSaveTimerRef.current);
+    const delay = update.selectedOptionId ? 300 : AUTO_SAVE_DEBOUNCE;
+    autoSaveTimerRef.current = setTimeout(flushPending, delay);
+  }
+
+  function toggleReview(campaignQuestionId: string) {
+    setMarkedForReview((prev) => {
+      const next = new Set(prev);
+      if (next.has(campaignQuestionId)) next.delete(campaignQuestionId);
+      else next.add(campaignQuestionId);
+      return next;
+    });
   }
 
   function handleSubmitTest() {
-    if (!sessionId) return;
+    const sid = sessionIdRef.current;
+    if (!sid) return;
+    clearTimeout(autoSaveTimerRef.current);
     startTransition(async () => {
-      await saveDirtyAnswers();
+      // Mark ALL answered questions as pending to guarantee they're saved
+      const currentAnswers = answersRef.current;
+      for (const cqId of Object.keys(currentAnswers)) {
+        if (currentAnswers[cqId]?.selectedOptionId || currentAnswers[cqId]?.answerText) {
+          pendingSaveRef.current.add(cqId);
+        }
+      }
+
+      // Flush with retry — try up to 3 times
+      for (let flush = 0; flush < 3; flush++) {
+        await flushPending();
+        if (pendingSaveRef.current.size === 0) break;
+        // Wait before retrying
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      if (pendingSaveRef.current.size > 0) {
+        console.error(`[TestSession] ${pendingSaveRef.current.size} answers failed to save after retries`);
+      }
+
+      const counts = antiCheatCounts.current;
       const result = await submitTestAction({
-        sessionId,
-        tabSwitchCount: tabSwitchRef.current,
-        fullscreenExitCount: fullscreenExitRef.current,
-      } as Parameters<typeof submitTestAction>[0]);
+        sessionId: sid,
+        tabSwitchCount: counts.tabSwitch,
+        fullscreenExitCount: counts.fullscreenExit,
+      });
       if (result.success && result.data) {
         setIsSubmitted(true);
-        setApplicationNumber(
-          (result.data as { applicationNumber: string }).applicationNumber ?? '',
-        );
-        document.exitFullscreen?.().catch(() => {});
+        setApplicationNumber(result.data.applicationNumber);
+        if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
       } else {
-        toast.error(result.error ?? 'Failed to submit test');
+        toast.error(result.error ?? 'Failed to submit');
       }
     });
   }
 
-  function formatTime(seconds: number): string {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  }
+  const formatTime = useCallback((s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  }, []);
 
   return {
     isPending,
@@ -209,10 +269,11 @@ export function useTestSession(accessToken: string) {
     isStarting,
     startError,
     isSubmitted,
-    showSubmitConfirm,
-    setShowSubmitConfirm,
     applicationNumber,
+    markedForReview,
+    violationWarning,
     updateAnswer,
+    toggleReview,
     handleSubmitTest,
     formatTime,
   };

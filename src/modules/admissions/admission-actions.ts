@@ -44,4 +44,5 @@ export {
   addCandidateAction,
   bulkAddCandidatesAction,
   regenerateTestPinAction,
+  updateCandidateAction,
 } from './actions/candidate-management-actions';

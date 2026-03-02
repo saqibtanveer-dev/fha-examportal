@@ -45,7 +45,7 @@ export function CampaignDetailSkeleton() {
         ))}
       </div>
       <Skeleton className="h-10 w-full rounded-md" />
-      <Skeleton className="h-[300px] w-full rounded-md" />
+      <Skeleton className="h-75 w-full rounded-md" />
     </div>
   );
 }

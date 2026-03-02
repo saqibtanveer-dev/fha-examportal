@@ -17,11 +17,9 @@ import {
   bulkEnrollSchema,
   type EnrollApplicantInput,
 } from '../admission-schemas';
-import { sendEmail } from '@/lib/email';
-import { enrollmentWelcomeEmail, ADMISSION_EMAIL_SUBJECTS } from '@/lib/email-templates';
+
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
-import { getSchoolBranding } from './shared';
 
 export const autoAssignScholarshipsAction = safeAction(async function autoAssignScholarshipsAction(
   campaignId: string,
@@ -172,24 +170,6 @@ export const enrollApplicantAction = safeAction(async function enrollApplicantAc
 
     return newUser;
   });
-
-  // Send welcome email
-  const branding = await getSchoolBranding();
-  const className = await prisma.class.findUnique({ where: { id: parsed.data.classId }, select: { name: true } });
-
-  sendEmail({
-    to: applicant.email,
-    subject: ADMISSION_EMAIL_SUBJECTS['enrollment-welcome'](),
-    html: enrollmentWelcomeEmail({
-      firstName: applicant.firstName,
-      lastName: applicant.lastName,
-      email: applicant.email,
-      temporaryPassword: tempPassword,
-      className: className?.name ?? 'Assigned Class',
-      loginUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/login`,
-      branding,
-    }),
-  }).catch(() => {});
 
   createAuditLog(session.user.id, 'ENROLL_APPLICANT', 'APPLICANT', applicant.id, {
     userId: user.id,

@@ -63,7 +63,7 @@ export function MeritListTable({ entries }: Props) {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[70px]">Rank</TableHead>
+            <TableHead className="w-18">Rank</TableHead>
             <TableHead>Name</TableHead>
             <TableHead className="hidden sm:table-cell">Application #</TableHead>
             <TableHead>Score</TableHead>

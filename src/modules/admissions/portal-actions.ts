@@ -3,8 +3,8 @@
  * Only test-taking actions remain (no self-registration/public results).
  */
 
+export { startTestSessionAction } from './portal/portal-test-start-actions';
 export {
-  startTestSessionAction,
   submitAnswerAction,
   submitTestAction,
   recordProctoringEventAction,

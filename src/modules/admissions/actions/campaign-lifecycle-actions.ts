@@ -13,9 +13,7 @@ import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 import { actionError, actionSuccess } from '@/types/action-result';
 import { ADMISSION_ERRORS } from '../admission-types';
-import { sendEmail } from '@/lib/email';
-import { resultPublishedEmail, ADMISSION_EMAIL_SUBJECTS } from '@/lib/email-templates';
-import { getSchoolBranding } from './shared';
+
 
 export const openRegistrationAction = safeAction(async function openRegistrationAction(
   campaignId: string,
@@ -158,34 +156,6 @@ export const publishResultsAction = safeAction(async function publishResultsActi
       data: { publishedAt: now },
     }),
   ]);
-
-  // Send result published emails (fire-and-forget, batched)
-  const applicantsWithResults = await prisma.applicant.findMany({
-    where: { campaignId, result: { isNot: null } },
-    select: {
-      firstName: true,
-      email: true,
-      result: { select: { percentage: true, rank: true, isPassed: true } },
-    },
-  });
-
-  const branding = await getSchoolBranding();
-  for (const a of applicantsWithResults) {
-    if (!a.result) continue;
-    sendEmail({
-      to: a.email,
-      subject: ADMISSION_EMAIL_SUBJECTS['result-published'](campaign.name),
-      html: resultPublishedEmail({
-        firstName: a.firstName,
-        campaignName: campaign.name,
-        resultUrl: `${process.env.NEXT_PUBLIC_BASE_URL ?? ''}/results`,
-        isPassed: a.result.isPassed,
-        percentage: Number(a.result.percentage),
-        rank: a.result.rank ?? undefined,
-        branding,
-      }),
-    }).catch(() => {});
-  }
 
   createAuditLog(session.user.id, 'PUBLISH_RESULTS', 'TEST_CAMPAIGN', campaignId).catch(() => {});
   revalidatePath('/admin/admissions');

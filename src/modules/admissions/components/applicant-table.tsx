@@ -19,16 +19,9 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  MoreHorizontal,
-  Eye,
-  CheckCircle,
-  XCircle,
-  Clock,
-  UserPlus,
-} from 'lucide-react';
+import { MoreHorizontal, Eye, CheckCircle, XCircle, Clock, KeyRound } from 'lucide-react';
 import { ApplicantStatusBadge } from './campaign-status-badge';
-import { makeDecisionAction, enrollApplicantAction } from '../admission-actions';
+import { makeDecisionAction } from '../admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Spinner } from '@/components/shared';
 
@@ -39,6 +32,7 @@ type ApplicantRow = {
   email: string;
   phone: string | null;
   applicationNumber: string | null;
+  accessToken: string;
   status: string;
   createdAt: string;
   result?: {
@@ -55,8 +49,6 @@ type Props = {
   campaignId: string;
   onViewDetail?: (id: string) => void;
   onBulkAction?: (ids: string[], action: string) => void;
-  classes?: { id: string; name: string }[];
-  sections?: { id: string; name: string; classId: string }[];
 };
 
 export function ApplicantTable({
@@ -64,8 +56,6 @@ export function ApplicantTable({
   campaignId,
   onViewDetail,
   onBulkAction,
-  classes = [],
-  sections = [],
 }: Props) {
   const invalidate = useInvalidateCache();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -133,7 +123,7 @@ export function ApplicantTable({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]">
+              <TableHead className="w-10">
                 <Checkbox
                   checked={selectedIds.size === applicants.length && applicants.length > 0}
                   onCheckedChange={toggleSelectAll}
@@ -141,10 +131,11 @@ export function ApplicantTable({
               </TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="hidden sm:table-cell">Application #</TableHead>
+              <TableHead className="hidden sm:table-cell">PIN</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="hidden md:table-cell">Score</TableHead>
               <TableHead className="hidden lg:table-cell">Rank</TableHead>
-              <TableHead className="w-[60px]" />
+              <TableHead className="w-15" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -167,6 +158,11 @@ export function ApplicantTable({
                 </TableCell>
                 <TableCell className="hidden sm:table-cell font-mono text-xs">
                   {a.applicationNumber ?? '—'}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <span className="inline-flex items-center gap-1 font-mono text-xs">
+                    <KeyRound className="h-3 w-3 text-muted-foreground" />{a.accessToken}
+                  </span>
                 </TableCell>
                 <TableCell>
                   <ApplicantStatusBadge status={a.status} />
