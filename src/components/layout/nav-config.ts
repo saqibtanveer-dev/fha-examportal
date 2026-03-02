@@ -14,6 +14,7 @@ import {
   ArrowUpCircle,
   UserCheck,
   TrendingUp,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -44,6 +45,7 @@ export const adminNavigation: NavGroup[] = [
       { label: 'Departments', href: ROUTES.ADMIN.DEPARTMENTS, icon: School },
       { label: 'Subjects', href: ROUTES.ADMIN.SUBJECTS, icon: BookOpen },
       { label: 'Classes', href: ROUTES.ADMIN.CLASSES, icon: GraduationCap },
+      { label: 'Admissions', href: ROUTES.ADMIN_ADMISSIONS.ROOT, icon: UserPlus },
       {
         label: 'Year Transition',
         href: ROUTES.ADMIN.YEAR_TRANSITION,

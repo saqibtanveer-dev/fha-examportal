@@ -67,8 +67,8 @@ export type BulkAssignSubjectToClassesInput = z.infer<typeof bulkAssignSubjectTo
 
 export const createAcademicSessionSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50),
-  startDate: z.string().datetime('Invalid date'),
-  endDate: z.string().datetime('Invalid date'),
+  startDate: z.string().min(1, 'Start date is required'),
+  endDate: z.string().min(1, 'End date is required'),
   isCurrent: z.boolean().default(false),
 });
 
@@ -76,8 +76,8 @@ export type CreateAcademicSessionInput = z.infer<typeof createAcademicSessionSch
 
 export const updateAcademicSessionSchema = z.object({
   name: z.string().min(1).max(50).optional(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
   isCurrent: z.boolean().optional(),
 });
 

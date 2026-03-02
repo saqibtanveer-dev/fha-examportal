@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -31,22 +30,10 @@ import { createExamAction } from '@/modules/exams/exam-actions';
 import { useQuestionsForPicker } from '@/modules/questions/hooks/use-questions-query';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
-import { Clock, Award, Loader2 } from 'lucide-react';
-
-type Subject = { id: string; name: string; code: string };
-type ClassItem = { id: string; name: string; sections: { id: string; name: string }[] };
-type QuestionItem = { id: string; title: string; marks: number; type: string; subjectId?: string; estimatedTime?: number };
-type AcademicSessionItem = { id: string; name: string; isCurrent: boolean };
-
-/** Estimated time per question type (in minutes) */
-const QUESTION_TIME_ESTIMATES: Record<string, number> = {
-  MCQ: 1,
-  TRUE_FALSE: 0.5,
-  SHORT_ANSWER: 3,
-  LONG_ANSWER: 8,
-  FILL_IN_BLANK: 1.5,
-  MATCHING: 2,
-};
+import { Clock } from 'lucide-react';
+import { QuestionPicker } from './question-picker';
+import type { Subject, ClassItem, QuestionItem, AcademicSessionItem } from './create-exam-types';
+import { QUESTION_TIME_ESTIMATES } from './create-exam-types';
 
 type Props = {
   open: boolean;
@@ -67,66 +54,46 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
   });
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
-  const [questionSearch, setQuestionSearch] = useState('');
   const invalidate = useInvalidateCache();
 
-  // Lazy-load questions when subject is selected (no more 200-question upfront fetch)
   const { data: pickerQuestions = [], isLoading: isLoadingQuestions } = useQuestionsForPicker(subjectId);
   const questions: QuestionItem[] = useMemo(
     () => (pickerQuestions as any[]).map((q: any) => ({ id: q.id, title: q.title, marks: Number(q.marks), type: q.type, subjectId: q.subjectId })),
     [pickerQuestions],
   );
 
-  const filteredQuestions = useMemo(() => {
-    if (!questionSearch.trim()) return questions;
-    const search = questionSearch.toLowerCase();
-    return questions.filter((q) => q.title.toLowerCase().includes(search));
-  }, [questions, questionSearch]);
+  const totalMarks = useMemo(
+    () => selectedQuestions.reduce((sum, qId) => sum + (questions.find((x) => x.id === qId)?.marks ?? 0), 0),
+    [selectedQuestions, questions],
+  );
 
-  // Calculate total marks from selected questions
-  const totalMarks = useMemo(() => {
-    return selectedQuestions.reduce((sum, qId) => {
-      const q = questions.find((x) => x.id === qId);
-      return sum + (q?.marks ?? 0);
-    }, 0);
-  }, [selectedQuestions, questions]);
-
-  // Auto-calculate suggested duration based on selected questions
   const suggestedDuration = useMemo(() => {
     if (selectedQuestions.length === 0) return 0;
-    const totalMinutes = selectedQuestions.reduce((sum, qId) => {
+    const totalMin = selectedQuestions.reduce((sum, qId) => {
       const q = questions.find((x) => x.id === qId);
-      if (!q) return sum;
-      return sum + (q.estimatedTime ?? QUESTION_TIME_ESTIMATES[q.type] ?? 2);
+      return sum + (q?.estimatedTime ?? QUESTION_TIME_ESTIMATES[q?.type ?? ''] ?? 2);
     }, 0);
-    // Add 10% buffer and round up to nearest 5 minutes
-    const buffered = totalMinutes * 1.1;
-    return Math.max(5, Math.ceil(buffered / 5) * 5);
+    return Math.max(5, Math.ceil((totalMin * 1.1) / 5) * 5);
   }, [selectedQuestions, questions]);
 
   function toggleQuestion(id: string) {
     setSelectedQuestions((prev) => {
       const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
-      // Auto-set duration when questions change (only if user hasn't manually set one)
       if (!duration || duration === String(suggestedDuration)) {
         const newTotal = next.reduce((sum, qId) => {
           const q = questions.find((x) => x.id === qId);
-          if (!q) return sum;
-          return sum + (q.estimatedTime ?? QUESTION_TIME_ESTIMATES[q.type] ?? 2);
+          return sum + (q?.estimatedTime ?? QUESTION_TIME_ESTIMATES[q?.type ?? ''] ?? 2);
         }, 0);
-        const buffered = newTotal * 1.1;
-        const suggested = Math.max(5, Math.ceil(buffered / 5) * 5);
+        const suggested = Math.max(5, Math.ceil((newTotal * 1.1) / 5) * 5);
         if (next.length > 0) setDuration(String(suggested));
       }
       return next;
     });
   }
 
-  // Clear selection when subject changes — questions auto-refresh via React Query
   function handleSubjectChange(newSubjectId: string) {
     setSubjectId(newSubjectId);
     setSelectedQuestions([]);
-    setQuestionSearch('');
   }
 
   function handleSubmit(formData: FormData) {
@@ -170,7 +137,6 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
     setDuration('');
     setSelectedQuestions([]);
     setSelectedClasses([]);
-    setQuestionSearch('');
   }
 
   return (
@@ -229,17 +195,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
                   </Tooltip>
                 )}
               </div>
-              <Input
-                id="duration"
-                name="duration"
-                type="number"
-                min={5}
-                max={300}
-                required
-                disabled={isPending}
-                value={duration}
-                onChange={(e) => setDuration(e.target.value)}
-              />
+              <Input id="duration" name="duration" type="number" min={5} max={300} required disabled={isPending} value={duration} onChange={(e) => setDuration(e.target.value)} />
             </div>
           </div>
           {academicSessions.length > 0 && (
@@ -249,9 +205,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
                 <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
                 <SelectContent>
                   {academicSessions.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.name}{s.isCurrent ? ' (Current)' : ''}
-                    </SelectItem>
+                    <SelectItem key={s.id} value={s.id}>{s.name}{s.isCurrent ? ' (Current)' : ''}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -270,70 +224,15 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
             <Textarea id="instructions" name="instructions" rows={2} disabled={isPending} />
           </div>
 
-          {/* Question Selection - Enhanced with marks display, subject filter, search */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label>Questions ({selectedQuestions.length} selected)</Label>
-              {selectedQuestions.length > 0 && (
-                <div className="flex items-center gap-3 text-xs">
-                  <span className="flex items-center gap-1 font-medium text-primary">
-                    <Award className="h-3.5 w-3.5" />
-                    Total: {totalMarks} marks
-                  </span>
-                  <span className="flex items-center gap-1 text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" />
-                    ~{suggestedDuration} min
-                  </span>
-                </div>
-              )}
-            </div>
-            <Input
-              placeholder="Search questions..."
-              value={questionSearch}
-              onChange={(e) => setQuestionSearch(e.target.value)}
-              className="h-8 text-sm"
-            />
-            <div className="max-h-48 overflow-y-auto rounded border p-2 space-y-1">
-              {isLoadingQuestions ? (
-                <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />Loading questions...
-                </div>
-              ) : filteredQuestions.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-2">
-                  {subjectId ? 'No questions for this subject' : 'Select a subject to load questions'}
-                </p>
-              ) : (
-                filteredQuestions.map((q) => (
-                <label
-                  key={q.id}
-                  className="flex items-start gap-2 cursor-pointer hover:bg-accent rounded px-2 py-1.5 group"
-                >
-                  <Checkbox
-                    checked={selectedQuestions.includes(q.id)}
-                    onCheckedChange={() => toggleQuestion(q.id)}
-                    className="mt-0.5 shrink-0"
-                  />
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="text-sm flex-1 min-w-0 line-clamp-2 break-words">{q.title}</span>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <p className="whitespace-pre-wrap break-words">{q.title}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      {q.type.replace('_', ' ')}
-                    </Badge>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 font-semibold">
-                      {q.marks}m
-                    </Badge>
-                  </div>
-                </label>
-              ))
-              )}
-            </div>
-          </div>
+          <QuestionPicker
+            questions={questions}
+            isLoading={isLoadingQuestions}
+            hasSubject={!!subjectId}
+            selectedIds={selectedQuestions}
+            onToggle={toggleQuestion}
+            totalMarks={totalMarks}
+            suggestedDuration={suggestedDuration}
+          />
 
           {/* Class Assignment */}
           <div className="space-y-2">
@@ -354,7 +253,6 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
             </div>
           </div>
 
-          {/* Summary bar */}
           {selectedQuestions.length > 0 && (
             <div className="flex items-center justify-between rounded-lg border bg-muted/50 px-3 py-2 text-sm">
               <span>{selectedQuestions.length} questions</span>

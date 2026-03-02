@@ -49,6 +49,26 @@ export const AI_REVIEW_RECOMMENDED_THRESHOLD = 0.6;
 export const AI_MAX_ANSWER_LENGTH = 4000;
 
 // ============================================
+// Admission Test Constants
+// ============================================
+
+export const ADMISSION_APPLICATION_NUMBER_PREFIX = 'ADM';
+export const ADMISSION_OTP_LENGTH = 6;
+export const ADMISSION_OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
+export const ADMISSION_OTP_MAX_ATTEMPTS = 5;
+export const ADMISSION_ACCESS_TOKEN_BYTES = 32;
+export const ADMISSION_AUTO_SAVE_INTERVAL_MS = 60 * 1000; // 60 seconds
+export const ADMISSION_HEARTBEAT_INTERVAL_MS = 30 * 1000; // 30 seconds
+export const ADMISSION_SUBMIT_GRACE_PERIOD_MS = 30 * 1000; // 30 seconds
+export const ADMISSION_MAX_TAB_SWITCHES = 5;
+export const ADMISSION_MAX_FULLSCREEN_EXITS = 3;
+export const ADMISSION_BATCH_GRADING_SIZE = 10;
+export const ADMISSION_AI_GRADING_CONCURRENCY = 5;
+export const ADMISSION_SCHOLARSHIP_CASCADE_MAX_DEPTH = 10;
+export const ADMISSION_BULK_EMAIL_BATCH_SIZE = 10;
+export const ADMISSION_BULK_EMAIL_DELAY_MS = 1000;
+
+// ============================================
 // Routes
 // ============================================
 
@@ -98,6 +118,37 @@ export const ROUTES = {
   CHANGE_PASSWORD: '/profile/change-password',
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
+
+  // Public Admission Portal
+  PUBLIC: {
+    APPLY: '/apply',
+    APPLY_CAMPAIGN: (slug: string) => `/apply/${slug}` as const,
+    APPLY_REGISTER: (slug: string) => `/apply/${slug}/register` as const,
+    APPLY_VERIFY: (slug: string) => `/apply/${slug}/verify` as const,
+    APPLY_TEST: (slug: string) => `/apply/${slug}/test` as const,
+    APPLY_SUBMITTED: (slug: string) => `/apply/${slug}/submitted` as const,
+    RESULTS: '/results',
+    RESULT_DETAIL: (token: string) => `/results/${token}` as const,
+    TRACK: '/track',
+    TRACK_DETAIL: (token: string) => `/track/${token}` as const,
+  },
+
+  // Admin Admission Management
+  ADMIN_ADMISSIONS: {
+    ROOT: '/admin/admissions',
+    CAMPAIGNS: '/admin/admissions',
+    NEW_CAMPAIGN: '/admin/admissions/new',
+    CAMPAIGN_DETAIL: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_QUESTIONS: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_TIERS: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_APPLICANTS: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_APPLICANT: (id: string, appId: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_GRADING: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_MERIT: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_SCHOLARSHIPS: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_ENROLLMENT: (id: string) => `/admin/admissions/${id}` as const,
+    CAMPAIGN_ANALYTICS: (id: string) => `/admin/admissions/${id}` as const,
+  },
 } as const;
 
 // ============================================

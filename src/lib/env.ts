@@ -8,6 +8,14 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url('NEXT_PUBLIC_APP_URL must be a valid URL').optional(),
   ADMIN_INITIAL_PASSWORD: z.string().min(8, 'ADMIN_INITIAL_PASSWORD must be at least 8 chars').optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+
+  // SMTP Email Configuration
+  EMAIL_HOST: z.string().default('smtp.gmail.com'),
+  EMAIL_PORT: z.coerce.number().default(587),
+  EMAIL_HOST_USER: z.string().optional(),
+  EMAIL_HOST_PASSWORD: z.string().optional(),
+  DEFAULT_FROM_EMAIL: z.string().default('noreply@examcore.app'),
+  DEFAULT_FROM_NAME: z.string().default('ExamCore'),
 });
 
 export type Env = z.infer<typeof envSchema>;

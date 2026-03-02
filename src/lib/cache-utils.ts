@@ -68,6 +68,43 @@ export function useInvalidateCache() {
       ]);
     },
 
+    // ── Admission Module Invalidation ──
+    campaigns: () => invalidateQueries(queryKeys.campaigns.all),
+    campaignLists: () => invalidateQueries(queryKeys.campaigns.lists()),
+    campaignDetail: (id: string) => invalidateQueries(queryKeys.campaigns.detail(id)),
+    campaignAnalytics: (id: string) => invalidateQueries(queryKeys.campaigns.analytics(id)),
+    applicants: () => invalidateQueries(queryKeys.applicants.all),
+    applicantLists: () => invalidateQueries(queryKeys.applicants.lists()),
+    applicantDetail: (id: string) => invalidateQueries(queryKeys.applicants.detail(id)),
+    meritList: (campaignId: string) => invalidateQueries(queryKeys.meritList.byCampaign(campaignId)),
+    scholarshipReport: (campaignId: string) => invalidateQueries(queryKeys.scholarshipReport.byCampaign(campaignId)),
+    publicCampaigns: () => invalidateQueries(queryKeys.publicCampaigns.all),
+
+    afterCampaignMutation: async (campaignId?: string) => {
+      const promises = [
+        invalidateQueries(queryKeys.campaigns.all),
+        invalidateQueries(queryKeys.publicCampaigns.all),
+      ];
+      if (campaignId) promises.push(invalidateQueries(queryKeys.campaigns.detail(campaignId)));
+      await Promise.all(promises);
+    },
+    afterDecision: async (campaignId: string) => {
+      await Promise.all([
+        invalidateQueries(queryKeys.applicants.all),
+        invalidateQueries(queryKeys.meritList.byCampaign(campaignId)),
+        invalidateQueries(queryKeys.scholarshipReport.byCampaign(campaignId)),
+        invalidateQueries(queryKeys.campaigns.detail(campaignId)),
+        invalidateQueries(queryKeys.campaigns.analytics(campaignId)),
+      ]);
+    },
+    afterEnrollment: async (campaignId: string) => {
+      await Promise.all([
+        invalidateQueries(queryKeys.applicants.all),
+        invalidateQueries(queryKeys.campaigns.detail(campaignId)),
+        invalidateQueries(queryKeys.users.all),
+      ]);
+    },
+
     // ── Nuclear option ──
     all: () => queryClient.invalidateQueries(),
   };

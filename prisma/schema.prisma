@@ -86,6 +86,7 @@ enum NotificationType {
   RESULT_PUBLISHED
   GRADE_REVIEWED
   SYSTEM
+  ADMISSION
 }
 
 enum StudentStatus {
@@ -94,6 +95,74 @@ enum StudentStatus {
   GRADUATED
   HELD_BACK
   WITHDRAWN
+}
+
+// ============================================
+// ADMISSION & SCHOLARSHIP ENUMS
+// ============================================
+
+enum CampaignType {
+  ADMISSION
+  SCHOLARSHIP
+  ADMISSION_SCHOLARSHIP
+}
+
+enum CampaignStatus {
+  DRAFT
+  REGISTRATION_OPEN
+  REGISTRATION_CLOSED
+  TEST_ACTIVE
+  TEST_CLOSED
+  GRADING
+  RESULTS_READY
+  RESULTS_PUBLISHED
+  COMPLETED
+  ARCHIVED
+}
+
+enum ApplicantStatus {
+  REGISTERED
+  VERIFIED
+  TEST_IN_PROGRESS
+  TEST_COMPLETED
+  GRADED
+  SHORTLISTED
+  INTERVIEW_SCHEDULED
+  ACCEPTED
+  REJECTED
+  WAITLISTED
+  ENROLLED
+  WITHDRAWN
+  EXPIRED
+}
+
+enum ScholarshipTier {
+  FULL_100
+  SEVENTY_FIVE
+  HALF_50
+  QUARTER_25
+  NONE
+}
+
+enum VerificationType {
+  EMAIL_OTP
+  PHONE_OTP
+  BOTH
+}
+
+enum AdmissionDecisionType {
+  PENDING
+  ACCEPTED
+  REJECTED
+  WAITLISTED
+  SCHOLARSHIP_OFFERED
+}
+
+enum EvaluationStage {
+  WRITTEN_TEST
+  INTERVIEW
+  DOCUMENT_REVIEW
+  FINAL_DECISION
 }
 
 // ============================================
@@ -125,6 +194,12 @@ model User {
   auditLogs      AuditLog[]
   notifications  Notification[]
   promotionsDone StudentPromotion[]
+
+  // Admission relations
+  campaignsCreated         TestCampaign[]
+  applicantGrades          ApplicantAnswerGrade[] @relation("ApplicantGraderUser")
+  scholarshipsAwarded      ApplicantScholarship[] @relation("ScholarshipAwarder")
+  admissionDecisionsMade   AdmissionDecisionRecord[]
 
   @@index([role])
   @@index([isActive])
@@ -257,6 +332,8 @@ model Class {
   teacherSubjects      TeacherSubject[]
   promotionsFrom       StudentPromotion[]   @relation("PromotionFromClass")
   promotionsTo         StudentPromotion[]   @relation("PromotionToClass")
+  testCampaigns        TestCampaign[]
+  admissionPlacements  AdmissionDecisionRecord[]
 
   @@index([grade])
 }
@@ -274,6 +351,7 @@ model Section {
   examClassAssignments ExamClassAssignment[]
   promotionsFrom       StudentPromotion[]   @relation("PromotionFromSection")
   promotionsTo         StudentPromotion[]   @relation("PromotionToSection")
+  admissionPlacements  AdmissionDecisionRecord[]
 
   @@unique([classId, name])
   @@index([classId])
@@ -315,12 +393,13 @@ model Question {
   updatedAt     DateTime     @updatedAt
   deletedAt     DateTime?
 
-  subject       Subject       @relation(fields: [subjectId], references: [id])
-  class         Class?        @relation(fields: [classId], references: [id])
-  createdBy     User          @relation(fields: [createdById], references: [id])
-  mcqOptions    McqOption[]
-  questionTags  QuestionTag[]
-  examQuestions ExamQuestion[]
+  subject           Subject           @relation(fields: [subjectId], references: [id])
+  class             Class?            @relation(fields: [classId], references: [id])
+  createdBy         User              @relation(fields: [createdById], references: [id])
+  mcqOptions        McqOption[]
+  questionTags      QuestionTag[]
+  examQuestions     ExamQuestion[]
+  campaignQuestions CampaignQuestion[]
 
   @@index([subjectId])
   @@index([classId])
@@ -341,8 +420,9 @@ model McqOption {
   sortOrder  Int
   createdAt  DateTime @default(now())
 
-  question       Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  studentAnswers StudentAnswer[] @relation("SelectedOption")
+  question         Question         @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  studentAnswers   StudentAnswer[]  @relation("SelectedOption")
+  applicantAnswers ApplicantAnswer[] @relation("ApplicantSelectedOption")
 
   @@unique([questionId, label])
   @@index([questionId])
@@ -554,8 +634,9 @@ model AcademicSession {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  exams      Exam[]
-  promotions StudentPromotion[]
+  exams          Exam[]
+  promotions     StudentPromotion[]
+  testCampaigns  TestCampaign[]
 
   @@index([isCurrent])
 }
@@ -660,4 +741,391 @@ model PasswordResetToken {
 
   @@index([email])
   @@index([token])
+}
+
+// ============================================
+// ADMISSION TEST CAMPAIGN
+// ============================================
+
+model TestCampaign {
+  id                  String         @id @default(uuid())
+  name                String
+  slug                String         @unique
+  description         String?
+  type                CampaignType
+  status              CampaignStatus @default(DRAFT)
+  academicSessionId   String?
+  targetClassId       String?
+  targetClassGrade    Int?
+  maxSeats            Int?
+
+  // Registration window
+  registrationStartAt DateTime?
+  registrationEndAt   DateTime?
+
+  // Test configuration
+  testStartAt         DateTime?
+  testEndAt           DateTime?
+  testDuration        Int            // minutes
+  totalMarks          Decimal
+  passingMarks        Decimal
+  shuffleQuestions     Boolean        @default(false)
+  shuffleOptions      Boolean        @default(false)
+  allowCalculator     Boolean        @default(false)
+  negativeMarking     Boolean        @default(false)
+  negativeMarkValue   Decimal?       // e.g., 0.25 per wrong answer
+  instructions        String?
+
+  // Result configuration
+  resultPublishAt     DateTime?
+  showRankToApplicant  Boolean       @default(false)
+  showScoreToApplicant Boolean       @default(true)
+  showCutoffToApplicant Boolean      @default(false)
+
+  // Scholarship
+  hasScholarship      Boolean        @default(false)
+
+  // Eligibility
+  eligibilityCriteria Json?          // { minAge, maxAge, previousGradeMin, requiredDocuments }
+
+  createdById         String
+  deletedAt           DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  // Relations
+  academicSession     AcademicSession?         @relation(fields: [academicSessionId], references: [id])
+  targetClass         Class?                   @relation(fields: [targetClassId], references: [id])
+  createdBy           User                     @relation(fields: [createdById], references: [id])
+  campaignQuestions    CampaignQuestion[]
+  scholarshipTiers    CampaignScholarshipTier[]
+  evaluationStages    CampaignEvaluationStage[]
+  applicants          Applicant[]
+  applicantResults    ApplicantResult[]
+  applicantScholarships ApplicantScholarship[]
+  admissionDecisions  AdmissionDecisionRecord[]
+
+  @@index([status])
+  @@index([type])
+  @@index([createdById])
+  @@index([academicSessionId])
+  @@index([slug])
+  @@index([deletedAt])
+  @@index([registrationStartAt])
+  @@index([testStartAt])
+}
+
+// ============================================
+// CAMPAIGN QUESTIONS (links shared Question Bank to Campaign)
+// ============================================
+
+model CampaignQuestion {
+  id           String  @id @default(uuid())
+  campaignId   String
+  questionId   String
+  sortOrder    Int
+  marks        Decimal
+  isRequired   Boolean @default(true)
+  sectionLabel String?
+  createdAt    DateTime @default(now())
+
+  campaign         TestCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  question         Question          @relation(fields: [questionId], references: [id])
+  applicantAnswers ApplicantAnswer[]
+
+  @@unique([campaignId, sortOrder])
+  @@unique([campaignId, questionId])
+  @@index([campaignId])
+  @@index([questionId])
+}
+
+// ============================================
+// CAMPAIGN SCHOLARSHIP TIERS
+// ============================================
+
+model CampaignScholarshipTier {
+  id              String         @id @default(uuid())
+  campaignId      String
+  tier            ScholarshipTier
+  name            String
+  description     String?
+  minPercentage   Decimal
+  maxPercentage   Decimal?
+  maxRecipients   Int
+  benefitDetails  String?
+  isActive        Boolean        @default(true)
+  sortOrder       Int
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  campaign            TestCampaign           @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  applicantScholarships ApplicantScholarship[]
+
+  @@unique([campaignId, tier])
+  @@index([campaignId])
+}
+
+// ============================================
+// CAMPAIGN EVALUATION STAGES
+// ============================================
+
+model CampaignEvaluationStage {
+  id              String          @id @default(uuid())
+  campaignId      String
+  stage           EvaluationStage
+  name            String
+  description     String?
+  sortOrder       Int
+  isRequired      Boolean         @default(true)
+  weightPercentage Decimal?
+  passingCriteria  String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  campaign TestCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, stage])
+  @@unique([campaignId, sortOrder])
+  @@index([campaignId])
+}
+
+// ============================================
+// APPLICANT (external candidate — isolated from User)
+// ============================================
+
+model Applicant {
+  id                 String          @id @default(uuid())
+  campaignId         String
+  firstName          String
+  lastName           String
+  email              String
+  phone              String?
+  dateOfBirth        DateTime?
+  gender             Gender?
+  guardianName       String?
+  guardianPhone      String?
+  guardianEmail      String?
+  address            String?
+  city               String?
+  previousSchool     String?
+  previousClass      String?
+  previousGrade      String?
+  photoUrl           String?
+  documentUrls       Json?           // string[]
+
+  // Application tracking
+  status             ApplicantStatus @default(REGISTERED)
+  applicationNumber  String          @unique
+  accessToken        String          @unique  // SHA-256 hash of raw token
+  accessTokenExpiresAt DateTime?
+
+  // Verification
+  isEmailVerified    Boolean         @default(false)
+  isPhoneVerified    Boolean         @default(false)
+  emailOtp           String?
+  phoneOtp           String?
+  otpExpiresAt       DateTime?
+  otpAttempts        Int             @default(0)
+
+  // Metadata
+  ipAddress          String?
+  userAgent          String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  // Relations
+  campaign           TestCampaign         @relation(fields: [campaignId], references: [id])
+  testSession        ApplicantTestSession?
+  result             ApplicantResult?
+  scholarship        ApplicantScholarship?
+  decisions          AdmissionDecisionRecord[]
+
+  @@unique([campaignId, email])
+  @@index([campaignId])
+  @@index([status])
+  @@index([applicationNumber])
+  @@index([email])
+  @@index([createdAt])
+}
+
+// ============================================
+// APPLICANT TEST SESSION
+// ============================================
+
+model ApplicantTestSession {
+  id                 String        @id @default(uuid())
+  applicantId        String        @unique
+  campaignId         String
+  status             SessionStatus @default(NOT_STARTED)
+  startedAt          DateTime?
+  submittedAt        DateTime?
+  timeSpent          Int?          // seconds
+  ipAddress          String?
+  userAgent          String?
+  tabSwitchCount     Int           @default(0)
+  fullscreenExits    Int           @default(0)
+  copyPasteAttempts  Int           @default(0)
+  browserFingerprint String?
+  isFlagged          Boolean       @default(false)
+  flagReason         String?
+  questionOrder      Json?         // string[] — shuffled question IDs
+  optionOrders       Json?         // { [questionId]: string[] } — shuffled option IDs
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  applicant        Applicant         @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  applicantAnswers ApplicantAnswer[]
+
+  @@index([campaignId])
+  @@index([status])
+}
+
+// ============================================
+// APPLICANT ANSWER
+// ============================================
+
+model ApplicantAnswer {
+  id                 String    @id @default(uuid())
+  sessionId          String
+  campaignQuestionId String
+  answerText         String?
+  selectedOptionId   String?
+  isMarkedForReview  Boolean   @default(false)
+  answeredAt         DateTime?
+  timeSpent          Int?      // seconds
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  session          ApplicantTestSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  campaignQuestion CampaignQuestion     @relation(fields: [campaignQuestionId], references: [id])
+  selectedOption   McqOption?           @relation("ApplicantSelectedOption", fields: [selectedOptionId], references: [id])
+  grade            ApplicantAnswerGrade?
+
+  @@unique([sessionId, campaignQuestionId])
+  @@index([sessionId])
+  @@index([campaignQuestionId])
+}
+
+// ============================================
+// APPLICANT ANSWER GRADE
+// ============================================
+
+model ApplicantAnswerGrade {
+  id               String   @id @default(uuid())
+  applicantAnswerId String  @unique
+  gradedBy         GradedBy
+  graderId         String?
+  marksAwarded     Decimal
+  maxMarks         Decimal
+  feedback         String?
+  aiConfidence     Decimal?
+  aiModelUsed      String?
+  aiPromptTokens   Int?
+  aiResponseTokens Int?
+  aiReasoning      String?
+  isReviewed       Boolean  @default(false)
+  reviewedAt       DateTime?
+  isNegativeMarked Boolean  @default(false)
+  negativeMarks    Decimal  @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  applicantAnswer ApplicantAnswer @relation(fields: [applicantAnswerId], references: [id], onDelete: Cascade)
+  grader          User?           @relation("ApplicantGraderUser", fields: [graderId], references: [id])
+
+  @@index([gradedBy])
+  @@index([isReviewed])
+}
+
+// ============================================
+// APPLICANT RESULT
+// ============================================
+
+model ApplicantResult {
+  id            String    @id @default(uuid())
+  applicantId   String    @unique
+  campaignId    String
+  totalMarks    Decimal
+  obtainedMarks Decimal
+  percentage    Decimal
+  rank          Int?
+  percentile    Decimal?
+  grade         String?
+  isPassed      Boolean
+  sectionScores Json?     // { [sectionLabel]: { marks, total, percentage } }
+  computedAt    DateTime  @default(now())
+  publishedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  applicant Applicant    @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  campaign  TestCampaign @relation(fields: [campaignId], references: [id])
+
+  @@index([campaignId])
+  @@index([percentage])
+  @@index([rank])
+  @@index([isPassed])
+}
+
+// ============================================
+// APPLICANT SCHOLARSHIP
+// ============================================
+
+model ApplicantScholarship {
+  id                 String          @id @default(uuid())
+  applicantId        String          @unique
+  campaignId         String
+  tierId             String
+  tier               ScholarshipTier // denormalized for query performance
+  percentageAwarded  Decimal
+  isAccepted         Boolean?        // null = pending
+  acceptedAt         DateTime?
+  declinedAt         DateTime?
+  validFrom          DateTime?
+  validUntil         DateTime?
+  isRenewable        Boolean         @default(false)
+  renewalCriteria    Json?           // { minPercentage, minAttendance, reviewPeriod }
+  awardedAt          DateTime        @default(now())
+  awardedById        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  applicant          Applicant                @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  campaign           TestCampaign             @relation(fields: [campaignId], references: [id])
+  scholarshipTier    CampaignScholarshipTier  @relation(fields: [tierId], references: [id])
+  awardedBy          User?                    @relation("ScholarshipAwarder", fields: [awardedById], references: [id])
+
+  @@index([campaignId])
+  @@index([tier])
+  @@index([isAccepted])
+}
+
+// ============================================
+// ADMISSION DECISION RECORD (audit trail)
+// ============================================
+
+model AdmissionDecisionRecord {
+  id               String              @id @default(uuid())
+  applicantId      String
+  campaignId       String
+  decision         AdmissionDecisionType
+  stage            EvaluationStage     @default(WRITTEN_TEST)
+  remarks          String?
+  conditions       String?
+  assignedClassId  String?
+  assignedSectionId String?
+  decidedById      String
+  decidedAt        DateTime            @default(now())
+  createdAt        DateTime            @default(now())
+
+  applicant        Applicant    @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  campaign         TestCampaign @relation(fields: [campaignId], references: [id])
+  assignedClass    Class?       @relation(fields: [assignedClassId], references: [id])
+  assignedSection  Section?     @relation(fields: [assignedSectionId], references: [id])
+  decidedBy        User         @relation(fields: [decidedById], references: [id])
+
+  @@index([applicantId])
+  @@index([campaignId])
+  @@index([decision])
+  @@index([decidedAt])
 }

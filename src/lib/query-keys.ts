@@ -110,6 +110,54 @@ export const queryKeys = {
     all: ['sessions'] as const,
     studentDashboard: () => ['student', 'dashboard', 'stats'] as const,
   },
+
+  // ── Admission Campaigns ──
+  campaigns: {
+    all: ['campaigns'] as const,
+    lists: () => [...queryKeys.campaigns.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => [...queryKeys.campaigns.lists(), filters] as const,
+    details: () => [...queryKeys.campaigns.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.campaigns.details(), id] as const,
+    analytics: (id: string) => [...queryKeys.campaigns.all, 'analytics', id] as const,
+  },
+
+  // ── Applicants ──
+  applicants: {
+    all: ['applicants'] as const,
+    lists: () => [...queryKeys.applicants.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => [...queryKeys.applicants.lists(), filters] as const,
+    details: () => [...queryKeys.applicants.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.applicants.details(), id] as const,
+  },
+
+  // ── Merit List ──
+  meritList: {
+    all: ['merit-list'] as const,
+    byCampaign: (campaignId: string) => [...queryKeys.meritList.all, campaignId] as const,
+  },
+
+  // ── Scholarship Reports ──
+  scholarshipReport: {
+    all: ['scholarship-report'] as const,
+    byCampaign: (campaignId: string) => [...queryKeys.scholarshipReport.all, campaignId] as const,
+  },
+
+  // ── Public Portal ──
+  publicCampaigns: {
+    all: ['public-campaigns'] as const,
+    list: () => [...queryKeys.publicCampaigns.all, 'list'] as const,
+    detail: (slug: string) => [...queryKeys.publicCampaigns.all, 'detail', slug] as const,
+  },
+
+  publicResult: {
+    all: ['public-result'] as const,
+    check: (token: string) => [...queryKeys.publicResult.all, 'check', token] as const,
+  },
+
+  applicantStatus: {
+    all: ['applicant-status'] as const,
+    track: (token: string) => [...queryKeys.applicantStatus.all, 'track', token] as const,
+  },
 } as const;
 
 // Alias for sessions to match import pattern

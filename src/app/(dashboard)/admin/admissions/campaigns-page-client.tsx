@@ -1,0 +1,35 @@
+'use client';
+
+import { useCampaignsQuery } from '@/modules/admissions/hooks/use-admissions-query';
+import { CampaignsListSkeleton } from './admissions-skeleton';
+import { CampaignsView } from './campaigns-view';
+import { useQuery } from '@tanstack/react-query';
+import { fetchClassesAction } from '@/modules/classes/class-fetch-actions';
+import { fetchAcademicSessionsForSelectAction } from '@/modules/academic-sessions/session-fetch-actions';
+
+export function CampaignsPageClient() {
+  const { data, isLoading } = useCampaignsQuery(
+    { page: 1, pageSize: 50 },
+    {},
+  );
+
+  const { data: classesRaw } = useQuery({
+    queryKey: ['classes-for-select'],
+    queryFn: fetchClassesAction,
+  });
+
+  const { data: sessionsRaw } = useQuery({
+    queryKey: ['academic-sessions-for-select'],
+    queryFn: fetchAcademicSessionsForSelectAction,
+  });
+
+  if (isLoading || !data) return <CampaignsListSkeleton />;
+
+  const result = data as { success: boolean; data?: { data: unknown[]; meta: unknown } };
+  const campaigns = result.success && result.data ? (result.data as any).data ?? [] : [];
+
+  const classes = (classesRaw as any[] ?? []).map((c: any) => ({ id: c.id, name: c.name }));
+  const academicSessions = (sessionsRaw as any[] ?? []).map((s: any) => ({ id: s.id, name: s.name }));
+
+  return <CampaignsView campaigns={campaigns} classes={classes} academicSessions={academicSessions} />;
+}
