@@ -30,6 +30,7 @@ export type Question = {
 export type TestTakingProps = {
   accessToken: string;
   campaignName: string;
+  onAuthError?: () => void;
 };
 
 export type AnswerState = Record<

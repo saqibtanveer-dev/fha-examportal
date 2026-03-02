@@ -11,8 +11,6 @@ import {
   fetchApplicantDetailAction,
   fetchMeritListAction,
   fetchScholarshipReportAction,
-  fetchPublicCampaignsAction,
-  fetchPublicCampaignDetailAction,
 } from '../admission-fetch-actions';
 import {
   createCampaignAction,
@@ -26,7 +24,8 @@ import {
   publishResultsAction,
   completeCampaignAction,
   archiveCampaignAction,
-  addQuestionsToCampaignAction,
+  createCampaignQuestionAction,
+  importCsvQuestionsAction,
   removeQuestionsFromCampaignAction,
   configureScholarshipTiersAction,
   makeDecisionAction,
@@ -36,6 +35,9 @@ import {
   enrollApplicantAction,
   bulkEnrollAction,
   generateMeritListAction,
+  addCandidateAction,
+  bulkAddCandidatesAction,
+  regenerateTestPinAction,
 } from '../admission-actions';
 import type { PaginationParams } from '@/utils/pagination';
 import type { CampaignListFilters, ApplicantListFilters } from '../admission-queries';
@@ -122,27 +124,6 @@ export function useScholarshipReportQuery(campaignId: string | undefined) {
 }
 
 // ============================================
-// Public Queries (no auth)
-// ============================================
-
-export function usePublicCampaignsQuery() {
-  return useQuery({
-    queryKey: queryKeys.publicCampaigns.list(),
-    queryFn: fetchPublicCampaignsAction,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function usePublicCampaignDetailQuery(slug: string | undefined) {
-  return useQuery({
-    queryKey: queryKeys.publicCampaigns.detail(slug!),
-    queryFn: () => fetchPublicCampaignDetailAction(slug!),
-    enabled: !!slug,
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-// ============================================
 // Campaign Mutations
 // ============================================
 
@@ -220,10 +201,18 @@ export function useArchiveCampaign() {
 // Question Management Mutations
 // ============================================
 
-export function useAddQuestionsToCampaign() {
+export function useCreateCampaignQuestion() {
   const invalidate = useInvalidateCache();
   return useMutation({
-    mutationFn: addQuestionsToCampaignAction,
+    mutationFn: createCampaignQuestionAction,
+    onSuccess: () => invalidate.campaigns(),
+  });
+}
+
+export function useImportCsvQuestions() {
+  const invalidate = useInvalidateCache();
+  return useMutation({
+    mutationFn: importCsvQuestionsAction,
     onSuccess: () => invalidate.campaigns(),
   });
 }
@@ -314,5 +303,31 @@ export function useGenerateMeritList() {
   return useMutation({
     mutationFn: generateMeritListAction,
     onSuccess: () => invalidate.afterDecision(''),
+  });
+}
+
+// ============================================
+// Candidate Management Mutations
+// ============================================
+
+export function useAddCandidate() {
+  const invalidate = useInvalidateCache();
+  return useMutation({
+    mutationFn: addCandidateAction,
+    onSuccess: () => invalidate.afterDecision(''),
+  });
+}
+
+export function useBulkAddCandidates() {
+  const invalidate = useInvalidateCache();
+  return useMutation({
+    mutationFn: bulkAddCandidatesAction,
+    onSuccess: () => invalidate.afterDecision(''),
+  });
+}
+
+export function useRegenerateTestPin() {
+  return useMutation({
+    mutationFn: regenerateTestPinAction,
   });
 }

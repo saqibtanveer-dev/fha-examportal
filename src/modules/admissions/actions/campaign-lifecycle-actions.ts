@@ -59,13 +59,18 @@ export const activateTestAction = safeAction(async function activateTestAction(
   const session = await requireRole('ADMIN');
   const campaign = await prisma.testCampaign.findUnique({
     where: { id: campaignId },
-    include: { _count: { select: { campaignQuestions: true } } },
+    include: { _count: { select: { campaignQuestions: true, applicants: true } } },
   });
   if (!campaign) return actionError(ADMISSION_ERRORS.CAMPAIGN_NOT_FOUND);
-  if (!['REGISTRATION_OPEN', 'REGISTRATION_CLOSED'].includes(campaign.status)) {
-    return actionError('Campaign must be in REGISTRATION_OPEN or REGISTRATION_CLOSED status');
+
+  // Allow activation from DRAFT (admin adds candidates, skips registration),
+  // REGISTRATION_OPEN, or REGISTRATION_CLOSED for flexibility
+  const allowed = ['DRAFT', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED'];
+  if (!allowed.includes(campaign.status)) {
+    return actionError('Campaign must be in DRAFT, REGISTRATION_OPEN or REGISTRATION_CLOSED status');
   }
   if (campaign._count.campaignQuestions === 0) return actionError(ADMISSION_ERRORS.CAMPAIGN_NO_QUESTIONS);
+  if (campaign._count.applicants === 0) return actionError('Campaign must have at least one candidate');
 
   await prisma.testCampaign.update({
     where: { id: campaignId },

@@ -1,13 +1,9 @@
-import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { CheckCircle } from 'lucide-react';
 
 type Props = { applicationNumber: string };
 
 export function TestSubmittedView({ applicationNumber }: Props) {
-  const router = useRouter();
-
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="max-w-md text-center">
@@ -17,7 +13,7 @@ export function TestSubmittedView({ applicationNumber }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            Your test has been submitted successfully.
+            Your test has been submitted successfully. You may now close this window.
           </p>
           {applicationNumber && (
             <div className="rounded-md border bg-muted/50 p-3">
@@ -25,22 +21,9 @@ export function TestSubmittedView({ applicationNumber }: Props) {
               <p className="text-lg font-bold">{applicationNumber}</p>
             </div>
           )}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => router.push('/results')}
-            >
-              Check Results
-            </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => router.push('/track')}
-            >
-              Track Status
-            </Button>
-          </div>
+          <p className="text-xs text-muted-foreground">
+            Your results will be shared by the school administration.
+          </p>
         </CardContent>
       </Card>
     </div>

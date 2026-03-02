@@ -1,7 +1,9 @@
 export { CampaignStatusBadge, ApplicantStatusBadge } from './campaign-status-badge';
 export { CampaignTable } from './campaign-table';
 export { CreateCampaignDialog } from './create-campaign-dialog';
-export { AddQuestionsToCampaignDialog } from './add-questions-dialog';
+export { CreateQuestionDialog } from './create-question-dialog';
+export { CsvImportDialog } from './csv-import-dialog';
+export { AddCandidateDialog } from './add-candidate-dialog';
 export { CampaignLifecycleActions } from './campaign-lifecycle-actions';
 export { ApplicantTable } from './applicant-table';
 export { MeritListTable } from './merit-list-table';

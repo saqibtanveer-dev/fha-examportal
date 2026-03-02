@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/shared';
-import { Clock, Send } from 'lucide-react';
+import { Clock, Send, AlertCircle } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTestSession } from './test-taking/use-test-session';
 import { TestSubmittedView } from './test-taking/test-submitted-view';
 import { QuestionNavigator } from './test-taking/question-navigator';
@@ -12,7 +13,7 @@ import { QuestionContent } from './test-taking/question-content';
 import { SubmitConfirmDialog } from './test-taking/submit-confirm-dialog';
 import type { TestTakingProps } from './test-taking/test-taking-types';
 
-export function TestTakingInterface({ accessToken, campaignName }: TestTakingProps) {
+export function TestTakingInterface({ accessToken, campaignName, onAuthError }: TestTakingProps) {
   const {
     isPending,
     questions,
@@ -21,6 +22,7 @@ export function TestTakingInterface({ accessToken, campaignName }: TestTakingPro
     setCurrentIndex,
     remainingSeconds,
     isStarting,
+    startError,
     isSubmitted,
     showSubmitConfirm,
     setShowSubmitConfirm,
@@ -37,6 +39,27 @@ export function TestTakingInterface({ accessToken, campaignName }: TestTakingPro
           <Spinner />
           <p className="mt-4 text-muted-foreground">Loading test...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (startError) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="max-w-md text-center">
+          <CardHeader>
+            <AlertCircle className="mx-auto mb-2 h-12 w-12 text-destructive" />
+            <CardTitle>Unable to Start Test</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">{startError}</p>
+            {onAuthError && (
+              <Button onClick={onAuthError} variant="outline">
+                Try a different PIN
+              </Button>
+            )}
+          </CardContent>
+        </Card>
       </div>
     );
   }

@@ -89,9 +89,9 @@ export async function getApplicantById(id: string) {
   });
 }
 
-export async function getApplicantByToken(tokenHash: string) {
+export async function getApplicantByToken(pin: string) {
   return prisma.applicant.findFirst({
-    where: { accessToken: tokenHash },
+    where: { accessToken: pin },
     include: {
       campaign: {
         select: {
@@ -110,34 +110,6 @@ export async function getApplicantByToken(tokenHash: string) {
         },
       },
       testSession: { select: { id: true, status: true, startedAt: true } },
-    },
-  });
-}
-
-export async function getApplicantByApplicationNumber(
-  applicationNumber: string,
-  email: string,
-) {
-  return prisma.applicant.findFirst({
-    where: { applicationNumber, email },
-    include: {
-      campaign: {
-        select: {
-          name: true,
-          slug: true,
-          status: true,
-          showRankToApplicant: true,
-          showScoreToApplicant: true,
-          showCutoffToApplicant: true,
-        },
-      },
-      result: true,
-      scholarship: { include: { scholarshipTier: true } },
-      decisions: {
-        orderBy: { decidedAt: 'desc' },
-        take: 1,
-        select: { decision: true, remarks: true, decidedAt: true },
-      },
     },
   });
 }

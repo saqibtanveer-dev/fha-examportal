@@ -12,7 +12,7 @@ const roleRouteMap: Record<string, string> = {
 };
 
 /** Routes accessible without authentication */
-const publicRoutes = [LOGIN, '/api/auth', '/apply', '/results', '/track', '/api/public'];
+const publicRoutes = [LOGIN, '/api/auth', '/test', '/api/public'];
 
 /** Routes accessible by ANY authenticated user regardless of role */
 const sharedAuthRoutes = ['/profile'];

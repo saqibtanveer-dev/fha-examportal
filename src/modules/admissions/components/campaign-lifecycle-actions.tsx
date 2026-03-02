@@ -48,11 +48,12 @@ const transitions: Record<string, Array<{
   variant?: 'default' | 'destructive';
 }>> = {
   DRAFT: [
+    { label: 'Activate Test', action: 'ACTIVATE_TEST', icon: TestTube },
     { label: 'Open Registration', action: 'OPEN_REGISTRATION', icon: UserPlus },
   ],
   REGISTRATION_OPEN: [
-    { label: 'Close Registration', action: 'CLOSE_REGISTRATION', icon: UserX },
     { label: 'Activate Test', action: 'ACTIVATE_TEST', icon: TestTube },
+    { label: 'Close Registration', action: 'CLOSE_REGISTRATION', icon: UserX },
   ],
   REGISTRATION_CLOSED: [
     { label: 'Activate Test', action: 'ACTIVATE_TEST', icon: TestTube },

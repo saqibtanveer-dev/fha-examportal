@@ -53,10 +53,7 @@ export const AI_MAX_ANSWER_LENGTH = 4000;
 // ============================================
 
 export const ADMISSION_APPLICATION_NUMBER_PREFIX = 'ADM';
-export const ADMISSION_OTP_LENGTH = 6;
-export const ADMISSION_OTP_EXPIRY_MS = 10 * 60 * 1000; // 10 minutes
-export const ADMISSION_OTP_MAX_ATTEMPTS = 5;
-export const ADMISSION_ACCESS_TOKEN_BYTES = 32;
+export const ADMISSION_PIN_LENGTH = 6; // 6-digit memorable PIN for candidates
 export const ADMISSION_AUTO_SAVE_INTERVAL_MS = 60 * 1000; // 60 seconds
 export const ADMISSION_HEARTBEAT_INTERVAL_MS = 30 * 1000; // 30 seconds
 export const ADMISSION_SUBMIT_GRACE_PERIOD_MS = 30 * 1000; // 30 seconds
@@ -119,18 +116,9 @@ export const ROUTES = {
   FORGOT_PASSWORD: '/forgot-password',
   RESET_PASSWORD: '/reset-password',
 
-  // Public Admission Portal
-  PUBLIC: {
-    APPLY: '/apply',
-    APPLY_CAMPAIGN: (slug: string) => `/apply/${slug}` as const,
-    APPLY_REGISTER: (slug: string) => `/apply/${slug}/register` as const,
-    APPLY_VERIFY: (slug: string) => `/apply/${slug}/verify` as const,
-    APPLY_TEST: (slug: string) => `/apply/${slug}/test` as const,
-    APPLY_SUBMITTED: (slug: string) => `/apply/${slug}/submitted` as const,
-    RESULTS: '/results',
-    RESULT_DETAIL: (token: string) => `/results/${token}` as const,
-    TRACK: '/track',
-    TRACK_DETAIL: (token: string) => `/track/${token}` as const,
+  // Candidate Test Portal (admin-generated links)
+  TEST: {
+    TAKE: (token: string) => `/test/${token}` as const,
   },
 
   // Admin Admission Management

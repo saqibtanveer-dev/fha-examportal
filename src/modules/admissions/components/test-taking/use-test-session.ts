@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
-import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
   startTestSessionAction,
@@ -17,7 +16,6 @@ import {
 import type { Question, AnswerState } from './test-taking-types';
 
 export function useTestSession(accessToken: string) {
-  const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -26,6 +24,7 @@ export function useTestSession(accessToken: string) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState<number | null>(null);
   const [isStarting, setIsStarting] = useState(true);
+  const [startError, setStartError] = useState<string | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
   const [applicationNumber, setApplicationNumber] = useState('');
@@ -58,7 +57,8 @@ export function useTestSession(accessToken: string) {
         setAnswers(restored);
         setIsStarting(false);
       } else {
-        toast.error(result.error ?? 'Failed to start test');
+        setStartError(result.error ?? 'Failed to start test');
+        setIsStarting(false);
       }
     });
   }, [accessToken]);
@@ -200,7 +200,6 @@ export function useTestSession(accessToken: string) {
   }
 
   return {
-    router,
     isPending,
     questions,
     answers,
@@ -208,6 +207,7 @@ export function useTestSession(accessToken: string) {
     setCurrentIndex,
     remainingSeconds,
     isStarting,
+    startError,
     isSubmitted,
     showSubmitConfirm,
     setShowSubmitConfirm,

@@ -1,5 +1,5 @@
 ﻿/**
- * Admission admin server actions  barrel re-export.
+ * Admission admin server actions — barrel re-export.
  * Split into domain-specific files under ./actions/ for maintainability.
  */
 
@@ -21,7 +21,8 @@ export {
 } from './actions/campaign-lifecycle-actions';
 
 export {
-  addQuestionsToCampaignAction,
+  createCampaignQuestionAction,
+  importCsvQuestionsAction,
   removeQuestionsFromCampaignAction,
   configureScholarshipTiersAction,
 } from './actions/campaign-question-actions';
@@ -38,3 +39,9 @@ export {
   bulkEnrollAction,
   generateMeritListAction,
 } from './actions/applicant-enrollment-actions';
+
+export {
+  addCandidateAction,
+  bulkAddCandidatesAction,
+  regenerateTestPinAction,
+} from './actions/candidate-management-actions';

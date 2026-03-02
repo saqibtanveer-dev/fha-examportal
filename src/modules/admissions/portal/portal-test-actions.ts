@@ -18,7 +18,7 @@ import {
   type SubmitAnswerInput,
   type SubmitTestInput,
 } from '../admission-schemas';
-import { hashToken, verifyToken, sanitizeString } from '@/lib/admission-utils';
+import { sanitizeString } from '@/lib/admission-utils';
 import { getApplicantByToken } from '../admission-queries';
 import { sendEmail } from '@/lib/email';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
@@ -31,6 +31,12 @@ import {
 import { serialize } from '@/utils/serialize';
 import { getSchoolBranding } from '../actions/shared';
 import { shuffleArray } from '@/utils/array';
+import {
+  autoGradeAdmissionMcqs,
+  calculateAdmissionResult,
+  generateMeritRankings,
+} from '@/modules/grading/admission-grading';
+import { headers } from 'next/headers';
 
 export const startTestSessionAction = safeAction(async function startTestSessionAction(
   input: StartTestSessionInput,
@@ -38,11 +44,18 @@ export const startTestSessionAction = safeAction(async function startTestSession
   const parsed = startTestSessionSchema.safeParse(input);
   if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
 
-  const rl = checkRateLimit(`admission:start:${parsed.data.token.slice(0, 16)}`, RATE_LIMITS.ADMISSION_START_TEST);
+  // Rate limit by PIN to prevent brute-force on a specific PIN
+  const rl = checkRateLimit(`admission:start:${parsed.data.token}`, RATE_LIMITS.ADMISSION_START_TEST);
   if (!rl.allowed) return actionError('Too many attempts. Please try again later.');
 
-  const tokenHash = hashToken(parsed.data.token);
-  const applicant = await getApplicantByToken(tokenHash);
+  // Also rate limit by IP to prevent PIN enumeration
+  const headersList = await headers();
+  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
+  const ipRl = checkRateLimit(`admission:start:ip:${ip}`, { maxAttempts: 20, windowMs: 60_000 });
+  if (!ipRl.allowed) return actionError('Too many attempts. Please try again later.');
+
+  // PIN is stored directly — no hashing needed
+  const applicant = await getApplicantByToken(parsed.data.token);
   if (!applicant) return actionError(ADMISSION_ERRORS.INVALID_TOKEN);
 
   const campaign = await prisma.testCampaign.findUnique({
@@ -209,6 +222,7 @@ export const submitTestAction = safeAction(async function submitTestAction(
           email: true,
           firstName: true,
           applicationNumber: true,
+          campaignId: true,
           campaign: { select: { name: true } },
         },
       },
@@ -255,6 +269,15 @@ export const submitTestAction = safeAction(async function submitTestAction(
     }),
   }).catch(() => {});
 
+  // ── Auto-grade MCQs immediately on submit ──────────────────
+  try {
+    await autoGradeAdmissionMcqs(testSession.id);
+    await calculateAdmissionResult(testSession.applicant.id);
+    await generateMeritRankings(testSession.applicant.campaignId);
+  } catch {
+    // Grading errors are non-fatal — admin can trigger manually if needed
+  }
+
   return actionSuccess({ applicationNumber: testSession.applicant.applicationNumber });
 });
 
@@ -274,7 +297,8 @@ export const recordProctoringEventAction = safeAction(async function recordProct
   if (!testSession) return actionError('Session not found');
   if (testSession.status !== 'IN_PROGRESS') return actionError('Session not active');
 
-  if (!verifyToken(input.accessToken, testSession.applicant.accessToken ?? '')) {
+  // Direct PIN comparison (PINs stored as plain text)
+  if (input.accessToken !== testSession.applicant.accessToken) {
     return actionError(ADMISSION_ERRORS.INVALID_TOKEN);
   }
 
@@ -316,7 +340,8 @@ export const heartbeatAction = safeAction(async function heartbeatAction(
   });
   if (!testSession) return actionError('Session not found');
 
-  if (!verifyToken(input.accessToken, testSession.applicant.accessToken ?? '')) {
+  // Direct PIN comparison (PINs stored as plain text)
+  if (input.accessToken !== testSession.applicant.accessToken) {
     return actionError(ADMISSION_ERRORS.INVALID_TOKEN);
   }
 

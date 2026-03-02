@@ -1,13 +1,7 @@
 ﻿/**
- * Public portal server actions  barrel re-export.
- * Split into domain-specific files under ./portal/ for maintainability.
+ * Portal server actions  barrel re-export.
+ * Only test-taking actions remain (no self-registration/public results).
  */
-
-export {
-  registerApplicantAction,
-  verifyOtpAction,
-  resendOtpAction,
-} from './portal/portal-registration-actions';
 
 export {
   startTestSessionAction,
@@ -16,9 +10,3 @@ export {
   recordProctoringEventAction,
   heartbeatAction,
 } from './portal/portal-test-actions';
-
-export {
-  checkResultAction,
-  respondToScholarshipAction,
-  trackApplicationAction,
-} from './portal/portal-result-actions';

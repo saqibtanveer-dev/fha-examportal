@@ -1,19 +1,22 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useApplicantsQuery } from '@/modules/admissions/hooks/use-admissions-query';
 import { ApplicantTable } from '@/modules/admissions/components/applicant-table';
+import { AddCandidateDialog } from '@/modules/admissions/components/add-candidate-dialog';
 import { EmptyState, Spinner } from '@/components/shared';
+import { Button } from '@/components/ui/button';
 import { bulkDecisionAction } from '@/modules/admissions/admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
-import { Users } from 'lucide-react';
+import { Users, UserPlus } from 'lucide-react';
 
 type Props = {
   campaignId: string;
 };
 
 export function ApplicantsTabContent({ campaignId }: Props) {
+  const [dialogOpen, setDialogOpen] = useState(false);
   const { data, isLoading } = useApplicantsQuery(
     { page: 1, pageSize: 100 },
     { campaignId },
@@ -25,16 +28,6 @@ export function ApplicantsTabContent({ campaignId }: Props) {
 
   const result = data as any;
   const applicants = result?.success ? (result.data?.data ?? []) : [];
-
-  if (applicants.length === 0) {
-    return (
-      <EmptyState
-        icon={<Users className="h-12 w-12 text-muted-foreground" />}
-        title="No applicants yet"
-        description="Applicants will appear here once they register for this campaign."
-      />
-    );
-  }
 
   function handleBulkAction(ids: string[], decision: string) {
     startTransition(async () => {
@@ -52,10 +45,36 @@ export function ApplicantsTabContent({ campaignId }: Props) {
   }
 
   return (
-    <ApplicantTable
-      applicants={applicants}
-      campaignId={campaignId}
-      onBulkAction={handleBulkAction}
-    />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-medium text-muted-foreground">
+          {applicants.length} candidate{applicants.length !== 1 ? 's' : ''}
+        </h3>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <UserPlus className="mr-2 h-4 w-4" />
+          Add Candidate
+        </Button>
+      </div>
+
+      {applicants.length === 0 ? (
+        <EmptyState
+          icon={<Users className="h-12 w-12 text-muted-foreground" />}
+          title="No candidates yet"
+          description="Add candidates to this campaign using the button above."
+        />
+      ) : (
+        <ApplicantTable
+          applicants={applicants}
+          campaignId={campaignId}
+          onBulkAction={handleBulkAction}
+        />
+      )}
+
+      <AddCandidateDialog
+        campaignId={campaignId}
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+      />
+    </div>
   );
 }

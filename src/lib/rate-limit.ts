@@ -91,20 +91,10 @@ export const RATE_LIMITS = {
   API: { maxAttempts: 100, windowMs: 60 * 1000 } as RateLimitConfig,
 
   // ── Admission Portal Rate Limits ──
-  /** Registration: 5 per IP per hour */
-  ADMISSION_REGISTER: { maxAttempts: 5, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
-  /** OTP verification: 5 attempts per 15 minutes per applicant */
-  ADMISSION_OTP_VERIFY: { maxAttempts: 5, windowMs: 15 * 60 * 1000 } as RateLimitConfig,
-  /** OTP resend: 3 per hour per applicant */
-  ADMISSION_OTP_RESEND: { maxAttempts: 3, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
-  /** Start test: 3 per day per applicant */
+  /** Start test: 3 per day per PIN */
   ADMISSION_START_TEST: { maxAttempts: 3, windowMs: 24 * 60 * 60 * 1000 } as RateLimitConfig,
   /** Submit answer: 120 per hour per session */
   ADMISSION_SUBMIT_ANSWER: { maxAttempts: 120, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
   /** Submit test: 3 per day per session */
   ADMISSION_SUBMIT_TEST: { maxAttempts: 3, windowMs: 24 * 60 * 60 * 1000 } as RateLimitConfig,
-  /** Result check: 20 per hour per IP */
-  ADMISSION_CHECK_RESULT: { maxAttempts: 20, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
-  /** Public API: 100 per minute per IP */
-  PUBLIC_API: { maxAttempts: 100, windowMs: 60 * 1000 } as RateLimitConfig,
 } as const;

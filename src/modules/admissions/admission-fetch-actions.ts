@@ -11,8 +11,6 @@ import { actionError, actionSuccess } from '@/types/action-result';
 import {
   listCampaigns,
   getCampaignById,
-  getPublicCampaigns,
-  getPublicCampaignDetail,
   listApplicants,
   getApplicantById,
   getMeritList,
@@ -101,23 +99,4 @@ export async function fetchScholarshipReportAction(
   await requireRole('ADMIN');
   const report = await getScholarshipReport(campaignId);
   return actionSuccess(serialize(report));
-}
-
-// ============================================
-// Public Fetch Actions (No Auth)
-// ============================================
-
-export async function fetchPublicCampaignsAction(): Promise<
-  ActionResult<ReturnType<typeof serialize>>
-> {
-  const campaigns = await getPublicCampaigns();
-  return actionSuccess(serialize(campaigns));
-}
-
-export async function fetchPublicCampaignDetailAction(
-  slug: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
-  const campaign = await getPublicCampaignDetail(slug);
-  if (!campaign) return actionError('Campaign not found');
-  return actionSuccess(serialize(campaign));
 }

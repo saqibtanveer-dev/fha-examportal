@@ -1,39 +1,12 @@
-import { randomBytes, createHash, randomInt } from 'crypto';
-import { ADMISSION_ACCESS_TOKEN_BYTES, ADMISSION_OTP_LENGTH } from '@/lib/constants';
+import { randomInt } from 'crypto';
+import { ADMISSION_PIN_LENGTH } from '@/lib/constants';
 
 /**
- * Generate a cryptographically secure access token.
- * Returns raw token (sent to applicant) — store SHA-256 hash in DB.
+ * Generate a memorable numeric PIN for test access.
+ * Returns a 6-digit number string (e.g., "847291").
+ * Stored as plain text in DB — rate limiting prevents brute force.
  */
-export function generateAccessToken(): string {
-  return randomBytes(ADMISSION_ACCESS_TOKEN_BYTES).toString('hex');
-}
-
-/**
- * Hash a token for secure storage.
- */
-export function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
-
-/**
- * Verify a raw token against a stored hash.
- */
-export function verifyToken(rawToken: string, storedHash: string): boolean {
-  const hash = hashToken(rawToken);
-  // Constant-time comparison to prevent timing attacks
-  if (hash.length !== storedHash.length) return false;
-  let result = 0;
-  for (let i = 0; i < hash.length; i++) {
-    result |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i);
-  }
-  return result === 0;
-}
-
-/**
- * Generate a numeric OTP of specified length.
- */
-export function generateOtp(length = ADMISSION_OTP_LENGTH): string {
+export function generateTestPin(length = ADMISSION_PIN_LENGTH): string {
   const min = Math.pow(10, length - 1);
   const max = Math.pow(10, length) - 1;
   return randomInt(min, max + 1).toString();

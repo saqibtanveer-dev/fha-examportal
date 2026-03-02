@@ -916,7 +916,7 @@ model Applicant {
   // Application tracking
   status             ApplicantStatus @default(REGISTERED)
   applicationNumber  String          @unique
-  accessToken        String          @unique  // SHA-256 hash of raw token
+  accessToken        String          @unique  // 6-digit numeric PIN (plaintext, rate-limited)
   accessTokenExpiresAt DateTime?
 
   // Verification

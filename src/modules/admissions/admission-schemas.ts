@@ -97,42 +97,55 @@ export const campaignScholarshipTiersSchema = z.object({
 // Campaign Question Schemas
 // ============================================
 
-export const addQuestionsToCampaignSchema = z.object({
-  campaignId: z.string().uuid(),
-  questions: z.array(z.object({
-    questionId: z.string().uuid(),
-    sortOrder: z.number().int().min(1),
-    marks: z.number().positive(),
-    isRequired: z.boolean().default(true),
-    sectionLabel: z.string().max(100).optional(),
-  })).min(1),
-});
-export type AddQuestionsToCampaignInput = z.infer<typeof addQuestionsToCampaignSchema>;
-
 export const removeQuestionsFromCampaignSchema = z.object({
   campaignId: z.string().uuid(),
   questionIds: z.array(z.string().uuid()).min(1),
 });
 
-// ============================================
-// Evaluation Stage Schema
-// ============================================
-
-export const evaluationStageSchema = z.object({
-  stage: z.enum(['WRITTEN_TEST', 'INTERVIEW', 'DOCUMENT_REVIEW', 'FINAL_DECISION']),
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  sortOrder: z.number().int().min(0),
-  isRequired: z.boolean().default(true),
-  weightPercentage: z.number().min(0).max(100).optional(),
-  passingCriteria: z.string().max(200).optional(),
+/**
+ * Create a new MCQ question directly for a campaign.
+ * Admin creates the question inline — not picking from shared question bank.
+ */
+export const createCampaignQuestionSchema = z.object({
+  campaignId: z.string().uuid(),
+  title: z.string().min(3).max(1000),
+  description: z.string().max(2000).optional(),
+  options: z.tuple([
+    z.object({ text: z.string().min(1).max(500) }),
+    z.object({ text: z.string().min(1).max(500) }),
+    z.object({ text: z.string().min(1).max(500) }),
+    z.object({ text: z.string().min(1).max(500) }),
+  ]),
+  correctOption: z.enum(['A', 'B', 'C', 'D']),
+  marks: z.number().positive().default(1),
+  sectionLabel: z.string().max(100).optional(),
 });
+export type CreateCampaignQuestionInput = z.infer<typeof createCampaignQuestionSchema>;
+
+/**
+ * CSV bulk import questions for a campaign.
+ * Each row: title, optionA, optionB, optionC, optionD, correctOption (A/B/C/D), marks
+ */
+export const csvImportQuestionsSchema = z.object({
+  campaignId: z.string().uuid(),
+  questions: z.array(z.object({
+    title: z.string().min(3).max(1000),
+    optionA: z.string().min(1).max(500),
+    optionB: z.string().min(1).max(500),
+    optionC: z.string().min(1).max(500),
+    optionD: z.string().min(1).max(500),
+    correctOption: z.enum(['A', 'B', 'C', 'D']),
+    marks: z.number().positive().default(1),
+    sectionLabel: z.string().max(100).optional(),
+  })).min(1).max(200),
+});
+export type CsvImportQuestionsInput = z.infer<typeof csvImportQuestionsSchema>;
 
 // ============================================
-// Applicant Registration Schema (Public Portal)
+// Admin Add Candidate Schema (replaces public self-registration)
 // ============================================
 
-export const applicantRegistrationSchema = z.object({
+export const addCandidateSchema = z.object({
   campaignId: z.string().uuid(),
   firstName: z.string().min(1).max(100),
   lastName: z.string().min(1).max(100),
@@ -142,29 +155,17 @@ export const applicantRegistrationSchema = z.object({
   gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
   guardianName: z.string().max(100).optional(),
   guardianPhone: z.string().max(20).optional(),
-  guardianEmail: z.string().email().optional(),
   address: z.string().max(500).optional(),
-  city: z.string().max(100).optional(),
   previousSchool: z.string().max(200).optional(),
   previousClass: z.string().max(50).optional(),
-  previousGrade: z.string().max(10).optional(),
 });
-export type ApplicantRegistrationInput = z.infer<typeof applicantRegistrationSchema>;
+export type AddCandidateInput = z.infer<typeof addCandidateSchema>;
 
-// ============================================
-// OTP Schemas
-// ============================================
-
-export const verifyOtpSchema = z.object({
-  applicantId: z.string().uuid(),
-  otp: z.string().regex(/^\d{6}$/, 'OTP must be 6 digits'),
+export const bulkAddCandidatesSchema = z.object({
+  campaignId: z.string().uuid(),
+  candidates: z.array(addCandidateSchema.omit({ campaignId: true })).min(1).max(100),
 });
-export type VerifyOtpInput = z.infer<typeof verifyOtpSchema>;
-
-export const resendOtpSchema = z.object({
-  applicantId: z.string().uuid(),
-});
-export type ResendOtpInput = z.infer<typeof resendOtpSchema>;
+export type BulkAddCandidatesInput = z.infer<typeof bulkAddCandidatesSchema>;
 
 // ============================================
 // Test Session Schemas
@@ -191,24 +192,13 @@ export const submitTestSchema = z.object({
 export type SubmitTestInput = z.infer<typeof submitTestSchema>;
 
 // ============================================
-// Result Check Schema
+// Regenerate Test PIN Schema
 // ============================================
 
-export const checkResultSchema = z.object({
-  applicationNumber: z.string().min(1),
-  email: z.string().email(),
-});
-export type CheckResultInput = z.infer<typeof checkResultSchema>;
-
-// ============================================
-// Scholarship Response Schema
-// ============================================
-
-export const scholarshipResponseSchema = z.object({
+export const regenerateTestPinSchema = z.object({
   applicantId: z.string().uuid(),
-  response: z.enum(['ACCEPT', 'DECLINE']),
 });
-export type ScholarshipResponseInput = z.infer<typeof scholarshipResponseSchema>;
+export type RegenerateTestPinInput = z.infer<typeof regenerateTestPinSchema>;
 
 // ============================================
 // Decision Schemas
@@ -262,18 +252,3 @@ export const generateMeritListSchema = z.object({
   campaignId: z.string().uuid(),
 });
 
-// ============================================
-// Applicant Status Filter
-// ============================================
-
-export const applicantListFiltersSchema = z.object({
-  campaignId: z.string().uuid(),
-  search: z.string().optional(),
-  status: z.enum([
-    'REGISTERED', 'VERIFIED', 'TEST_IN_PROGRESS', 'TEST_COMPLETED',
-    'GRADED', 'SHORTLISTED', 'INTERVIEW_SCHEDULED', 'ACCEPTED',
-    'REJECTED', 'WAITLISTED', 'ENROLLED', 'WITHDRAWN', 'EXPIRED',
-  ]).optional(),
-  page: z.number().int().min(1).default(1),
-  pageSize: z.number().int().min(1).max(100).default(20),
-});

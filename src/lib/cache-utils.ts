@@ -78,12 +78,10 @@ export function useInvalidateCache() {
     applicantDetail: (id: string) => invalidateQueries(queryKeys.applicants.detail(id)),
     meritList: (campaignId: string) => invalidateQueries(queryKeys.meritList.byCampaign(campaignId)),
     scholarshipReport: (campaignId: string) => invalidateQueries(queryKeys.scholarshipReport.byCampaign(campaignId)),
-    publicCampaigns: () => invalidateQueries(queryKeys.publicCampaigns.all),
 
     afterCampaignMutation: async (campaignId?: string) => {
       const promises = [
         invalidateQueries(queryKeys.campaigns.all),
-        invalidateQueries(queryKeys.publicCampaigns.all),
       ];
       if (campaignId) promises.push(invalidateQueries(queryKeys.campaigns.detail(campaignId)));
       await Promise.all(promises);

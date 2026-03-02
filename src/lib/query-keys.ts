@@ -142,22 +142,6 @@ export const queryKeys = {
     byCampaign: (campaignId: string) => [...queryKeys.scholarshipReport.all, campaignId] as const,
   },
 
-  // ── Public Portal ──
-  publicCampaigns: {
-    all: ['public-campaigns'] as const,
-    list: () => [...queryKeys.publicCampaigns.all, 'list'] as const,
-    detail: (slug: string) => [...queryKeys.publicCampaigns.all, 'detail', slug] as const,
-  },
-
-  publicResult: {
-    all: ['public-result'] as const,
-    check: (token: string) => [...queryKeys.publicResult.all, 'check', token] as const,
-  },
-
-  applicantStatus: {
-    all: ['applicant-status'] as const,
-    track: (token: string) => [...queryKeys.applicantStatus.all, 'track', token] as const,
-  },
 } as const;
 
 // Alias for sessions to match import pattern
