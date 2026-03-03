@@ -142,6 +142,38 @@ export const queryKeys = {
     byCampaign: (campaignId: string) => [...queryKeys.scholarshipReport.all, campaignId] as const,
   },
 
+  // ── Timetable ──
+  timetable: {
+    all: ['timetable'] as const,
+    periodSlots: () => [...queryKeys.timetable.all, 'period-slots'] as const,
+    byClass: (classId: string, sectionId: string) =>
+      [...queryKeys.timetable.all, 'class', classId, sectionId] as const,
+    byTeacher: (teacherProfileId: string) =>
+      [...queryKeys.timetable.all, 'teacher', teacherProfileId] as const,
+  },
+
+  // ── Attendance ──
+  attendance: {
+    all: ['attendance'] as const,
+    daily: () => [...queryKeys.attendance.all, 'daily'] as const,
+    dailyByClassDate: (classId: string, sectionId: string, date: string) =>
+      [...queryKeys.attendance.daily(), classId, sectionId, date] as const,
+    subject: () => [...queryKeys.attendance.all, 'subject'] as const,
+    subjectBySlot: (classId: string, sectionId: string, subjectId: string, periodSlotId: string, date: string) =>
+      [...queryKeys.attendance.subject(), classId, sectionId, subjectId, periodSlotId, date] as const,
+    studentDaily: (studentProfileId: string) =>
+      [...queryKeys.attendance.all, 'student-daily', studentProfileId] as const,
+    studentSubject: (studentProfileId: string) =>
+      [...queryKeys.attendance.all, 'student-subject', studentProfileId] as const,
+    stats: () => [...queryKeys.attendance.all, 'stats'] as const,
+    classTrend: (classId: string, sectionId: string) =>
+      [...queryKeys.attendance.stats(), 'trend', classId, sectionId] as const,
+    schoolOverview: (date: string) =>
+      [...queryKeys.attendance.stats(), 'school', date] as const,
+    studentsForMarking: (classId: string, sectionId: string) =>
+      [...queryKeys.attendance.all, 'students-marking', classId, sectionId] as const,
+  },
+
 } as const;
 
 // Alias for sessions to match import pattern

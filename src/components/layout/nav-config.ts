@@ -15,6 +15,8 @@ import {
   UserCheck,
   TrendingUp,
   UserPlus,
+  CalendarCheck,
+  Clock,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -45,6 +47,8 @@ export const adminNavigation: NavGroup[] = [
       { label: 'Departments', href: ROUTES.ADMIN.DEPARTMENTS, icon: School },
       { label: 'Subjects', href: ROUTES.ADMIN.SUBJECTS, icon: BookOpen },
       { label: 'Classes', href: ROUTES.ADMIN.CLASSES, icon: GraduationCap },
+      { label: 'Timetable', href: ROUTES.ADMIN.TIMETABLE, icon: Clock },
+      { label: 'Attendance', href: ROUTES.ADMIN.ATTENDANCE, icon: CalendarCheck },
       { label: 'Admissions', href: ROUTES.ADMIN_ADMISSIONS.ROOT, icon: UserPlus },
       {
         label: 'Year Transition',
@@ -106,6 +110,13 @@ export const teacherNavigation: NavGroup[] = [
     ],
   },
   {
+    title: 'Classroom',
+    items: [
+      { label: 'Attendance', href: ROUTES.TEACHER.ATTENDANCE, icon: CalendarCheck },
+      { label: 'Timetable', href: ROUTES.TEACHER.TIMETABLE, icon: Clock },
+    ],
+  },
+  {
     title: 'Account',
     items: [
       { label: 'Notifications', href: ROUTES.TEACHER.NOTIFICATIONS, icon: Bell },
@@ -125,6 +136,12 @@ export const studentNavigation: NavGroup[] = [
     items: [
       { label: 'My Exams', href: ROUTES.STUDENT.EXAMS, icon: ClipboardList },
       { label: 'My Results', href: ROUTES.STUDENT.RESULTS, icon: BarChart3 },
+    ],
+  },
+  {
+    title: 'Classroom',
+    items: [
+      { label: 'My Attendance', href: ROUTES.STUDENT.ATTENDANCE, icon: CalendarCheck },
     ],
   },
   {

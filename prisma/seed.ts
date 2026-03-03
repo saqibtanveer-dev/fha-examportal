@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, DayOfWeek } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
@@ -240,19 +240,19 @@ async function main() {
     { email: 'areeba.tariq@student.examcore.school', first: 'Areeba', last: 'Tariq', roll: '12A-001', reg: 'REG-2025-012', classId: class12.id, sectionId: secId('12-A') },
   ];
 
-  const students: typeof admin[] = [];
+  const students: { user: typeof admin; profile: { id: string; classId: string; sectionId: string } }[] = [];
   for (const s of studentDefs) {
     const user = await prisma.user.upsert({
       where: { email: s.email },
       update: {},
       create: { email: s.email, passwordHash: studentPw, firstName: s.first, lastName: s.last, role: 'STUDENT', isActive: true },
     });
-    await prisma.studentProfile.upsert({
+    const profile = await prisma.studentProfile.upsert({
       where: { userId: user.id },
       update: {},
       create: { userId: user.id, rollNumber: s.roll, registrationNo: s.reg, classId: s.classId, sectionId: s.sectionId },
     });
-    students.push(user);
+    students.push({ user, profile: { id: profile.id, classId: s.classId, sectionId: s.sectionId } });
   }
   console.log('✅ 12 students');
 
@@ -585,7 +585,7 @@ async function main() {
     });
 
     for (let si = 0; si < class9Students.length; si++) {
-      const student = class9Students[si]!;
+      const student = class9Students[si]!.user;
       const examSession = await prisma.examSession.create({
         data: {
           examId: exam3.id,
@@ -666,8 +666,8 @@ async function main() {
     // 14. Notifications
     // ============================================
     const notificationDefs: { userId: string; title: string; message: string; type: 'EXAM_ASSIGNED' | 'EXAM_REMINDER' | 'RESULT_PUBLISHED' | 'GRADE_REVIEWED' | 'SYSTEM'; isRead?: boolean }[] = [
-      { userId: students[0]!.id, title: 'Exam Published', message: 'Physics Chapter 1 Quiz is now available.', type: 'EXAM_ASSIGNED' },
-      { userId: students[0]!.id, title: 'Result Published', message: 'Your Chemistry Elements Quiz result is available.', type: 'RESULT_PUBLISHED', isRead: true },
+      { userId: students[0]!.user.id, title: 'Exam Published', message: 'Physics Chapter 1 Quiz is now available.', type: 'EXAM_ASSIGNED' },
+      { userId: students[0]!.user.id, title: 'Result Published', message: 'Your Chemistry Elements Quiz result is available.', type: 'RESULT_PUBLISHED', isRead: true },
       { userId: t1.id, title: 'New Question Approved', message: '8 physics questions have been added to the bank.', type: 'SYSTEM' },
       { userId: admin.id, title: 'System Update', message: 'Database migration completed successfully.', type: 'SYSTEM' },
       { userId: principal.id, title: 'Weekly Performance Report', message: 'The weekly school performance report is ready for review.', type: 'SYSTEM' },
@@ -707,6 +707,398 @@ async function main() {
       });
     }
     console.log('✅ 3 audit logs');
+  }
+
+  // ============================================
+  // 16. Period Slots (School Bell Schedule)
+  // ============================================
+  const existingSlots = await prisma.periodSlot.count();
+  if (existingSlots === 0) {
+    const periodSlotDefs = [
+      { name: 'Period 1', shortName: 'P1', startTime: '08:00', endTime: '08:40', sortOrder: 1, isBreak: false },
+      { name: 'Period 2', shortName: 'P2', startTime: '08:45', endTime: '09:25', sortOrder: 2, isBreak: false },
+      { name: 'Period 3', shortName: 'P3', startTime: '09:30', endTime: '10:10', sortOrder: 3, isBreak: false },
+      { name: 'Break', shortName: 'BRK', startTime: '10:10', endTime: '10:30', sortOrder: 4, isBreak: true },
+      { name: 'Period 4', shortName: 'P4', startTime: '10:30', endTime: '11:10', sortOrder: 5, isBreak: false },
+      { name: 'Period 5', shortName: 'P5', startTime: '11:15', endTime: '11:55', sortOrder: 6, isBreak: false },
+      { name: 'Period 6', shortName: 'P6', startTime: '12:00', endTime: '12:40', sortOrder: 7, isBreak: false },
+      { name: 'Lunch', shortName: 'LCH', startTime: '12:40', endTime: '13:20', sortOrder: 8, isBreak: true },
+      { name: 'Period 7', shortName: 'P7', startTime: '13:20', endTime: '14:00', sortOrder: 9, isBreak: false },
+    ];
+
+    const periodSlots: Record<string, { id: string }> = {};
+    for (const ps of periodSlotDefs) {
+      const slot = await prisma.periodSlot.create({ data: ps });
+      periodSlots[ps.shortName] = slot;
+    }
+    console.log('✅ 9 period slots (7 teaching + 2 breaks)');
+
+    // Helper to get slot id
+    function slotId(key: string): string {
+      const s = periodSlots[key];
+      if (!s) throw new Error(`Period slot ${key} not found`);
+      return s.id;
+    }
+
+    // ============================================
+    // 17. Class Teachers (assign to sections)
+    // ============================================
+    // Ahmed Khan → 9-A, Fatima Ali → 9-B, Bilal Ahmed → 10-A, Ayesha Nawaz → 10-B
+    const classTeacherMap: { sectionKey: string; teacherIdx: number }[] = [
+      { sectionKey: '9-A', teacherIdx: 0 },   // Ahmed
+      { sectionKey: '9-B', teacherIdx: 1 },   // Fatima
+      { sectionKey: '10-A', teacherIdx: 2 },  // Bilal
+      { sectionKey: '10-B', teacherIdx: 3 },  // Ayesha
+    ];
+    for (const ct of classTeacherMap) {
+      const sId = secId(ct.sectionKey);
+      const teacherUserId = teachers[ct.teacherIdx]!.user.id;
+      await prisma.section.update({
+        where: { id: sId },
+        data: { classTeacherId: teacherUserId },
+      });
+    }
+    console.log('✅ 4 class teacher assignments');
+
+    // ============================================
+    // 18. Timetable Entries (Class 9A & 10A full week)
+    // ============================================
+    type DayName = DayOfWeek;
+    const workDays: DayName[] = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
+    // Class 9-A timetable (Ahmed=Physics/Maths, Fatima=English/Urdu, Bilal=Chemistry/Biology)
+    // Each day: 7 teaching periods, subjects rotate
+    const timetable9A: { day: DayName; slot: string; subjectId: string; teacherIdx: number; room?: string }[] = [
+      // Monday
+      { day: 'MONDAY', slot: 'P1', subjectId: physics.id,    teacherIdx: 0, room: 'Lab-1' },
+      { day: 'MONDAY', slot: 'P2', subjectId: maths.id,       teacherIdx: 0 },
+      { day: 'MONDAY', slot: 'P3', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'MONDAY', slot: 'P4', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'MONDAY', slot: 'P5', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'MONDAY', slot: 'P6', subjectId: biology.id,     teacherIdx: 2, room: 'Lab-3' },
+      { day: 'MONDAY', slot: 'P7', subjectId: history.id,     teacherIdx: 1 },
+      // Tuesday
+      { day: 'TUESDAY', slot: 'P1', subjectId: maths.id,       teacherIdx: 0 },
+      { day: 'TUESDAY', slot: 'P2', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'TUESDAY', slot: 'P3', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'TUESDAY', slot: 'P4', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'TUESDAY', slot: 'P5', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'TUESDAY', slot: 'P6', subjectId: history.id,     teacherIdx: 1 },
+      { day: 'TUESDAY', slot: 'P7', subjectId: biology.id,     teacherIdx: 2 },
+      // Wednesday
+      { day: 'WEDNESDAY', slot: 'P1', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'WEDNESDAY', slot: 'P2', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'WEDNESDAY', slot: 'P3', subjectId: maths.id,       teacherIdx: 0 },
+      { day: 'WEDNESDAY', slot: 'P4', subjectId: biology.id,     teacherIdx: 2 },
+      { day: 'WEDNESDAY', slot: 'P5', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'WEDNESDAY', slot: 'P6', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'WEDNESDAY', slot: 'P7', subjectId: maths.id,       teacherIdx: 0 },
+      // Thursday
+      { day: 'THURSDAY', slot: 'P1', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'THURSDAY', slot: 'P2', subjectId: maths.id,       teacherIdx: 0 },
+      { day: 'THURSDAY', slot: 'P3', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'THURSDAY', slot: 'P4', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'THURSDAY', slot: 'P5', subjectId: history.id,     teacherIdx: 1 },
+      { day: 'THURSDAY', slot: 'P6', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'THURSDAY', slot: 'P7', subjectId: biology.id,     teacherIdx: 2 },
+      // Friday
+      { day: 'FRIDAY', slot: 'P1', subjectId: maths.id,       teacherIdx: 0 },
+      { day: 'FRIDAY', slot: 'P2', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'FRIDAY', slot: 'P3', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'FRIDAY', slot: 'P4', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'FRIDAY', slot: 'P5', subjectId: biology.id,     teacherIdx: 2 },
+      { day: 'FRIDAY', slot: 'P6', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'FRIDAY', slot: 'P7', subjectId: history.id,     teacherIdx: 1 },
+      // Saturday (half day – only P1-P4)
+      { day: 'SATURDAY', slot: 'P1', subjectId: maths.id,       teacherIdx: 0 },
+      { day: 'SATURDAY', slot: 'P2', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'SATURDAY', slot: 'P3', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'SATURDAY', slot: 'P4', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+    ];
+
+    // Class 10-A timetable (Bilal=Chemistry, Ayesha=Maths/CS, Ahmed=Physics, Fatima=English)
+    const timetable10A: typeof timetable9A = [
+      // Monday
+      { day: 'MONDAY', slot: 'P1', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'MONDAY', slot: 'P2', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'MONDAY', slot: 'P3', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'MONDAY', slot: 'P4', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'MONDAY', slot: 'P5', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'MONDAY', slot: 'P6', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'MONDAY', slot: 'P7', subjectId: history.id,     teacherIdx: 1 },
+      // Tuesday
+      { day: 'TUESDAY', slot: 'P1', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'TUESDAY', slot: 'P2', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'TUESDAY', slot: 'P3', subjectId: biology.id,     teacherIdx: 2 },
+      { day: 'TUESDAY', slot: 'P4', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'TUESDAY', slot: 'P5', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'TUESDAY', slot: 'P6', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'TUESDAY', slot: 'P7', subjectId: history.id,     teacherIdx: 1 },
+      // Wednesday
+      { day: 'WEDNESDAY', slot: 'P1', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'WEDNESDAY', slot: 'P2', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'WEDNESDAY', slot: 'P3', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'WEDNESDAY', slot: 'P4', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'WEDNESDAY', slot: 'P5', subjectId: biology.id,     teacherIdx: 2 },
+      { day: 'WEDNESDAY', slot: 'P6', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'WEDNESDAY', slot: 'P7', subjectId: urdu.id,        teacherIdx: 1 },
+      // Thursday
+      { day: 'THURSDAY', slot: 'P1', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'THURSDAY', slot: 'P2', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'THURSDAY', slot: 'P3', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'THURSDAY', slot: 'P4', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'THURSDAY', slot: 'P5', subjectId: urdu.id,        teacherIdx: 1 },
+      { day: 'THURSDAY', slot: 'P6', subjectId: biology.id,     teacherIdx: 2 },
+      { day: 'THURSDAY', slot: 'P7', subjectId: maths.id,       teacherIdx: 3 },
+      // Friday
+      { day: 'FRIDAY', slot: 'P1', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'FRIDAY', slot: 'P2', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'FRIDAY', slot: 'P3', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'FRIDAY', slot: 'P4', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+      { day: 'FRIDAY', slot: 'P5', subjectId: history.id,     teacherIdx: 1 },
+      { day: 'FRIDAY', slot: 'P6', subjectId: biology.id,     teacherIdx: 2 },
+      { day: 'FRIDAY', slot: 'P7', subjectId: maths.id,       teacherIdx: 3 },
+      // Saturday (half day)
+      { day: 'SATURDAY', slot: 'P1', subjectId: english.id,     teacherIdx: 1 },
+      { day: 'SATURDAY', slot: 'P2', subjectId: maths.id,       teacherIdx: 3 },
+      { day: 'SATURDAY', slot: 'P3', subjectId: chemistry.id,   teacherIdx: 2, room: 'Lab-2' },
+      { day: 'SATURDAY', slot: 'P4', subjectId: physics.id,     teacherIdx: 0, room: 'Lab-1' },
+    ];
+
+    // Create all timetable entries
+    let entryCount = 0;
+
+    async function seedTimetable(
+      entries: typeof timetable9A,
+      classId: string,
+      sectionKey: string,
+    ) {
+      const sId = secId(sectionKey);
+      const records = entries.map((e) => ({
+        classId,
+        sectionId: sId,
+        subjectId: e.subjectId,
+        teacherProfileId: teachers[e.teacherIdx]!.profile.id,
+        periodSlotId: slotId(e.slot),
+        dayOfWeek: e.day,
+        academicSessionId: session2025.id,
+        room: e.room ?? null,
+      }));
+      const result = await prisma.timetableEntry.createMany({ data: records, skipDuplicates: true });
+      entryCount += result.count;
+    }
+
+    await seedTimetable(timetable9A, class9.id, '9-A');
+    await seedTimetable(timetable10A, class10.id, '10-A');
+    console.log(`✅ ${entryCount} timetable entries (Class 9-A: ${timetable9A.length}, Class 10-A: ${timetable10A.length})`);
+
+    // ============================================
+    // 19. Daily Attendance (past 30 school days)
+    // ============================================
+    type AttStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED';
+
+    // Generate past school dates (skip Sundays)
+    function getSchoolDates(count: number): string[] {
+      const dates: string[] = [];
+      const d = new Date('2026-03-03'); // today
+      d.setDate(d.getDate() - 1); // start from yesterday
+      while (dates.length < count) {
+        if (d.getDay() !== 0) { // skip Sunday
+          dates.push(d.toISOString().split('T')[0]!);
+        }
+        d.setDate(d.getDate() - 1);
+      }
+      return dates.reverse(); // oldest first
+    }
+
+    // Seeded random (deterministic based on string hash)
+    function hashSeed(str: string): number {
+      let h = 0;
+      for (let i = 0; i < str.length; i++) {
+        h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+      }
+      return Math.abs(h);
+    }
+
+    function getAttendanceStatus(studentName: string, date: string, index: number): AttStatus {
+      const seed = hashSeed(`${studentName}-${date}-${index}`);
+      const roll = seed % 100;
+      // Realistic distribution: ~82% present, ~8% absent, ~6% late, ~4% excused
+      if (roll < 82) return 'PRESENT';
+      if (roll < 90) return 'ABSENT';
+      if (roll < 96) return 'LATE';
+      return 'EXCUSED';
+    }
+
+    const schoolDates = getSchoolDates(30);
+    const class9AStudents = students.filter((s) => s.profile.sectionId === secId('9-A'));
+    const class10AStudents = students.filter((s) => s.profile.sectionId === secId('10-A'));
+
+    let dailyAttCount = 0;
+
+    async function seedDailyAttendance(
+      studentGroup: typeof students,
+      classId: string,
+      sectionId: string,
+      markedByUserId: string,
+    ) {
+      // Batch create all records in a single transaction for performance
+      const records: {
+        studentProfileId: string; classId: string; sectionId: string;
+        date: Date; status: AttStatus; remarks: string | null;
+        markedById: string; academicSessionId: string;
+      }[] = [];
+
+      for (const dateStr of schoolDates) {
+        const dateObj = new Date(dateStr + 'T00:00:00.000Z');
+        for (let si = 0; si < studentGroup.length; si++) {
+          const s = studentGroup[si]!;
+          const status = getAttendanceStatus(
+            `${s.user.firstName}${s.user.lastName}`, dateStr, si,
+          );
+          const remarks = status === 'EXCUSED' ? 'Medical leave' :
+                          status === 'LATE' ? 'Came 10 min late' : null;
+          records.push({
+            studentProfileId: s.profile.id, classId, sectionId,
+            date: dateObj, status, remarks,
+            markedById: markedByUserId, academicSessionId: session2025.id,
+          });
+        }
+      }
+
+      await prisma.dailyAttendance.createMany({ data: records, skipDuplicates: true });
+      dailyAttCount += records.length;
+    }
+
+    // Ahmed marks 9-A, Bilal marks 10-A (they are class teachers)
+    await seedDailyAttendance(class9AStudents, class9.id, secId('9-A'), teachers[0]!.user.id);
+    await seedDailyAttendance(class10AStudents, class10.id, secId('10-A'), teachers[2]!.user.id);
+    console.log(`✅ ${dailyAttCount} daily attendance records (30 days × ${class9AStudents.length + class10AStudents.length} students)`);
+
+    // ============================================
+    // 20. Subject Attendance (last 10 school days, select periods)
+    // ============================================
+    const recentDates = schoolDates.slice(-10); // last 10 days
+    let subjectAttCount = 0;
+
+    // Map day names to DayOfWeek enum values
+    function getDayOfWeek(dateStr: string): DayName | null {
+      const d = new Date(dateStr);
+      const dayMap: Record<number, DayName> = { 1: 'MONDAY' as DayName, 2: 'TUESDAY' as DayName, 3: 'WEDNESDAY' as DayName, 4: 'THURSDAY' as DayName, 5: 'FRIDAY' as DayName, 6: 'SATURDAY' as DayName };
+      return dayMap[d.getDay()] ?? null;
+    }
+
+    // Seed subject attendance for a class – picks first 3 periods each day
+    async function seedSubjectAttendance(
+      studentGroup: typeof students,
+      classId: string,
+      sectionKey: string,
+      timetableDef: typeof timetable9A,
+    ) {
+      const sId = secId(sectionKey);
+
+      // Pre-fetch all timetable entries for this class in a single query
+      const allTtEntries = await prisma.timetableEntry.findMany({
+        where: { classId, sectionId: sId, academicSessionId: session2025.id },
+        select: { id: true, periodSlotId: true, dayOfWeek: true },
+      });
+      const ttEntryMap = new Map(
+        allTtEntries.map((e) => [`${e.dayOfWeek}-${e.periodSlotId}`, e.id]),
+      );
+
+      const records: {
+        studentProfileId: string; classId: string; sectionId: string;
+        subjectId: string; timetableEntryId: string | null; periodSlotId: string;
+        date: Date; status: AttStatus; remarks: string | null;
+        markedById: string; academicSessionId: string;
+      }[] = [];
+
+      for (const dateStr of recentDates) {
+        const dayOfWeek = getDayOfWeek(dateStr);
+        if (!dayOfWeek) continue;
+        const dateObj = new Date(dateStr + 'T00:00:00.000Z');
+
+        const dayEntries = timetableDef
+          .filter((e) => e.day === dayOfWeek)
+          .slice(0, 3);
+
+        for (const entry of dayEntries) {
+          const periodSlotId = slotId(entry.slot);
+          const ttEntryId = ttEntryMap.get(`${dayOfWeek}-${periodSlotId}`) ?? null;
+
+          for (let si = 0; si < studentGroup.length; si++) {
+            const s = studentGroup[si]!;
+            const status = getAttendanceStatus(
+              `${s.user.firstName}${s.user.lastName}-subj`, dateStr, si + entry.teacherIdx,
+            );
+            const remarks = status === 'ABSENT' ? 'Skipped class' : null;
+            records.push({
+              studentProfileId: s.profile.id, classId, sectionId: sId,
+              subjectId: entry.subjectId, timetableEntryId: ttEntryId,
+              periodSlotId, date: dateObj, status, remarks,
+              markedById: teachers[entry.teacherIdx]!.user.id,
+              academicSessionId: session2025.id,
+            });
+          }
+        }
+      }
+
+      await prisma.subjectAttendance.createMany({ data: records, skipDuplicates: true });
+      subjectAttCount += records.length;
+    }
+
+    await seedSubjectAttendance(class9AStudents, class9.id, '9-A', timetable9A);
+    await seedSubjectAttendance(class10AStudents, class10.id, '10-A', timetable10A);
+    console.log(`✅ ${subjectAttCount} subject attendance records (10 days × 3 periods × students)`);
+
+    // ============================================
+    // 21. Attendance-related Audit Logs
+    // ============================================
+    await prisma.auditLog.create({
+      data: {
+        userId: teachers[0]!.user.id,
+        action: 'MARK_DAILY_ATTENDANCE',
+        entityType: 'DAILY_ATTENDANCE',
+        entityId: `${class9.id}-${secId('9-A')}`,
+        metadata: { date: schoolDates[schoolDates.length - 1], classId: class9.id, recordCount: class9AStudents.length } as any,
+      },
+    });
+    await prisma.auditLog.create({
+      data: {
+        userId: teachers[2]!.user.id,
+        action: 'MARK_DAILY_ATTENDANCE',
+        entityType: 'DAILY_ATTENDANCE',
+        entityId: `${class10.id}-${secId('10-A')}`,
+        metadata: { date: schoolDates[schoolDates.length - 1], classId: class10.id, recordCount: class10AStudents.length } as any,
+      },
+    });
+    console.log('✅ 2 attendance audit logs');
+
+    // ============================================
+    // 22. Attendance Notifications
+    // ============================================
+    const absenceNotifications: { userId: string; title: string; message: string; type: 'SYSTEM' }[] = [];
+    // Find students who were absent yesterday
+    const yesterdayDate = schoolDates[schoolDates.length - 1]!;
+    for (const s of [...class9AStudents, ...class10AStudents]) {
+      const status = getAttendanceStatus(
+        `${s.user.firstName}${s.user.lastName}`, yesterdayDate, 0,
+      );
+      if (status === 'ABSENT') {
+        absenceNotifications.push({
+          userId: s.user.id,
+          title: 'Absence Recorded',
+          message: `You were marked absent on ${yesterdayDate}. If this is incorrect, please contact your class teacher.`,
+          type: 'SYSTEM',
+        });
+      }
+    }
+    for (const n of absenceNotifications) {
+      await prisma.notification.create({ data: { ...n, isRead: false } });
+    }
+    console.log(`✅ ${absenceNotifications.length} absence notifications`);
+  } else {
+    console.log('  ⏭️ Period slots already exist, skipping timetable & attendance seed');
   }
 
   console.log('\n🎉 Seeding complete!\n');

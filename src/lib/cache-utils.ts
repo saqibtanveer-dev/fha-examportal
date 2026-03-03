@@ -103,6 +103,35 @@ export function useInvalidateCache() {
       ]);
     },
 
+    // ── Timetable Module Invalidation ──
+    timetable: () => invalidateQueries(queryKeys.timetable.all),
+    periodSlots: () => invalidateQueries(queryKeys.timetable.periodSlots()),
+    timetableByClass: (classId: string, sectionId: string) =>
+      invalidateQueries(queryKeys.timetable.byClass(classId, sectionId)),
+    timetableByTeacher: (teacherProfileId: string) =>
+      invalidateQueries(queryKeys.timetable.byTeacher(teacherProfileId)),
+    afterTimetableMutation: async () => {
+      await invalidateQueries(queryKeys.timetable.all);
+    },
+
+    // ── Attendance Module Invalidation ──
+    attendance: () => invalidateQueries(queryKeys.attendance.all),
+    dailyAttendance: () => invalidateQueries(queryKeys.attendance.daily()),
+    subjectAttendance: () => invalidateQueries(queryKeys.attendance.subject()),
+    attendanceStats: () => invalidateQueries(queryKeys.attendance.stats()),
+    afterAttendanceMark: async (classId: string, sectionId: string, date: string) => {
+      await Promise.all([
+        invalidateQueries(queryKeys.attendance.dailyByClassDate(classId, sectionId, date)),
+        invalidateQueries(queryKeys.attendance.stats()),
+      ]);
+    },
+    afterSubjectAttendanceMark: async () => {
+      await Promise.all([
+        invalidateQueries(queryKeys.attendance.subject()),
+        invalidateQueries(queryKeys.attendance.stats()),
+      ]);
+    },
+
     // ── Nuclear option ──
     all: () => queryClient.invalidateQueries(),
   };
