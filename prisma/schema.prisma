@@ -166,6 +166,27 @@ enum EvaluationStage {
 }
 
 // ============================================
+// ATTENDANCE & TIMETABLE ENUMS
+// ============================================
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  EXCUSED
+}
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+// ============================================
 // USER TABLES
 // ============================================
 
@@ -201,6 +222,13 @@ model User {
   scholarshipsAwarded      ApplicantScholarship[] @relation("ScholarshipAwarder")
   admissionDecisionsMade   AdmissionDecisionRecord[]
 
+  // Attendance relations
+  dailyAttendanceMarked    DailyAttendance[]    @relation("DailyAttendanceMarker")
+  dailyAttendanceEdited    DailyAttendance[]    @relation("DailyAttendanceEditor")
+  subjectAttendanceMarked  SubjectAttendance[]  @relation("SubjectAttendanceMarker")
+  subjectAttendanceEdited  SubjectAttendance[]  @relation("SubjectAttendanceEditor")
+  classTeacherSections     Section[]            @relation("ClassTeacher")
+
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
@@ -227,6 +255,10 @@ model StudentProfile {
   section    Section            @relation(fields: [sectionId], references: [id])
   promotions StudentPromotion[]
 
+  // Attendance relations
+  dailyAttendance   DailyAttendance[]
+  subjectAttendance SubjectAttendance[]
+
   @@index([classId])
   @@index([sectionId])
   @@index([rollNumber])
@@ -243,8 +275,9 @@ model TeacherProfile {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  teacherSubjects TeacherSubject[]
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  teacherSubjects  TeacherSubject[]
+  timetableEntries TimetableEntry[]
 }
 
 // ============================================
@@ -277,6 +310,8 @@ model Subject {
   questions         Question[]
   exams             Exam[]
   subjectClassLinks SubjectClassLink[]
+  timetableEntries  TimetableEntry[]
+  subjectAttendance SubjectAttendance[]
 
   @@index([departmentId])
 }
@@ -334,27 +369,36 @@ model Class {
   promotionsTo         StudentPromotion[]   @relation("PromotionToClass")
   testCampaigns        TestCampaign[]
   admissionPlacements  AdmissionDecisionRecord[]
+  timetableEntries     TimetableEntry[]
+  dailyAttendance      DailyAttendance[]
+  subjectAttendance    SubjectAttendance[]
 
   @@index([grade])
 }
 
 model Section {
-  id        String   @id @default(uuid())
-  name      String
-  classId   String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(uuid())
+  name           String
+  classId        String
+  classTeacherId String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   class                Class                @relation(fields: [classId], references: [id], onDelete: Cascade)
+  classTeacher         User?                @relation("ClassTeacher", fields: [classTeacherId], references: [id])
   students             StudentProfile[]
   examClassAssignments ExamClassAssignment[]
   promotionsFrom       StudentPromotion[]   @relation("PromotionFromSection")
   promotionsTo         StudentPromotion[]   @relation("PromotionToSection")
   admissionPlacements  AdmissionDecisionRecord[]
+  timetableEntries     TimetableEntry[]
+  dailyAttendance      DailyAttendance[]
+  subjectAttendance    SubjectAttendance[]
 
   @@unique([classId, name])
   @@index([classId])
+  @@index([classTeacherId])
 }
 
 // ============================================
@@ -637,6 +681,9 @@ model AcademicSession {
   exams          Exam[]
   promotions     StudentPromotion[]
   testCampaigns  TestCampaign[]
+  timetableEntries  TimetableEntry[]
+  dailyAttendance   DailyAttendance[]
+  subjectAttendance SubjectAttendance[]
 
   @@index([isCurrent])
 }
@@ -827,16 +874,18 @@ model CampaignQuestion {
   marks        Decimal
   isRequired   Boolean @default(true)
   sectionLabel String?
+  paperVersion String  @default("A") // Paper version: A, B, C, etc.
   createdAt    DateTime @default(now())
 
   campaign         TestCampaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   question         Question          @relation(fields: [questionId], references: [id])
   applicantAnswers ApplicantAnswer[]
 
-  @@unique([campaignId, sortOrder])
+  @@unique([campaignId, paperVersion, sortOrder])
   @@unique([campaignId, questionId])
   @@index([campaignId])
   @@index([questionId])
+  @@index([campaignId, paperVersion])
 }
 
 // ============================================
@@ -918,6 +967,7 @@ model Applicant {
   applicationNumber  String          @unique
   accessToken        String          @unique  // 6-digit numeric PIN (plaintext, rate-limited)
   accessTokenExpiresAt DateTime?
+  paperVersion       String          @default("A") // Assigned paper version: A, B, C, etc.
 
   // Verification
   isEmailVerified    Boolean         @default(false)
@@ -1128,4 +1178,127 @@ model AdmissionDecisionRecord {
   @@index([campaignId])
   @@index([decision])
   @@index([decidedAt])
+}
+
+// ============================================
+// TIMETABLE SYSTEM
+// ============================================
+
+model PeriodSlot {
+  id        String   @id @default(uuid())
+  name      String
+  shortName String
+  startTime String   // HH:mm format (e.g., "08:00")
+  endTime   String   // HH:mm format (e.g., "08:45")
+  sortOrder Int      @unique
+  isBreak   Boolean  @default(false)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  timetableEntries  TimetableEntry[]
+  subjectAttendance SubjectAttendance[]
+
+  @@index([isActive])
+  @@index([sortOrder])
+}
+
+model TimetableEntry {
+  id                String     @id @default(uuid())
+  classId           String
+  sectionId         String
+  subjectId         String
+  teacherProfileId  String
+  periodSlotId      String
+  dayOfWeek         DayOfWeek
+  academicSessionId String
+  room              String?
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  class           Class           @relation(fields: [classId], references: [id])
+  section         Section         @relation(fields: [sectionId], references: [id])
+  subject         Subject         @relation(fields: [subjectId], references: [id])
+  teacherProfile  TeacherProfile  @relation(fields: [teacherProfileId], references: [id])
+  periodSlot      PeriodSlot      @relation(fields: [periodSlotId], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  subjectAttendance SubjectAttendance[]
+
+  @@unique([classId, sectionId, periodSlotId, dayOfWeek, academicSessionId])
+  @@index([teacherProfileId, dayOfWeek, academicSessionId])
+  @@index([classId, sectionId, academicSessionId])
+  @@index([periodSlotId])
+  @@index([isActive])
+}
+
+// ============================================
+// ATTENDANCE SYSTEM
+// ============================================
+
+model DailyAttendance {
+  id                String           @id @default(uuid())
+  studentProfileId  String
+  classId           String
+  sectionId         String
+  date              DateTime         @db.Date
+  status            AttendanceStatus
+  remarks           String?
+  markedById        String
+  academicSessionId String
+  isEdited          Boolean          @default(false)
+  editedById        String?
+  editedAt          DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  studentProfile  StudentProfile  @relation(fields: [studentProfileId], references: [id])
+  class           Class           @relation(fields: [classId], references: [id])
+  section         Section         @relation(fields: [sectionId], references: [id])
+  markedBy        User            @relation("DailyAttendanceMarker", fields: [markedById], references: [id])
+  editedBy        User?           @relation("DailyAttendanceEditor", fields: [editedById], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+
+  @@unique([studentProfileId, date, academicSessionId])
+  @@index([classId, sectionId, date])
+  @@index([date, academicSessionId])
+  @@index([markedById])
+  @@index([status])
+}
+
+model SubjectAttendance {
+  id                String           @id @default(uuid())
+  studentProfileId  String
+  classId           String
+  sectionId         String
+  subjectId         String
+  timetableEntryId  String?
+  periodSlotId      String
+  date              DateTime         @db.Date
+  status            AttendanceStatus
+  remarks           String?
+  markedById        String
+  academicSessionId String
+  isEdited          Boolean          @default(false)
+  editedById        String?
+  editedAt          DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+
+  studentProfile  StudentProfile  @relation(fields: [studentProfileId], references: [id])
+  class           Class           @relation(fields: [classId], references: [id])
+  section         Section         @relation(fields: [sectionId], references: [id])
+  subject         Subject         @relation(fields: [subjectId], references: [id])
+  timetableEntry  TimetableEntry? @relation(fields: [timetableEntryId], references: [id])
+  periodSlot      PeriodSlot      @relation(fields: [periodSlotId], references: [id])
+  markedBy        User            @relation("SubjectAttendanceMarker", fields: [markedById], references: [id])
+  editedBy        User?           @relation("SubjectAttendanceEditor", fields: [editedById], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+
+  @@unique([studentProfileId, subjectId, periodSlotId, date, academicSessionId])
+  @@index([classId, sectionId, date, periodSlotId])
+  @@index([subjectId, date])
+  @@index([markedById])
+  @@index([status])
+  @@index([timetableEntryId])
 }

@@ -53,6 +53,7 @@ export type ApplicantListItem = Prisma.ApplicantGetPayload<{
     phone: true;
     status: true;
     applicationNumber: true;
+    paperVersion: true;
     createdAt: true;
     result: {
       select: {

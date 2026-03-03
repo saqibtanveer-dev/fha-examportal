@@ -9,8 +9,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/shared';
 import { Upload, FileSpreadsheet, Download, AlertCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { importCsvQuestionsAction } from '../admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
+import { PAPER_VERSIONS } from '@/lib/constants';
 
 type ParsedRow = {
   title: string;
@@ -21,6 +30,7 @@ type ParsedRow = {
   correctOption: 'A' | 'B' | 'C' | 'D';
   marks: number;
   sectionLabel?: string;
+  paperVersion?: string;
 };
 
 type Props = {
@@ -33,6 +43,7 @@ export function CsvImportDialog({ campaignId, open, onOpenChange }: Props) {
   const [isPending, startTransition] = useTransition();
   const [rows, setRows] = useState<ParsedRow[]>([]);
   const [errors, setErrors] = useState<string[]>([]);
+  const [defaultVersion, setDefaultVersion] = useState('A');
   const invalidate = useInvalidateCache();
 
   const parseCsv = useCallback((text: string) => {
@@ -82,6 +93,7 @@ export function CsvImportDialog({ campaignId, open, onOpenChange }: Props) {
         correctOption: correctUpper as ParsedRow['correctOption'],
         marks,
         sectionLabel: section?.trim() || undefined,
+        paperVersion: cols[8]?.trim() || undefined,
       });
     }
 
@@ -100,7 +112,11 @@ export function CsvImportDialog({ campaignId, open, onOpenChange }: Props) {
   function handleImport() {
     if (rows.length === 0) return;
     startTransition(async () => {
-      const result = await importCsvQuestionsAction({ campaignId, questions: rows });
+      const result = await importCsvQuestionsAction({
+        campaignId,
+        questions: rows,
+        defaultPaperVersion: defaultVersion,
+      });
       if (result.success && result.data) {
         toast.success(`${(result.data as { imported: number }).imported} questions imported`);
         invalidate.campaigns();
@@ -114,13 +130,14 @@ export function CsvImportDialog({ campaignId, open, onOpenChange }: Props) {
   function handleClose() {
     setRows([]);
     setErrors([]);
+    setDefaultVersion('A');
     onOpenChange(false);
   }
 
   function downloadTemplate() {
-    const csv = 'title,optionA,optionB,optionC,optionD,correctOption,marks,sectionLabel\n'
-      + '"What is 2+2?","1","2","3","4","D",1,"Math"\n'
-      + '"Capital of Pakistan?","Lahore","Karachi","Islamabad","Peshawar","C",1,"General Knowledge"\n';
+    const csv = 'title,optionA,optionB,optionC,optionD,correctOption,marks,sectionLabel,paperVersion\n'
+      + '"What is 2+2?","1","2","3","4","D",1,"Math","A"\n'
+      + '"Capital of Pakistan?","Lahore","Karachi","Islamabad","Peshawar","C",1,"General Knowledge","B"\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -150,6 +167,26 @@ export function CsvImportDialog({ campaignId, open, onOpenChange }: Props) {
             Download CSV Template
           </Button>
 
+          {/* Default Paper Version */}
+          <div className="space-y-1">
+            <Label className="text-sm">Default Paper Version</Label>
+            <Select value={defaultVersion} onValueChange={setDefaultVersion}>
+              <SelectTrigger className="w-40">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PAPER_VERSIONS.map((v) => (
+                  <SelectItem key={v} value={v}>
+                    Version {v}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Used when CSV rows don&apos;t specify a paperVersion column.
+            </p>
+          </div>
+
           {/* File input */}
           <div className="flex items-center gap-3 rounded-md border border-dashed p-4">
             <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
@@ -161,7 +198,7 @@ export function CsvImportDialog({ campaignId, open, onOpenChange }: Props) {
                 className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-xs file:text-primary-foreground file:cursor-pointer"
               />
               <p className="mt-1 text-xs text-muted-foreground">
-                Format: title, optionA, optionB, optionC, optionD, correctOption (A/B/C/D), marks, sectionLabel
+                Format: title, optionA, optionB, optionC, optionD, correctOption (A/B/C/D), marks, sectionLabel, paperVersion (optional)
               </p>
             </div>
           </div>

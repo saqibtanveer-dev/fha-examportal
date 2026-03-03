@@ -144,6 +144,13 @@ export async function calculateAdmissionResult(applicantId: string) {
   const session = applicant.testSession;
   const campaign = applicant.campaign;
 
+  // Compute version-specific totalMarks (not campaign-wide which sums ALL versions)
+  const versionTotalAgg = await prisma.campaignQuestion.aggregate({
+    where: { campaignId: campaign.id, paperVersion: applicant.paperVersion },
+    _sum: { marks: true },
+  });
+  const versionTotalMarks = Number(versionTotalAgg._sum.marks ?? campaign.totalMarks);
+
   // Calculate total obtained marks
   const obtainedMarks = session.applicantAnswers.reduce(
     (sum, a) => {
@@ -156,7 +163,7 @@ export async function calculateAdmissionResult(applicantId: string) {
   const clampedMarks = Math.max(0, obtainedMarks);
 
   const score = calculateScore({
-    totalMarks: Number(campaign.totalMarks),
+    totalMarks: versionTotalMarks,
     obtainedMarks: clampedMarks,
     passingMarks: Number(campaign.passingMarks),
   });

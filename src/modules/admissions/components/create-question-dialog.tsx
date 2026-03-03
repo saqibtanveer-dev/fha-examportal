@@ -14,8 +14,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Spinner } from '@/components/shared';
 import { Plus, CheckCircle } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { createCampaignQuestionAction } from '../admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
+import { PAPER_VERSIONS } from '@/lib/constants';
 
 type FormValues = {
   title: string;
@@ -27,6 +35,7 @@ type FormValues = {
   correctOption: 'A' | 'B' | 'C' | 'D';
   marks: number;
   sectionLabel: string;
+  paperVersion: string;
 };
 
 type Props = {
@@ -51,6 +60,7 @@ export function CreateQuestionDialog({ campaignId, open, onOpenChange }: Props) 
       correctOption: 'A',
       marks: 1,
       sectionLabel: '',
+      paperVersion: 'A',
     },
   });
 
@@ -69,6 +79,7 @@ export function CreateQuestionDialog({ campaignId, open, onOpenChange }: Props) 
         correctOption: data.correctOption,
         marks: data.marks,
         sectionLabel: data.sectionLabel || undefined,
+        paperVersion: data.paperVersion,
       });
 
       if (result.success) {
@@ -162,8 +173,8 @@ export function CreateQuestionDialog({ campaignId, open, onOpenChange }: Props) 
             </p>
           </div>
 
-          {/* Marks + Section */}
-          <div className="grid grid-cols-2 gap-3">
+          {/* Marks + Section + Paper Version */}
+          <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <Label className="text-sm">Marks *</Label>
               <Input
@@ -179,6 +190,24 @@ export function CreateQuestionDialog({ campaignId, open, onOpenChange }: Props) 
                 {...form.register('sectionLabel')}
                 placeholder="e.g. Math, English"
               />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-sm">Paper Version *</Label>
+              <Select
+                value={form.watch('paperVersion')}
+                onValueChange={(v) => form.setValue('paperVersion', v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Version" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAPER_VERSIONS.map((v) => (
+                    <SelectItem key={v} value={v}>
+                      Version {v}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

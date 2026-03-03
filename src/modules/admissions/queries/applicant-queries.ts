@@ -45,6 +45,7 @@ export async function listApplicants(
         status: true,
         applicationNumber: true,
         accessToken: true,
+        paperVersion: true,
         createdAt: true,
         result: {
           select: { obtainedMarks: true, totalMarks: true, percentage: true, rank: true, isPassed: true, grade: true },
@@ -93,7 +94,11 @@ export async function getApplicantById(id: string) {
 export async function getApplicantByToken(pin: string) {
   return prisma.applicant.findFirst({
     where: { accessToken: pin },
-    include: {
+    select: {
+      id: true,
+      campaignId: true,
+      status: true,
+      paperVersion: true,
       campaign: {
         select: {
           id: true,

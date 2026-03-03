@@ -90,6 +90,7 @@ export const addCandidateAction = safeAction(async function addCandidateAction(
       accessToken: pin,
       status: 'VERIFIED',
       isEmailVerified: true,
+      paperVersion: parsed.data.paperVersion,
     },
   });
 
@@ -168,6 +169,7 @@ export const bulkAddCandidatesAction = safeAction(async function bulkAddCandidat
         accessToken: pin,
         status: 'VERIFIED',
         isEmailVerified: true,
+        paperVersion: (c as { paperVersion?: string }).paperVersion ?? 'A',
       },
     });
     added++;

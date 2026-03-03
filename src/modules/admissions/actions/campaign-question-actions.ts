@@ -57,10 +57,10 @@ async function syncCampaignTotalMarks(campaignId: string) {
   });
 }
 
-/** Get the next sortOrder for a campaign's questions. */
-async function getNextSortOrder(campaignId: string): Promise<number> {
+/** Get the next sortOrder for a campaign's questions within a paper version. */
+async function getNextSortOrder(campaignId: string, paperVersion: string): Promise<number> {
   const max = await prisma.campaignQuestion.aggregate({
-    where: { campaignId },
+    where: { campaignId, paperVersion },
     _max: { sortOrder: true },
   });
   return (max._max.sortOrder ?? 0) + 1;
@@ -82,7 +82,7 @@ export const createCampaignQuestionAction = safeAction(async function createCamp
   if (campaign.status !== 'DRAFT') return actionError(ADMISSION_ERRORS.CAMPAIGN_NOT_DRAFT);
 
   const subjectId = await getOrCreateGeneralSubject();
-  const nextSort = await getNextSortOrder(parsed.data.campaignId);
+  const nextSort = await getNextSortOrder(parsed.data.campaignId, parsed.data.paperVersion);
   const correctIdx = OPTION_LABELS.indexOf(parsed.data.correctOption);
 
   const result = await prisma.$transaction(async (tx) => {
@@ -111,7 +111,7 @@ export const createCampaignQuestionAction = safeAction(async function createCamp
       })),
     });
 
-    // 3. Link to campaign
+    // 3. Link to campaign with paper version
     await tx.campaignQuestion.create({
       data: {
         campaignId: parsed.data.campaignId,
@@ -120,6 +120,7 @@ export const createCampaignQuestionAction = safeAction(async function createCamp
         marks: parsed.data.marks,
         isRequired: true,
         sectionLabel: parsed.data.sectionLabel?.trim() || null,
+        paperVersion: parsed.data.paperVersion,
       },
     });
 
@@ -152,12 +153,31 @@ export const importCsvQuestionsAction = safeAction(async function importCsvQuest
   if (campaign.status !== 'DRAFT') return actionError(ADMISSION_ERRORS.CAMPAIGN_NOT_DRAFT);
 
   const subjectId = await getOrCreateGeneralSubject();
-  let nextSort = await getNextSortOrder(parsed.data.campaignId);
+  const defaultVersion = parsed.data.defaultPaperVersion;
+  const targetCampaignId = parsed.data.campaignId;
+
+  // Track next sortOrder per paper version
+  const sortOrders = new Map<string, number>();
+
+  async function getSortForVersion(version: string): Promise<number> {
+    if (!sortOrders.has(version)) {
+      const max = await prisma.campaignQuestion.aggregate({
+        where: { campaignId: targetCampaignId, paperVersion: version },
+        _max: { sortOrder: true },
+      });
+      sortOrders.set(version, (max._max.sortOrder ?? 0) + 1);
+    }
+    const current = sortOrders.get(version)!;
+    sortOrders.set(version, current + 1);
+    return current;
+  }
 
   await prisma.$transaction(async (tx) => {
     for (const row of parsed.data.questions) {
       const correctIdx = OPTION_LABELS.indexOf(row.correctOption);
       const options = [row.optionA, row.optionB, row.optionC, row.optionD];
+      const version = row.paperVersion ?? defaultVersion;
+      const sortOrder = await getSortForVersion(version);
 
       const question = await tx.question.create({
         data: {
@@ -185,10 +205,11 @@ export const importCsvQuestionsAction = safeAction(async function importCsvQuest
         data: {
           campaignId: parsed.data.campaignId,
           questionId: question.id,
-          sortOrder: nextSort++,
+          sortOrder,
           marks: row.marks,
           isRequired: true,
           sectionLabel: row.sectionLabel?.trim() || null,
+          paperVersion: version,
         },
       });
     }

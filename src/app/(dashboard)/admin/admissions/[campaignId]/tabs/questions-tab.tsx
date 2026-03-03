@@ -114,8 +114,9 @@ function QuestionsList({
               <div className="flex items-center gap-2">
                 <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
                   Q{index + 1}
-                </span>
-                {cq.sectionLabel && (
+                </span>                <Badge variant="outline" className="font-mono text-[10px] px-1.5">
+                  {cq.paperVersion ?? 'A'}
+                </Badge>                {cq.sectionLabel && (
                   <span className="text-xs text-muted-foreground">[{cq.sectionLabel}]</span>
                 )}
                 <span className="text-xs text-muted-foreground">{cq.marks} marks</span>

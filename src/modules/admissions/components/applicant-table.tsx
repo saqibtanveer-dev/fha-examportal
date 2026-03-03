@@ -24,6 +24,7 @@ import { ApplicantStatusBadge } from './campaign-status-badge';
 import { makeDecisionAction } from '../admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Spinner } from '@/components/shared';
+import { Badge } from '@/components/ui/badge';
 
 type ApplicantRow = {
   id: string;
@@ -33,6 +34,7 @@ type ApplicantRow = {
   phone: string | null;
   applicationNumber: string | null;
   accessToken: string;
+  paperVersion: string;
   status: string;
   createdAt: string;
   result?: {
@@ -132,6 +134,7 @@ export function ApplicantTable({
               <TableHead>Name</TableHead>
               <TableHead className="hidden sm:table-cell">Application #</TableHead>
               <TableHead className="hidden sm:table-cell">PIN</TableHead>
+              <TableHead className="hidden sm:table-cell">Version</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="hidden md:table-cell">Score</TableHead>
               <TableHead className="hidden lg:table-cell">Rank</TableHead>
@@ -163,6 +166,11 @@ export function ApplicantTable({
                   <span className="inline-flex items-center gap-1 font-mono text-xs">
                     <KeyRound className="h-3 w-3 text-muted-foreground" />{a.accessToken}
                   </span>
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <Badge variant="outline" className="font-mono text-xs">
+                    {a.paperVersion}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <ApplicantStatusBadge status={a.status} />

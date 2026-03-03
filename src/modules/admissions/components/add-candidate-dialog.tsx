@@ -26,6 +26,7 @@ import { addCandidateAction } from '../admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { UserPlus, Copy, Check } from 'lucide-react';
 import type { AddCandidateInput } from '../admission-schemas';
+import { PAPER_VERSIONS } from '@/lib/constants';
 
 type Props = {
   campaignId: string;
@@ -50,6 +51,7 @@ export function AddCandidateDialog({ campaignId, open, onOpenChange }: Props) {
       guardianPhone: '',
       previousSchool: '',
       previousClass: '',
+      paperVersion: 'A',
     },
   });
 
@@ -214,6 +216,24 @@ function CandidateForm({
           <Input {...form.register('previousClass')} placeholder="e.g. 8th" />
         </FormField>
       </div>
+
+      <FormField label="Paper Version *">
+        <Select
+          value={form.watch('paperVersion') ?? 'A'}
+          onValueChange={(v) => form.setValue('paperVersion', v)}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select version" />
+          </SelectTrigger>
+          <SelectContent>
+            {PAPER_VERSIONS.map((v) => (
+              <SelectItem key={v} value={v}>
+                Version {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormField>
 
       <DialogFooter className="gap-2">
         <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>

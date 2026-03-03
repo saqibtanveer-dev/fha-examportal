@@ -119,6 +119,7 @@ export const createCampaignQuestionSchema = z.object({
   correctOption: z.enum(['A', 'B', 'C', 'D']),
   marks: z.number().positive().default(1),
   sectionLabel: z.string().max(100).optional(),
+  paperVersion: z.string().min(1).max(5).default('A'),
 });
 export type CreateCampaignQuestionInput = z.infer<typeof createCampaignQuestionSchema>;
 
@@ -137,7 +138,9 @@ export const csvImportQuestionsSchema = z.object({
     correctOption: z.enum(['A', 'B', 'C', 'D']),
     marks: z.number().positive().default(1),
     sectionLabel: z.string().max(100).optional(),
+    paperVersion: z.string().min(1).max(5).optional(),
   })).min(1).max(200),
+  defaultPaperVersion: z.string().min(1).max(5).default('A'),
 });
 export type CsvImportQuestionsInput = z.infer<typeof csvImportQuestionsSchema>;
 
@@ -158,6 +161,7 @@ export const addCandidateSchema = z.object({
   address: z.string().max(500).optional(),
   previousSchool: z.string().max(200).optional(),
   previousClass: z.string().max(50).optional(),
+  paperVersion: z.string().min(1).max(5).default('A'),
 });
 export type AddCandidateInput = z.infer<typeof addCandidateSchema>;
 

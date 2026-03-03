@@ -37,6 +37,7 @@ export const startTestSessionAction = safeAction(async function startTestSession
     where: { id: applicant.campaignId },
     include: {
       campaignQuestions: {
+        where: { paperVersion: applicant.paperVersion },
         include: {
           question: {
             include: {

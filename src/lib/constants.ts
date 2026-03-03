@@ -65,6 +65,10 @@ export const ADMISSION_SCHOLARSHIP_CASCADE_MAX_DEPTH = 10;
 export const ADMISSION_BULK_EMAIL_BATCH_SIZE = 10;
 export const ADMISSION_BULK_EMAIL_DELAY_MS = 1000;
 
+/** Available paper version labels for test campaigns. */
+export const PAPER_VERSIONS = ['A', 'B', 'C', 'D', 'E'] as const;
+export type PaperVersion = (typeof PAPER_VERSIONS)[number];
+
 // ============================================
 // Routes
 // ============================================
