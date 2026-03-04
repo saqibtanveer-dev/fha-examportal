@@ -203,6 +203,27 @@ export const queryKeys = {
       [...queryKeys.diary.all, 'detail', entryId] as const,
   },
 
+  // ── Family ──
+  family: {
+    all: ['family'] as const,
+    children: (familyUserId: string) =>
+      [...queryKeys.family.all, 'children', familyUserId] as const,
+    dashboard: (childId: string) =>
+      [...queryKeys.family.all, 'dashboard', childId] as const,
+    childAttendance: (childId: string) =>
+      [...queryKeys.family.all, 'attendance', childId] as const,
+    childExams: (childId: string) =>
+      [...queryKeys.family.all, 'exams', childId] as const,
+    childResults: (childId: string) =>
+      [...queryKeys.family.all, 'results', childId] as const,
+    childTimetable: (childId: string) =>
+      [...queryKeys.family.all, 'timetable', childId] as const,
+    childDiary: (childId: string) =>
+      [...queryKeys.family.all, 'diary', childId] as const,
+    profile: () =>
+      [...queryKeys.family.all, 'profile'] as const,
+  },
+
 } as const;
 
 // Alias for sessions to match import pattern

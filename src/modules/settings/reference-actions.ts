@@ -153,3 +153,36 @@ export async function fetchPrincipalReferenceData(): Promise<ActionResult<Pick<R
     },
   };
 }
+
+/**
+ * Fetches reference data for family pages (same shape as admin/principal).
+ */
+export async function fetchFamilyReferenceData(): Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions'>>> {
+  await requireRole('FAMILY');
+
+  const [subjects, classes, academicSessions] = await Promise.all([
+    prisma.subject.findMany({
+      where: { isActive: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, code: true },
+    }),
+    prisma.class.findMany({
+      where: { isActive: true },
+      orderBy: { grade: 'asc' },
+      include: { sections: { where: { isActive: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } } },
+    }),
+    prisma.academicSession.findMany({
+      orderBy: { startDate: 'desc' },
+      select: { id: true, name: true, isCurrent: true },
+    }),
+  ]);
+
+  return {
+    success: true,
+    data: {
+      subjects,
+      classes: classes.map((c) => ({ id: c.id, name: c.name, sections: c.sections })),
+      academicSessions,
+    },
+  };
+}

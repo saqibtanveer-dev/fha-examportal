@@ -4,3 +4,4 @@ export * from './question-schemas';
 export * from './exam-schemas';
 export * from './session-schemas';
 export * from './password-schemas';
+export * from './family-schemas';

@@ -67,7 +67,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
         password: formData.get('password') as string,
         firstName: formData.get('firstName') as string,
         lastName: formData.get('lastName') as string,
-        role: role as 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT',
+        role: role as 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT' | 'FAMILY',
         phone: (formData.get('phone') as string) || undefined,
         // Student fields
         ...(role === 'STUDENT'
@@ -88,6 +88,15 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
               employeeId: (formData.get('employeeId') as string) || undefined,
               qualification: (formData.get('qualification') as string) || undefined,
               specialization: (formData.get('specialization') as string) || undefined,
+            }
+          : {}),
+        // Family fields
+        ...(role === 'FAMILY'
+          ? {
+              relationship: (formData.get('relationship') as string) || undefined,
+              occupation: (formData.get('occupation') as string) || undefined,
+              address: (formData.get('address') as string) || undefined,
+              emergencyPhone: (formData.get('emergencyPhone') as string) || undefined,
             }
           : {}),
       });
@@ -138,6 +147,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
                 <SelectItem value="PRINCIPAL">Principal</SelectItem>
                 <SelectItem value="TEACHER">Teacher</SelectItem>
                 <SelectItem value="STUDENT">Student</SelectItem>
+                <SelectItem value="FAMILY">Family / Parent</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -223,6 +233,33 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
                       <SelectItem value="OTHER">Other</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Family Profile Fields ── */}
+          {role === 'FAMILY' && (
+            <div className="space-y-4 rounded-lg border p-4">
+              <h4 className="text-sm font-semibold text-foreground">Family Profile</h4>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="relationship">Relationship <span className="text-destructive">*</span></Label>
+                  <Input id="relationship" name="relationship" required disabled={isPending} placeholder="e.g. Father, Mother" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="occupation">Occupation</Label>
+                  <Input id="occupation" name="occupation" disabled={isPending} placeholder="e.g. Engineer" />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input id="address" name="address" disabled={isPending} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="emergencyPhone">Emergency Phone</Label>
+                  <Input id="emergencyPhone" name="emergencyPhone" disabled={isPending} />
                 </div>
               </div>
             </div>

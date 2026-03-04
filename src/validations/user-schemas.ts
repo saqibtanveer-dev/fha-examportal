@@ -21,7 +21,7 @@ export const createUserSchema = z.object({
   password: passwordSchema,
   firstName: z.string().min(1, 'First name is required').max(100),
   lastName: z.string().min(1, 'Last name is required').max(100),
-  role: z.enum(['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT']),
+  role: z.enum(['ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY']),
   phone: z.string().optional(),
   // Student profile fields (required when role = STUDENT)
   classId: z.string().optional(),
@@ -36,6 +36,11 @@ export const createUserSchema = z.object({
   employeeId: z.string().optional(),
   qualification: z.string().optional(),
   specialization: z.string().optional(),
+  // Family profile fields (required when role = FAMILY)
+  relationship: z.string().optional(),
+  occupation: z.string().optional(),
+  address: z.string().optional(),
+  emergencyPhone: z.string().optional(),
 }).refine(
   (data) => {
     if (data.role === 'STUDENT') {
@@ -52,6 +57,14 @@ export const createUserSchema = z.object({
     return true;
   },
   { message: 'Teachers require employeeId' },
+).refine(
+  (data) => {
+    if (data.role === 'FAMILY') {
+      return !!data.relationship;
+    }
+    return true;
+  },
+  { message: 'Family accounts require a relationship field' },
 );
 
 export type CreateUserInput = z.infer<typeof createUserSchema>;

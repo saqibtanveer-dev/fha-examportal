@@ -26,6 +26,7 @@ export const createUserAction = safeAction(async function createUserAction(input
     email, password, firstName, lastName, role, phone,
     classId, sectionId, rollNumber, registrationNo, guardianName, guardianPhone, dateOfBirth, gender,
     employeeId, qualification, specialization,
+    relationship, occupation, address, emergencyPhone,
   } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email } });
@@ -98,6 +99,19 @@ export const createUserAction = safeAction(async function createUserAction(input
                 employeeId,
                 qualification: qualification || null,
                 specialization: specialization || null,
+              },
+            },
+          }
+        : {}),
+      // Create FamilyProfile if role is FAMILY
+      ...(role === 'FAMILY' && relationship
+        ? {
+            familyProfile: {
+              create: {
+                relationship,
+                occupation: occupation || null,
+                address: address || null,
+                emergencyPhone: emergencyPhone || null,
               },
             },
           }

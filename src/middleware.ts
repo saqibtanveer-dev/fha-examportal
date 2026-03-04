@@ -9,6 +9,7 @@ const roleRouteMap: Record<string, string> = {
   PRINCIPAL: '/principal',
   TEACHER: '/teacher',
   STUDENT: '/student',
+  FAMILY: '/family',
 };
 
 /** Routes accessible without authentication */
@@ -23,6 +24,7 @@ const apiRoleRouteMap: Record<string, string[]> = {
   '/api/principal': ['ADMIN', 'PRINCIPAL'],
   '/api/teacher': ['ADMIN', 'TEACHER'],
   '/api/student': ['STUDENT'],
+  '/api/family': ['FAMILY'],
 };
 
 const { auth } = NextAuth(authConfig);

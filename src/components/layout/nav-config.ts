@@ -18,6 +18,7 @@ import {
   CalendarCheck,
   Clock,
   BookOpenText,
+  Heart,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -159,6 +160,31 @@ export const studentNavigation: NavGroup[] = [
   },
 ];
 
+export const familyNavigation: NavGroup[] = [
+  {
+    title: 'Overview',
+    items: [
+      { label: 'Dashboard', href: ROUTES.DASHBOARD.FAMILY, icon: LayoutDashboard },
+    ],
+  },
+  {
+    title: 'Academics',
+    items: [
+      { label: 'Attendance', href: ROUTES.FAMILY.ATTENDANCE, icon: CalendarCheck },
+      { label: 'Exams & Results', href: ROUTES.FAMILY.RESULTS, icon: BarChart3 },
+      { label: 'Timetable', href: ROUTES.FAMILY.TIMETABLE, icon: Clock },
+      { label: 'Diary', href: ROUTES.FAMILY.DIARY, icon: BookOpenText },
+    ],
+  },
+  {
+    title: 'Account',
+    items: [
+      { label: 'Notifications', href: ROUTES.FAMILY.NOTIFICATIONS, icon: Bell },
+      { label: 'Profile', href: ROUTES.FAMILY.PROFILE, icon: Heart },
+    ],
+  },
+];
+
 export function getNavigationByRole(role: string): NavGroup[] {
   switch (role) {
     case 'ADMIN':
@@ -169,6 +195,8 @@ export function getNavigationByRole(role: string): NavGroup[] {
       return teacherNavigation;
     case 'STUDENT':
       return studentNavigation;
+    case 'FAMILY':
+      return familyNavigation;
     default:
       return [];
   }

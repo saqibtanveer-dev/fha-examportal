@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { ROUTES } from '@/lib/constants';
+import { prisma } from '@/lib/prisma';
 import type { UserRole } from '@prisma/client';
 
 /**
@@ -45,4 +46,24 @@ export function canAccessSession(
 ): boolean {
   if (userRole === 'ADMIN') return true;
   return userId === examCreatedById;
+}
+
+/**
+ * Assert that a FAMILY user is linked to a specific student.
+ * Throws if the link doesn't exist or is inactive.
+ */
+export async function assertFamilyStudentAccess(
+  userId: string,
+  studentProfileId: string,
+): Promise<void> {
+  const link = await prisma.familyStudentLink.findFirst({
+    where: {
+      familyProfile: { userId },
+      studentProfileId,
+      isActive: true,
+    },
+  });
+  if (!link) {
+    throw new Error('You do not have access to this student.');
+  }
 }
