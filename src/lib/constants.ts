@@ -102,6 +102,7 @@ export const ROUTES = {
     EXAMS: '/principal/exams',
     TIMETABLE: '/principal/timetable',
     ATTENDANCE: '/principal/attendance',
+    DIARY: '/principal/diary',
     ANALYTICS: '/principal/analytics',
     NOTIFICATIONS: '/principal/notifications',
     PROFILE: '/principal/profile',
@@ -114,6 +115,7 @@ export const ROUTES = {
     RESULTS: '/teacher/results',
     ATTENDANCE: '/teacher/attendance',
     TIMETABLE: '/teacher/timetable',
+    DIARY: '/teacher/diary',
     NOTIFICATIONS: '/teacher/notifications',
   },
   STUDENT: {
@@ -121,6 +123,7 @@ export const ROUTES = {
     RESULTS: '/student/results',
     ATTENDANCE: '/student/attendance',
     TIMETABLE: '/student/timetable',
+    DIARY: '/student/diary',
     NOTIFICATIONS: '/student/notifications',
   },
   PROFILE: '/profile',

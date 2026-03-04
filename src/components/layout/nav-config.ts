@@ -17,6 +17,7 @@ import {
   UserPlus,
   CalendarCheck,
   Clock,
+  BookOpenText,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -84,6 +85,7 @@ export const principalNavigation: NavGroup[] = [
       { label: 'Exams', href: ROUTES.PRINCIPAL.EXAMS, icon: ClipboardList },
       { label: 'Timetable', href: ROUTES.PRINCIPAL.TIMETABLE, icon: Clock },
       { label: 'Attendance', href: ROUTES.PRINCIPAL.ATTENDANCE, icon: CalendarCheck },
+      { label: 'Diary', href: ROUTES.PRINCIPAL.DIARY, icon: BookOpenText },
     ],
   },
   {
@@ -115,6 +117,7 @@ export const teacherNavigation: NavGroup[] = [
     title: 'Classroom',
     items: [
       { label: 'Attendance', href: ROUTES.TEACHER.ATTENDANCE, icon: CalendarCheck },
+      { label: 'Diary', href: ROUTES.TEACHER.DIARY, icon: BookOpenText },
       { label: 'Timetable', href: ROUTES.TEACHER.TIMETABLE, icon: Clock },
     ],
   },
@@ -144,6 +147,7 @@ export const studentNavigation: NavGroup[] = [
     title: 'Classroom',
     items: [
       { label: 'My Attendance', href: ROUTES.STUDENT.ATTENDANCE, icon: CalendarCheck },
+      { label: 'Diary', href: ROUTES.STUDENT.DIARY, icon: BookOpenText },
       { label: 'My Timetable', href: ROUTES.STUDENT.TIMETABLE, icon: Clock },
     ],
   },

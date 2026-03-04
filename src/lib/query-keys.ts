@@ -174,6 +174,35 @@ export const queryKeys = {
       [...queryKeys.attendance.all, 'students-marking', classId, sectionId] as const,
   },
 
+  // ── Diary ──
+  diary: {
+    all: ['diary'] as const,
+    // Teacher
+    teacherEntries: (teacherProfileId: string) =>
+      [...queryKeys.diary.all, 'teacher', teacherProfileId] as const,
+    teacherCalendar: (teacherProfileId: string, year: number, month: number) =>
+      [...queryKeys.diary.all, 'teacher-calendar', teacherProfileId, year, month] as const,
+    teacherSubjectClasses: () =>
+      [...queryKeys.diary.all, 'teacher-subject-classes'] as const,
+    // Student
+    studentEntries: (classId: string, sectionId: string) =>
+      [...queryKeys.diary.all, 'student', classId, sectionId] as const,
+    studentToday: (classId: string, sectionId: string) =>
+      [...queryKeys.diary.all, 'student-today', classId, sectionId] as const,
+    // Principal
+    coverage: (startDate: string, endDate: string) =>
+      [...queryKeys.diary.all, 'coverage', startDate, endDate] as const,
+    byTeacher: (teacherProfileId: string) =>
+      [...queryKeys.diary.all, 'by-teacher', teacherProfileId] as const,
+    stats: (startDate: string, endDate: string) =>
+      [...queryKeys.diary.all, 'stats', startDate, endDate] as const,
+    // Shared
+    studentProfile: () =>
+      [...queryKeys.diary.all, 'student-profile'] as const,
+    detail: (entryId: string) =>
+      [...queryKeys.diary.all, 'detail', entryId] as const,
+  },
+
 } as const;
 
 // Alias for sessions to match import pattern

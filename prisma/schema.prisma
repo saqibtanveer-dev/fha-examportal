@@ -176,6 +176,11 @@ enum AttendanceStatus {
   EXCUSED
 }
 
+enum DiaryStatus {
+  DRAFT
+  PUBLISHED
+}
+
 enum DayOfWeek {
   MONDAY
   TUESDAY
@@ -229,6 +234,9 @@ model User {
   subjectAttendanceEdited  SubjectAttendance[]  @relation("SubjectAttendanceEditor")
   classTeacherSections     Section[]            @relation("ClassTeacher")
 
+  // Diary relations
+  diaryPrincipalNotes      DiaryPrincipalNote[]
+
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
@@ -259,6 +267,9 @@ model StudentProfile {
   dailyAttendance   DailyAttendance[]
   subjectAttendance SubjectAttendance[]
 
+  // Diary relations
+  diaryReadReceipts DiaryReadReceipt[]
+
   @@index([classId])
   @@index([sectionId])
   @@index([rollNumber])
@@ -278,6 +289,9 @@ model TeacherProfile {
   user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   teacherSubjects  TeacherSubject[]
   timetableEntries TimetableEntry[]
+
+  // Diary relations
+  diaryEntries     DiaryEntry[]
 }
 
 // ============================================
@@ -312,6 +326,7 @@ model Subject {
   subjectClassLinks SubjectClassLink[]
   timetableEntries  TimetableEntry[]
   subjectAttendance SubjectAttendance[]
+  diaryEntries      DiaryEntry[]
 
   @@index([departmentId])
 }
@@ -372,6 +387,7 @@ model Class {
   timetableEntries     TimetableEntry[]
   dailyAttendance      DailyAttendance[]
   subjectAttendance    SubjectAttendance[]
+  diaryEntries         DiaryEntry[]
 
   @@index([grade])
 }
@@ -395,6 +411,7 @@ model Section {
   timetableEntries     TimetableEntry[]
   dailyAttendance      DailyAttendance[]
   subjectAttendance    SubjectAttendance[]
+  diaryEntries         DiaryEntry[]
 
   @@unique([classId, name])
   @@index([classId])
@@ -684,6 +701,7 @@ model AcademicSession {
   timetableEntries  TimetableEntry[]
   dailyAttendance   DailyAttendance[]
   subjectAttendance SubjectAttendance[]
+  diaryEntries      DiaryEntry[]
 
   @@index([isCurrent])
 }
@@ -1301,4 +1319,71 @@ model SubjectAttendance {
   @@index([markedById])
   @@index([status])
   @@index([timetableEntryId])
+}
+
+// ============================================
+// DIARY SYSTEM
+// ============================================
+
+model DiaryEntry {
+  id                String      @id @default(uuid())
+  teacherProfileId  String
+  classId           String
+  sectionId         String
+  subjectId         String
+  academicSessionId String
+  date              DateTime    @db.Date
+  title             String      @db.VarChar(255)
+  content           String      @db.Text
+  status            DiaryStatus @default(PUBLISHED)
+  isEdited          Boolean     @default(false)
+  editedAt          DateTime?
+  deletedAt         DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  teacherProfile  TeacherProfile  @relation(fields: [teacherProfileId], references: [id])
+  class           Class           @relation(fields: [classId], references: [id])
+  section         Section         @relation(fields: [sectionId], references: [id])
+  subject         Subject         @relation(fields: [subjectId], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  readReceipts    DiaryReadReceipt[]
+  principalNotes  DiaryPrincipalNote[]
+
+  @@unique([teacherProfileId, classId, sectionId, subjectId, date, academicSessionId])
+  @@index([classId, sectionId, date])
+  @@index([teacherProfileId, date])
+  @@index([subjectId, date])
+  @@index([academicSessionId])
+  @@index([date, status])
+  @@index([deletedAt])
+}
+
+model DiaryReadReceipt {
+  id               String   @id @default(uuid())
+  diaryEntryId     String
+  studentProfileId String
+  readAt           DateTime @default(now())
+
+  diaryEntry     DiaryEntry     @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+  studentProfile StudentProfile @relation(fields: [studentProfileId], references: [id])
+
+  @@unique([diaryEntryId, studentProfileId])
+  @@index([diaryEntryId])
+  @@index([studentProfileId])
+}
+
+model DiaryPrincipalNote {
+  id           String   @id @default(uuid())
+  diaryEntryId String
+  principalId  String
+  note         String   @db.Text
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  diaryEntry DiaryEntry @relation(fields: [diaryEntryId], references: [id], onDelete: Cascade)
+  principal  User       @relation(fields: [principalId], references: [id])
+
+  @@index([diaryEntryId])
+  @@index([principalId])
 }
