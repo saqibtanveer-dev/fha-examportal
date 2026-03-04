@@ -274,3 +274,13 @@ export async function fetchMyStudentProfileAction() {
   });
   return serialize(profile);
 }
+
+/** Fetch currently active academic session (available to all authenticated roles) */
+export async function fetchCurrentAcademicSessionAction() {
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  const session = await prisma.academicSession.findFirst({
+    where: { isCurrent: true },
+    select: { id: true, name: true, isCurrent: true },
+  });
+  return serialize(session);
+}

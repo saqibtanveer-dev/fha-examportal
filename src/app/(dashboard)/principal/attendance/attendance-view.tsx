@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useMemo } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,16 +8,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, EmptyState, Spinner } from '@/components/shared';
 import { ClassSectionSelector } from '@/modules/timetable/components';
 import {
-  DailyAttendanceTable,
   AttendanceSummaryCard,
+  DailyAttendanceTable,
   StudentWiseAttendanceTable,
-  DailyAttendanceMarker,
 } from '@/modules/attendance/components';
 import {
   useDailyAttendance,
-  useStudentsForMarking,
 } from '@/modules/attendance/hooks/use-daily-attendance';
 import {
+  useDailyAttendanceCounts,
   useStudentWiseAttendance,
   useSchoolAttendanceOverview,
 } from '@/modules/attendance/hooks/use-attendance-stats';
@@ -29,7 +28,7 @@ type Props = {
   currentSessionId: string;
 };
 
-export function AdminAttendanceView({ classes, currentSessionId }: Props) {
+export function PrincipalAttendanceView({ classes, currentSessionId }: Props) {
   const today = getTodayDate();
   const [selectedClassId, setSelectedClassId] = useState(classes[0]?.id ?? '');
   const [selectedSectionId, setSelectedSectionId] = useState('');
@@ -38,7 +37,7 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
   // Report date range
   const [reportStartDate, setReportStartDate] = useState(() => {
     const d = new Date();
-    d.setDate(1); // first of month
+    d.setDate(1);
     return d.toISOString().split('T')[0]!;
   });
   const [reportEndDate, setReportEndDate] = useState(today);
@@ -53,61 +52,67 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
     !!selectedClassId && !!sectionId,
   );
 
-  const { data: students, isLoading: studentsLoading } = useStudentsForMarking(
-    selectedClassId, sectionId,
+  const { data: schoolOverview } = useSchoolAttendanceOverview(selectedDate);
+
+  const { data: classCounts } = useDailyAttendanceCounts(
+    selectedClassId, sectionId, selectedDate,
     !!selectedClassId && !!sectionId,
   );
-
-  const { data: schoolOverview } = useSchoolAttendanceOverview(selectedDate);
 
   const { data: studentWiseData, isLoading: reportLoading } = useStudentWiseAttendance(
     selectedClassId, sectionId, reportStartDate, reportEndDate,
     !!selectedClassId && !!sectionId,
   );
 
-  const hasExistingRecords = (dailyRecords?.length ?? 0) > 0;
+  // Parse school overview into counts
+  const overviewCounts = useMemo(
+    () => parseSchoolOverviewCounts(schoolOverview as any),
+    [schoolOverview],
+  );
 
-  // Map existing records for the marker
-  const existingRecordsForMarker = useMemo(() => {
-    if (!dailyRecords) return [];
-    return dailyRecords.map((r: any) => ({
-      id: r.id,
-      studentProfileId: r.studentProfileId,
-      status: r.status,
-      remarks: r.remarks,
-    }));
-  }, [dailyRecords]);
+  // Parse class counts
+  const classCountsData = useMemo(() => {
+    if (!classCounts || !Array.isArray(classCounts)) return null;
+    let present = 0, absent = 0, late = 0, excused = 0;
+    for (const r of classCounts as any[]) {
+      const status = r.status as string;
+      const count = Number(r._count?.id ?? 0);
+      if (status === 'PRESENT') present += count;
+      else if (status === 'ABSENT') absent += count;
+      else if (status === 'LATE') late += count;
+      else if (status === 'EXCUSED') excused += count;
+    }
+    const total = present + absent + late + excused;
+    return total > 0 ? { present, absent, late, excused, total } : null;
+  }, [classCounts]);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Attendance Management"
-        description="View and manage daily attendance across all classes."
+        title="Attendance Overview"
+        description="Monitor attendance across all classes and students."
         breadcrumbs={[
-          { label: 'Admin', href: '/admin' },
+          { label: 'Principal', href: '/principal' },
           { label: 'Attendance' },
         ]}
       />
 
-      {/* School-wide overview cards */}
-      {(() => {
-        const counts = parseSchoolOverviewCounts(schoolOverview as any);
-        return counts ? (
-          <AttendanceSummaryCard
-            counts={counts}
-            title={`School Overview - ${selectedDate}`}
-          />
-        ) : null;
-      })()}
+      {/* School-wide overview */}
+      {overviewCounts && (
+        <AttendanceSummaryCard
+          counts={overviewCounts}
+          title={`School Overview — ${selectedDate}`}
+        />
+      )}
 
-      <Tabs defaultValue="mark">
+      <Tabs defaultValue="class-view">
         <TabsList>
-          <TabsTrigger value="mark">Mark / View</TabsTrigger>
-          <TabsTrigger value="reports">Reports</TabsTrigger>
+          <TabsTrigger value="class-view">Class View</TabsTrigger>
+          <TabsTrigger value="reports">Student Reports</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="mark" className="space-y-4 mt-4">
-          {/* Selectors */}
+        {/* ── Class View Tab ── */}
+        <TabsContent value="class-view" className="space-y-4 mt-4">
           <div className="flex flex-wrap items-end gap-4">
             <ClassSectionSelector
               classes={classes}
@@ -127,75 +132,43 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
             </div>
           </div>
 
-          {/* Attendance content */}
+          {/* Class-level summary */}
+          {classCountsData && (
+            <AttendanceSummaryCard
+              counts={classCountsData}
+              title={`${selectedClass?.name} — ${selectedDate}`}
+            />
+          )}
+
           {!selectedClassId || !sectionId ? (
             <EmptyState
               title="Select a class and section"
-              description="Choose a class and section to view or mark attendance."
+              description="Choose a class and section to view attendance records."
             />
-          ) : dailyLoading || studentsLoading ? (
+          ) : dailyLoading ? (
             <div className="flex justify-center py-12">
               <Spinner size="lg" />
             </div>
-          ) : hasExistingRecords ? (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Attendance Records &ndash; {selectedClass?.name} &ndash; {selectedDate}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DailyAttendanceTable records={dailyRecords!} showDate={false} />
-                </CardContent>
-              </Card>
-
-              {/* Allow editing */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Edit Attendance</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <DailyAttendanceMarker
-                    classId={selectedClassId}
-                    sectionId={sectionId}
-                    date={selectedDate}
-                    students={(students as any[]) ?? []}
-                    existingRecords={existingRecordsForMarker}
-                    classDisplayName={selectedClass?.name}
-                    sectionName={sections.find((s) => s.id === sectionId)?.name}
-                  />
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
+          ) : (dailyRecords as any[])?.length ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Mark Attendance &ndash; {selectedClass?.name} &ndash; {selectedDate}
+                  Attendance Records — {selectedClass?.name} — {selectedDate}
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {(students as any[])?.length ? (
-                  <DailyAttendanceMarker
-                    classId={selectedClassId}
-                    sectionId={sectionId}
-                    date={selectedDate}
-                    students={(students as any[]) ?? []}
-                    classDisplayName={selectedClass?.name}
-                    sectionName={sections.find((s) => s.id === sectionId)?.name}
-                  />
-                ) : (
-                  <EmptyState
-                    title="No students found"
-                    description="No active students in this section."
-                  />
-                )}
+                <DailyAttendanceTable records={dailyRecords as any} showDate={false} />
               </CardContent>
             </Card>
+          ) : (
+            <EmptyState
+              title="No records"
+              description="No attendance has been marked for this class on the selected date."
+            />
           )}
         </TabsContent>
 
+        {/* ── Reports Tab ── */}
         <TabsContent value="reports" className="space-y-4 mt-4">
           <div className="flex flex-wrap items-end gap-4">
             <ClassSectionSelector
@@ -229,12 +202,12 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
             <div className="flex justify-center py-12">
               <Spinner size="lg" />
             </div>
-          ) : studentWiseData && Array.isArray(studentWiseData) && studentWiseData.length > 0 ? (
-            <StudentWiseAttendanceTable data={studentWiseData as any[]} />
+          ) : (studentWiseData as any[])?.length ? (
+            <StudentWiseAttendanceTable data={studentWiseData as any} />
           ) : (
             <EmptyState
               title="No report data"
-              description="Select a class, section, and date range to view attendance reports."
+              description="Select a class, section, and date range to view student attendance reports."
             />
           )}
         </TabsContent>

@@ -1,5 +1,6 @@
 import { DayOfWeek } from '@prisma/client';
-import { DAY_LABELS, DAY_SHORT_LABELS, TIME_FORMAT_REGEX } from './timetable.constants';
+import { DAY_LABELS, DAY_SHORT_LABELS, ORDERED_DAYS, TIME_FORMAT_REGEX } from './timetable.constants';
+import type { PeriodSlotListItem, TimetableEntryWithRelations } from './timetable.types';
 
 /** Validate HH:mm time format */
 export function isValidTime(time: string): boolean {
@@ -48,4 +49,24 @@ export function getDayShortLabel(day: DayOfWeek): string {
 /** Format time range for display: "08:00 - 08:45" */
 export function formatTimeRange(startTime: string, endTime: string): string {
   return `${startTime} - ${endTime}`;
+}
+
+/** Build grid[dayOfWeek][periodSlotId] from flat timetable entries */
+export function buildTimetableGrid(
+  entries: TimetableEntryWithRelations[] | undefined,
+  periodSlots: PeriodSlotListItem[],
+): Record<string, Record<string, TimetableEntryWithRelations | null>> {
+  const grid: Record<string, Record<string, TimetableEntryWithRelations | null>> = {};
+  for (const day of ORDERED_DAYS) {
+    grid[day] = {};
+    for (const slot of periodSlots) grid[day][slot.id] = null;
+  }
+  if (entries) {
+    for (const entry of entries) {
+      const e = entry as unknown as TimetableEntryWithRelations;
+      const daySlots = grid[e.dayOfWeek];
+      if (daySlots) daySlots[e.periodSlotId] = e;
+    }
+  }
+  return grid;
 }

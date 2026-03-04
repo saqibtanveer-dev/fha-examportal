@@ -82,6 +82,8 @@ export const principalNavigation: NavGroup[] = [
       { label: 'Students', href: ROUTES.PRINCIPAL.STUDENTS, icon: Users },
       { label: 'Classes', href: ROUTES.PRINCIPAL.CLASSES, icon: GraduationCap },
       { label: 'Exams', href: ROUTES.PRINCIPAL.EXAMS, icon: ClipboardList },
+      { label: 'Timetable', href: ROUTES.PRINCIPAL.TIMETABLE, icon: Clock },
+      { label: 'Attendance', href: ROUTES.PRINCIPAL.ATTENDANCE, icon: CalendarCheck },
     ],
   },
   {
@@ -142,6 +144,7 @@ export const studentNavigation: NavGroup[] = [
     title: 'Classroom',
     items: [
       { label: 'My Attendance', href: ROUTES.STUDENT.ATTENDANCE, icon: CalendarCheck },
+      { label: 'My Timetable', href: ROUTES.STUDENT.TIMETABLE, icon: Clock },
     ],
   },
   {

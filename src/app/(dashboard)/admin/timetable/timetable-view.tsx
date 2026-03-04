@@ -3,10 +3,6 @@
 import { useState, useMemo } from 'react';
 import { DayOfWeek } from '@prisma/client';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { Spinner } from '@/components/shared';
 import {
@@ -14,14 +10,15 @@ import {
   PeriodSlotManager,
   TimetableEntryForm,
   ClassTeacherManager,
+  ClassSectionSelector,
 } from '@/modules/timetable/components';
 import {
   useTimetableByClass,
   useTeacherProfiles,
 } from '@/modules/timetable/hooks/use-timetable';
-import { ORDERED_DAYS } from '@/modules/timetable/timetable.constants';
+import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import type { PeriodSlotListItem, TimetableEntryWithRelations } from '@/modules/timetable/timetable.types';
-import type { RefClass, RefSubject } from '@/stores';
+import type { RefClass } from '@/stores';
 import { useReferenceStore } from '@/stores';
 
 type Props = {
@@ -55,23 +52,7 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
   const { data: teachers } = useTeacherProfiles();
 
   // Build grid from flat entries
-  const grid = useMemo(() => {
-    const g: Record<string, Record<string, TimetableEntryWithRelations | null>> = {};
-    for (const day of ORDERED_DAYS) {
-      g[day] = {};
-      for (const slot of periodSlots) g[day][slot.id] = null;
-    }
-    if (timetableEntries) {
-      for (const entry of timetableEntries) {
-        const e = entry as unknown as TimetableEntryWithRelations;
-        const daySlots = g[e.dayOfWeek];
-        if (daySlots) {
-          daySlots[e.periodSlotId] = e;
-        }
-      }
-    }
-    return g;
-  }, [timetableEntries, periodSlots]);
+  const grid = useMemo(() => buildTimetableGrid(timetableEntries as any, periodSlots), [timetableEntries, periodSlots]);
 
   function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, entry: TimetableEntryWithRelations | null) {
     setSelectedDay(dayOfWeek);
@@ -101,43 +82,13 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
         <TabsContent value="timetable" className="space-y-4 mt-4">
           {/* Class / Section selector */}
           <div className="flex flex-wrap items-end gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-xs">Class</Label>
-              <Select
-                value={selectedClassId}
-                onValueChange={(v) => {
-                  setSelectedClassId(v);
-                  setSelectedSectionId('');
-                }}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs">Section</Label>
-              <Select
-                value={sectionId}
-                onValueChange={setSelectedSectionId}
-                disabled={!sections.length}
-              >
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Select section" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sections.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <ClassSectionSelector
+              classes={classes}
+              selectedClassId={selectedClassId}
+              selectedSectionId={selectedSectionId}
+              onClassChange={setSelectedClassId}
+              onSectionChange={setSelectedSectionId}
+            />
           </div>
 
           {/* Timetable grid */}

@@ -138,3 +138,25 @@ export function formatAttendanceDate(date: string | Date): string {
     year: 'numeric',
   });
 }
+
+/**
+ * Parse school-wide attendance overview (groupBy result) into AttendanceStatusCounts.
+ * Returns null if no data.
+ */
+export function parseSchoolOverviewCounts(
+  overview: { status: string; _count: { id: number } }[] | null | undefined,
+): AttendanceStatusCounts | null {
+  if (!overview || !Array.isArray(overview) || overview.length === 0) return null;
+  let present = 0, absent = 0, late = 0, excused = 0;
+  for (const r of overview) {
+    const count = Number(r._count?.id ?? 0);
+    switch (r.status) {
+      case 'PRESENT': present = count; break;
+      case 'ABSENT': absent = count; break;
+      case 'LATE': late = count; break;
+      case 'EXCUSED': excused = count; break;
+    }
+  }
+  const total = present + absent + late + excused;
+  return total > 0 ? { present, absent, late, excused, total } : null;
+}
