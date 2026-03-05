@@ -52,7 +52,7 @@ export async function fetchStudentDailyAttendanceAction(
   startDate: string,
   endDate: string,
 ) {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const academicSessionId = await getCurrentAcademicSessionId();
   if (!academicSessionId) return [];
   const records = await getDailyAttendanceByStudent(
@@ -103,7 +103,7 @@ export async function fetchStudentSubjectAttendanceAction(
   endDate: string,
   subjectId?: string,
 ) {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const academicSessionId = await getCurrentAcademicSessionId();
   if (!academicSessionId) return [];
   const records = await getSubjectAttendanceByStudent(
@@ -151,7 +151,7 @@ export async function fetchStudentDailyAttendanceCountsAction(
   startDate: string,
   endDate: string,
 ) {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const academicSessionId = await getCurrentAcademicSessionId();
   if (!academicSessionId) return [];
   const result = await getStudentDailyAttendanceCounts(
@@ -277,7 +277,7 @@ export async function fetchMyStudentProfileAction() {
 
 /** Fetch currently active academic session (available to all authenticated roles) */
 export async function fetchCurrentAcademicSessionAction() {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const session = await prisma.academicSession.findFirst({
     where: { isCurrent: true },
     select: { id: true, name: true, isCurrent: true },

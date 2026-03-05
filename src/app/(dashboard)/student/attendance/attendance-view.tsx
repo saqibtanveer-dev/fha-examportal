@@ -31,9 +31,23 @@ type StudentProfile = {
 
 type Props = {
   studentProfile: StudentProfile;
+  /** Override the page title (default: "My Attendance") */
+  title?: string;
+  /** Override the page description */
+  description?: string;
+  /** Override breadcrumbs (default: Student > Attendance) */
+  breadcrumbs?: { label: string; href?: string }[];
+  /** Optional content rendered above the summary (e.g. ChildSelector) */
+  headerSlot?: React.ReactNode;
 };
 
-export function StudentAttendanceView({ studentProfile }: Props) {
+export function StudentAttendanceView({
+  studentProfile,
+  title = 'My Attendance',
+  description = 'View your daily and subject-wise attendance records.',
+  breadcrumbs = [{ label: 'Student', href: '/student' }, { label: 'Attendance' }],
+  headerSlot,
+}: Props) {
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
@@ -110,13 +124,12 @@ export function StudentAttendanceView({ studentProfile }: Props) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title="My Attendance"
-        description="View your daily and subject-wise attendance records."
-        breadcrumbs={[
-          { label: 'Student', href: '/student' },
-          { label: 'Attendance' },
-        ]}
+        title={title}
+        description={description}
+        breadcrumbs={breadcrumbs}
       />
+
+      {headerSlot}
 
       {/* Year-wide summary */}
       <AttendanceSummaryCard

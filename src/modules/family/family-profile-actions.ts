@@ -23,9 +23,9 @@ export async function fetchFamilyProfileAction(): Promise<ActionResult<FamilyPro
         include: {
           studentProfile: {
             include: {
-              user: { select: { firstName: true, lastName: true } },
-              class: { select: { name: true } },
-              section: { select: { name: true } },
+              user: { select: { id: true, firstName: true, lastName: true } },
+              class: { select: { id: true, name: true } },
+              section: { select: { id: true, name: true } },
             },
           },
         },
@@ -40,7 +40,10 @@ export async function fetchFamilyProfileAction(): Promise<ActionResult<FamilyPro
 
   const children: LinkedChild[] = profile.studentLinks.map((link) => ({
     studentProfileId: link.studentProfile.id,
+    userId: link.studentProfile.userId,
     studentName: `${link.studentProfile.user.firstName} ${link.studentProfile.user.lastName}`,
+    classId: link.studentProfile.class.id,
+    sectionId: link.studentProfile.section.id,
     className: link.studentProfile.class.name,
     sectionName: link.studentProfile.section.name,
     rollNumber: link.studentProfile.rollNumber,
@@ -79,9 +82,9 @@ export async function fetchLinkedChildrenAction(): Promise<ActionResult<LinkedCh
         include: {
           studentProfile: {
             include: {
-              user: { select: { firstName: true, lastName: true } },
-              class: { select: { name: true } },
-              section: { select: { name: true } },
+              user: { select: { id: true, firstName: true, lastName: true } },
+              class: { select: { id: true, name: true } },
+              section: { select: { id: true, name: true } },
             },
           },
         },
@@ -96,7 +99,10 @@ export async function fetchLinkedChildrenAction(): Promise<ActionResult<LinkedCh
 
   const children: LinkedChild[] = profile.studentLinks.map((link) => ({
     studentProfileId: link.studentProfile.id,
+    userId: link.studentProfile.userId,
     studentName: `${link.studentProfile.user.firstName} ${link.studentProfile.user.lastName}`,
+    classId: link.studentProfile.class.id,
+    sectionId: link.studentProfile.section.id,
     className: link.studentProfile.class.name,
     sectionName: link.studentProfile.section.name,
     rollNumber: link.studentProfile.rollNumber,

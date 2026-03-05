@@ -18,10 +18,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreHorizontal, Pencil, Power, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Power, Trash2, Link2 } from 'lucide-react';
 import { formatDate } from '@/utils/format';
 import { toggleUserActiveAction, deleteUserAction } from '@/modules/users/user-actions';
 import { EditUserDialog } from './edit-user-dialog';
+import { ManageFamilyLinksDialog } from './manage-family-links-dialog';
 import { TeacherSubjectAssigner } from './teacher-subject-assigner';
 import { toast } from 'sonner';
 import type { UserWithProfile } from '@/modules/users/user-queries';
@@ -35,13 +36,16 @@ type UserTableProps = {
 
 const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   ADMIN: 'default',
+  PRINCIPAL: 'default',
   TEACHER: 'secondary',
   STUDENT: 'outline',
+  FAMILY: 'outline',
 };
 
 export function UserTable({ users, allSubjects = [] }: UserTableProps) {
   const [isPending, startTransition] = useTransition();
   const [editingUser, setEditingUser] = useState<UserWithProfile | null>(null);
+  const [familyLinkUser, setFamilyLinkUser] = useState<UserWithProfile | null>(null);
   const invalidate = useInvalidateCache();
 
   function handleToggleActive(userId: string) {
@@ -109,6 +113,15 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
                   <span className="text-xs text-muted-foreground">ID: {user.teacherProfile.employeeId}</span>
                 ) : user.role === 'TEACHER' ? (
                   <Badge variant="destructive" className="text-xs">No profile</Badge>
+                ) : user.role === 'FAMILY' && user.familyProfile ? (
+                  <div className="text-xs">
+                    <span className="font-medium">{user.familyProfile.relationship}</span>
+                    <div className="text-muted-foreground">
+                      {user.familyProfile.studentLinks.length} child{user.familyProfile.studentLinks.length !== 1 ? 'ren' : ''} linked
+                    </div>
+                  </div>
+                ) : user.role === 'FAMILY' ? (
+                  <Badge variant="destructive" className="text-xs">No profile</Badge>
                 ) : (
                   <span className="text-muted-foreground text-xs">—</span>
                 )}
@@ -152,6 +165,12 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
                       <Pencil className="mr-2 h-4 w-4" />
                       Edit
                     </DropdownMenuItem>
+                    {user.role === 'FAMILY' && user.familyProfile && (
+                      <DropdownMenuItem onClick={() => setFamilyLinkUser(user)}>
+                        <Link2 className="mr-2 h-4 w-4" />
+                        Manage Children
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onClick={() => handleToggleActive(user.id)}>
                       <Power className="mr-2 h-4 w-4" />
                       {user.isActive ? 'Deactivate' : 'Activate'}
@@ -177,6 +196,24 @@ export function UserTable({ users, allSubjects = [] }: UserTableProps) {
         open
         onOpenChange={(open) => !open && setEditingUser(null)}
         user={editingUser}
+      />
+    )}
+
+    {familyLinkUser && familyLinkUser.familyProfile && (
+      <ManageFamilyLinksDialog
+        open
+        onOpenChange={(open) => !open && setFamilyLinkUser(null)}
+        familyProfileId={familyLinkUser.familyProfile.id}
+        familyUserName={`${familyLinkUser.firstName} ${familyLinkUser.lastName}`}
+        linkedStudents={familyLinkUser.familyProfile.studentLinks.map((link) => ({
+          linkId: link.id,
+          studentProfileId: link.studentProfile.id,
+          studentName: `${link.studentProfile.user.firstName} ${link.studentProfile.user.lastName}`,
+          className: link.studentProfile.class.name,
+          sectionName: link.studentProfile.section.name,
+          relationship: link.relationship,
+          isPrimary: link.isPrimary,
+        }))}
       />
     )}
   </>

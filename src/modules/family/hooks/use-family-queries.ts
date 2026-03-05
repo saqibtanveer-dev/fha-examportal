@@ -10,10 +10,9 @@ import { FAMILY_QUERY_STALE_TIME, FAMILY_DASHBOARD_REFRESH_INTERVAL } from '../f
 
 import { fetchFamilyProfileAction, fetchLinkedChildrenAction } from '../family-profile-actions';
 import { fetchChildDashboardStatsAction, fetchAllChildrenOverviewAction } from '../family-dashboard-actions';
-import { fetchChildAttendanceSummaryAction, fetchChildAttendanceRecordsAction } from '../family-attendance-actions';
-import { fetchChildExamResultsAction, fetchChildUpcomingExamsAction } from '../family-exam-actions';
-import { fetchChildTimetableAction } from '../family-timetable-actions';
-import { fetchChildDiaryAction } from '../family-diary-actions';
+import { fetchChildUpcomingExamsAction } from '../family-exam-actions';
+import { fetchChildResultsWithAnalyticsAction } from '../family-results-actions';
+import { fetchChildDiaryForFamilyAction, fetchChildTodayDiaryForFamilyAction } from '../family-diary-actions';
 
 // ── Profile & Children ──
 
@@ -56,41 +55,7 @@ export function useChildDashboardStats(childId: string, enabled = true) {
   });
 }
 
-// ── Attendance ──
-
-export function useChildAttendanceSummary(childId: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.family.childAttendance(childId),
-    queryFn: () => fetchChildAttendanceSummaryAction(childId),
-    staleTime: FAMILY_QUERY_STALE_TIME,
-    enabled: enabled && !!childId,
-  });
-}
-
-export function useChildAttendanceRecords(
-  childId: string,
-  startDate?: string,
-  endDate?: string,
-  enabled = true,
-) {
-  return useQuery({
-    queryKey: [...queryKeys.family.childAttendance(childId), 'records', startDate, endDate],
-    queryFn: () => fetchChildAttendanceRecordsAction(childId, startDate, endDate),
-    staleTime: FAMILY_QUERY_STALE_TIME,
-    enabled: enabled && !!childId,
-  });
-}
-
 // ── Exams & Results ──
-
-export function useChildExamResults(childId: string, enabled = true) {
-  return useQuery({
-    queryKey: queryKeys.family.childResults(childId),
-    queryFn: () => fetchChildExamResultsAction(childId),
-    staleTime: FAMILY_QUERY_STALE_TIME,
-    enabled: enabled && !!childId,
-  });
-}
 
 export function useChildUpcomingExams(childId: string, enabled = true) {
   return useQuery({
@@ -101,12 +66,10 @@ export function useChildUpcomingExams(childId: string, enabled = true) {
   });
 }
 
-// ── Timetable ──
-
-export function useChildTimetable(childId: string, enabled = true) {
+export function useChildResultsWithAnalytics(childId: string, enabled = true) {
   return useQuery({
-    queryKey: queryKeys.family.childTimetable(childId),
-    queryFn: () => fetchChildTimetableAction(childId),
+    queryKey: queryKeys.family.childResultsAnalytics(childId),
+    queryFn: () => fetchChildResultsWithAnalyticsAction(childId),
     staleTime: FAMILY_QUERY_STALE_TIME,
     enabled: enabled && !!childId,
   });
@@ -116,14 +79,23 @@ export function useChildTimetable(childId: string, enabled = true) {
 
 export function useChildDiary(
   childId: string,
-  startDate?: string,
-  endDate?: string,
+  startDate: string,
+  endDate: string,
   subjectId?: string,
   enabled = true,
 ) {
   return useQuery({
     queryKey: [...queryKeys.family.childDiary(childId), startDate, endDate, subjectId],
-    queryFn: () => fetchChildDiaryAction(childId, startDate, endDate, subjectId),
+    queryFn: () => fetchChildDiaryForFamilyAction(childId, startDate, endDate, subjectId),
+    staleTime: FAMILY_QUERY_STALE_TIME,
+    enabled: enabled && !!childId && !!startDate && !!endDate,
+  });
+}
+
+export function useChildTodayDiary(childId: string, enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.family.childDiary(childId), 'today'],
+    queryFn: () => fetchChildTodayDiaryForFamilyAction(childId),
     staleTime: FAMILY_QUERY_STALE_TIME,
     enabled: enabled && !!childId,
   });

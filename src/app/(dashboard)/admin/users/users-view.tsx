@@ -111,6 +111,7 @@ export function UsersView({ result, allSubjects = [], allClasses = [] }: Props) 
             <SelectItem value="PRINCIPAL">Principal</SelectItem>
             <SelectItem value="TEACHER">Teacher</SelectItem>
             <SelectItem value="STUDENT">Student</SelectItem>
+            <SelectItem value="FAMILY">Family</SelectItem>
           </SelectContent>
         </Select>
       </div>

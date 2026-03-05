@@ -5,7 +5,10 @@
 /** Linked child summary (returned from family profile queries) */
 export type LinkedChild = {
   studentProfileId: string;
+  userId: string;
   studentName: string;
+  classId: string;
+  sectionId: string;
   className: string;
   sectionName: string;
   rollNumber: string;
@@ -57,90 +60,4 @@ export type ChildDashboardStats = {
 export type AllChildrenOverview = {
   children: ChildDashboardStats[];
   totalChildren: number;
-};
-
-/** Child attendance record for the family view */
-export type ChildAttendanceRecord = {
-  id: string;
-  date: string;
-  status: string;
-  markedAt: string;
-  subjectName?: string;
-  periodLabel?: string;
-};
-
-/** Child attendance summary */
-export type ChildAttendanceSummary = {
-  studentProfileId: string;
-  studentName: string;
-  className: string;
-  sectionName: string;
-  daily: {
-    totalDays: number;
-    present: number;
-    absent: number;
-    late: number;
-    excused: number;
-    percentage: number;
-  };
-  monthly: {
-    month: string;
-    present: number;
-    absent: number;
-    total: number;
-  }[];
-};
-
-/** Child exam with result for family view */
-export type ChildExamResult = {
-  examId: string;
-  examTitle: string;
-  subjectName: string;
-  examType: string;
-  date: string;
-  totalMarks: number;
-  obtainedMarks: number | null;
-  percentage: number | null;
-  grade: string | null;
-  status: string;
-};
-
-/** Child timetable entry for family view */
-export type ChildTimetableEntry = {
-  id: string;
-  dayOfWeek: string;
-  subjectName: string;
-  teacherName: string;
-  startTime: string;
-  endTime: string;
-  periodLabel: string;
-};
-
-/** Child diary entry for family view */
-export type ChildDiaryEntry = {
-  id: string;
-  date: string;
-  title: string;
-  content: string;
-  subjectName: string;
-  teacherName: string;
-  status: string;
-  isRead: boolean;
-  createdAt: string;
-};
-
-/** Filters for attendance page */
-export type FamilyAttendanceFilters = {
-  childId: string;
-  startDate?: string;
-  endDate?: string;
-  type?: 'daily' | 'subject';
-};
-
-/** Filters for diary page */
-export type FamilyDiaryFilters = {
-  childId: string;
-  startDate?: string;
-  endDate?: string;
-  subjectId?: string;
 };

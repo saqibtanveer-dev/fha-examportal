@@ -40,7 +40,7 @@ export async function fetchChildDashboardStatsAction(
 
   // Parallel fetch all data
   const [attendanceData, examData, diaryData] = await Promise.all([
-    fetchAttendanceStats(studentProfileId),
+    fetchAttendanceStats(studentProfileId, sessionId),
     fetchExamStats(studentProfile.userId, sessionId),
     fetchDiaryStats(studentProfileId, studentProfile.classId, studentProfile.sectionId, sessionId),
   ]);
@@ -98,7 +98,7 @@ export async function fetchAllChildrenOverviewAction(): Promise<ActionResult<All
     profile.studentLinks.map(async (link) => {
       const sp = link.studentProfile;
       const [attendance, exams, diary] = await Promise.all([
-        fetchAttendanceStats(sp.id),
+        fetchAttendanceStats(sp.id, sessionId),
         fetchExamStats(sp.userId, sessionId),
         fetchDiaryStats(sp.id, sp.classId, sp.sectionId, sessionId),
       ]);
@@ -123,9 +123,12 @@ export async function fetchAllChildrenOverviewAction(): Promise<ActionResult<All
 
 // ── Private Helpers ──
 
-async function fetchAttendanceStats(studentProfileId: string) {
+async function fetchAttendanceStats(studentProfileId: string, academicSessionId?: string) {
   const records = await prisma.dailyAttendance.findMany({
-    where: { studentProfileId },
+    where: {
+      studentProfileId,
+      ...(academicSessionId ? { academicSessionId } : {}),
+    },
     select: { status: true },
   });
 
@@ -133,7 +136,10 @@ async function fetchAttendanceStats(studentProfileId: string) {
   const presentDays = records.filter((r) => r.status === 'PRESENT').length;
   const absentDays = records.filter((r) => r.status === 'ABSENT').length;
   const lateDays = records.filter((r) => r.status === 'LATE').length;
-  const percentage = totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0;
+  const excusedDays = records.filter((r) => r.status === 'EXCUSED').length;
+  // Formula: (present + late) / (total - excused) — matches shared module
+  const effectiveTotal = totalDays - excusedDays;
+  const percentage = effectiveTotal > 0 ? Math.round(((presentDays + lateDays) / effectiveTotal) * 100) : 0;
 
   return { totalDays, presentDays, absentDays, lateDays, percentage };
 }

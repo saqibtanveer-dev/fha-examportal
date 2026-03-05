@@ -216,6 +216,10 @@ export const queryKeys = {
       [...queryKeys.family.all, 'exams', childId] as const,
     childResults: (childId: string) =>
       [...queryKeys.family.all, 'results', childId] as const,
+    childResultDetail: (childId: string, resultId: string) =>
+      [...queryKeys.family.all, 'results', childId, resultId] as const,
+    childResultsAnalytics: (childId: string) =>
+      [...queryKeys.family.all, 'results-analytics', childId] as const,
     childTimetable: (childId: string) =>
       [...queryKeys.family.all, 'timetable', childId] as const,
     childDiary: (childId: string) =>

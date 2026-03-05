@@ -2,22 +2,38 @@
 
 // ============================================
 // Family Module — Child Diary Fetch Actions
+// Reuses shared diary queries (getDiaryEntriesByClassSection, getDiaryEntriesToday)
+// Returns same shape as student diary actions → enables full component reuse
 // ============================================
 
-import { prisma } from '@/lib/prisma';
 import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
+import { prisma } from '@/lib/prisma';
+import { serialize } from '@/utils/serialize';
+import {
+  getDiaryEntriesByClassSection,
+  getDiaryEntriesToday,
+} from '@/modules/diary/diary-queries';
+import { getTodayDateString } from '@/modules/diary/diary.utils';
 import type { ActionResult } from '@/types/action-result';
-import type { ChildDiaryEntry } from './family.types';
+
+async function getCurrentAcademicSessionId(): Promise<string> {
+  const session = await prisma.academicSession.findFirst({
+    where: { isCurrent: true },
+    select: { id: true },
+  });
+  if (!session) throw new Error('No active academic session found');
+  return session.id;
+}
 
 /**
- * Fetch diary entries for a child with optional filters.
+ * Fetch diary entries for a child — same shape as student diary (DiaryEntryForStudent).
  */
-export async function fetchChildDiaryAction(
+export async function fetchChildDiaryForFamilyAction(
   studentProfileId: string,
-  startDate?: string,
-  endDate?: string,
+  startDate: string,
+  endDate: string,
   subjectId?: string,
-): Promise<ActionResult<ChildDiaryEntry[]>> {
+) {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -25,78 +41,62 @@ export async function fetchChildDiaryAction(
     where: { id: studentProfileId },
     select: { classId: true, sectionId: true },
   });
+  if (!studentProfile) return [];
 
-  if (!studentProfile) {
-    return { success: false, error: 'Student not found' };
-  }
+  const academicSessionId = await getCurrentAcademicSessionId();
+  const entries = await getDiaryEntriesByClassSection(
+    studentProfile.classId,
+    studentProfile.sectionId,
+    academicSessionId,
+    startDate,
+    endDate,
+    subjectId,
+  );
+  return serialize(entries);
+}
 
-  const where: Record<string, unknown> = {
-    classId: studentProfile.classId,
-    sectionId: studentProfile.sectionId,
-    status: 'PUBLISHED',
-    deletedAt: null,
-  };
+/**
+ * Fetch today's diary entries for a child — same shape as student today diary.
+ */
+export async function fetchChildTodayDiaryForFamilyAction(
+  studentProfileId: string,
+) {
+  const session = await requireRole('FAMILY');
+  await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
-  if (startDate) where.date = { ...(where.date as object ?? {}), gte: new Date(startDate) };
-  if (endDate) where.date = { ...(where.date as object ?? {}), lte: new Date(endDate) };
-  if (subjectId) where.subjectId = subjectId;
-
-  const entries = await prisma.diaryEntry.findMany({
-    where,
-    include: {
-      subject: { select: { name: true } },
-      teacherProfile: {
-        include: { user: { select: { firstName: true, lastName: true } } },
-      },
-      readReceipts: {
-        where: { studentProfileId },
-        select: { id: true },
-        take: 1,
-      },
-    },
-    orderBy: { date: 'desc' },
-    take: 50,
+  const studentProfile = await prisma.studentProfile.findUnique({
+    where: { id: studentProfileId },
+    select: { classId: true, sectionId: true },
   });
+  if (!studentProfile) return [];
 
-  return {
-    success: true,
-    data: entries.map((e) => ({
-      id: e.id,
-      date: e.date.toISOString(),
-      title: e.title,
-      content: e.content,
-      subjectName: e.subject.name,
-      teacherName: `${e.teacherProfile.user.firstName} ${e.teacherProfile.user.lastName}`,
-      status: e.status,
-      isRead: e.readReceipts.length > 0,
-      createdAt: e.createdAt.toISOString(),
-    })),
-  };
+  const academicSessionId = await getCurrentAcademicSessionId();
+  const today = getTodayDateString();
+  const entries = await getDiaryEntriesToday(
+    studentProfile.classId,
+    studentProfile.sectionId,
+    academicSessionId,
+    today,
+  );
+  return serialize(entries);
 }
 
 /**
  * Mark a diary entry as read by the family (creates receipt on behalf of student).
  */
-export async function markDiaryAsReadAction(
+export async function markChildDiaryAsReadAction(
   studentProfileId: string,
   diaryEntryId: string,
 ): Promise<ActionResult> {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
-  // Check if already read
-  const existing = await prisma.diaryReadReceipt.findUnique({
+  await prisma.diaryReadReceipt.upsert({
     where: {
       diaryEntryId_studentProfileId: { diaryEntryId, studentProfileId },
     },
-  });
-
-  if (existing) {
-    return { success: true }; // Already marked
-  }
-
-  await prisma.diaryReadReceipt.create({
-    data: { diaryEntryId, studentProfileId },
+    create: { diaryEntryId, studentProfileId },
+    update: {},
   });
 
   return { success: true };

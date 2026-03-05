@@ -22,12 +22,17 @@ type Props = {
   viewMode?: 'student' | 'teacher';
   /** Required for teacher view — used to build detail links */
   examId?: string;
+  /** Override the base href for detail links (e.g. '/family/results') */
+  detailHrefPrefix?: string;
 };
 
-export function ResultsTable({ results, viewMode = 'student', examId }: Props) {
+export function ResultsTable({ results, viewMode = 'student', examId, detailHrefPrefix }: Props) {
   const isTeacher = viewMode === 'teacher';
 
   function getDetailHref(result: DeepSerialize<ResultWithDetails>): string {
+    if (detailHrefPrefix) {
+      return `${detailHrefPrefix}/${result.id}`;
+    }
     if (isTeacher && examId) {
       return `/teacher/results/${examId}/${result.id}`;
     }

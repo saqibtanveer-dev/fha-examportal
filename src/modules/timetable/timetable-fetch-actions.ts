@@ -23,7 +23,7 @@ export async function fetchPeriodSlotsAction() {
 }
 
 export async function fetchActivePeriodSlotsAction() {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const slots = await listActivePeriodSlots();
   return serialize(slots);
 }
@@ -41,7 +41,7 @@ export async function fetchTimetableByClassAction(
   sectionId: string,
   academicSessionId: string,
 ) {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const entries = await listTimetableEntriesByClass(classId, sectionId, academicSessionId);
   return serialize(entries);
 }

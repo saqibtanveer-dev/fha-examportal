@@ -17,6 +17,21 @@ export type UserWithProfile = Prisma.UserGetPayload<{
         };
       };
     };
+    familyProfile: {
+      include: {
+        studentLinks: {
+          include: {
+            studentProfile: {
+              include: {
+                user: { select: { firstName: true; lastName: true } };
+                class: { select: { name: true } };
+                section: { select: { name: true } };
+              };
+            };
+          };
+        };
+      };
+    };
   };
 }>;
 
@@ -57,6 +72,22 @@ export async function listUsers(params: PaginationParams, filters: UserListFilte
             },
           },
         },
+        familyProfile: {
+          include: {
+            studentLinks: {
+              where: { isActive: true },
+              include: {
+                studentProfile: {
+                  include: {
+                    user: { select: { firstName: true, lastName: true } },
+                    class: { select: { name: true } },
+                    section: { select: { name: true } },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
     }),
     prisma.user.count({ where }),
@@ -78,6 +109,22 @@ export async function getUserById(id: string): Promise<UserWithProfile | null> {
         include: {
           teacherSubjects: {
             include: { subject: { select: { id: true, name: true, code: true } } },
+          },
+        },
+      },
+      familyProfile: {
+        include: {
+          studentLinks: {
+            where: { isActive: true },
+            include: {
+              studentProfile: {
+                include: {
+                  user: { select: { firstName: true, lastName: true } },
+                  class: { select: { name: true } },
+                  section: { select: { name: true } },
+                },
+              },
+            },
           },
         },
       },

@@ -42,25 +42,3 @@ export const unlinkStudentSchema = z.object({
 });
 
 export type UnlinkStudentInput = z.infer<typeof unlinkStudentSchema>;
-
-// ============================================
-// Family Query Filter Schemas
-// ============================================
-
-export const childAttendanceFilterSchema = z.object({
-  childId: z.string().uuid(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  type: z.enum(['daily', 'subject']).default('daily'),
-});
-
-export type ChildAttendanceFilterInput = z.infer<typeof childAttendanceFilterSchema>;
-
-export const childDiaryFilterSchema = z.object({
-  childId: z.string().uuid(),
-  startDate: z.string().optional(),
-  endDate: z.string().optional(),
-  subjectId: z.string().uuid().optional(),
-});
-
-export type ChildDiaryFilterInput = z.infer<typeof childDiaryFilterSchema>;
