@@ -19,6 +19,7 @@ import {
   Clock,
   BookOpenText,
   Heart,
+  CalendarRange,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -50,6 +51,7 @@ export const adminNavigation: NavGroup[] = [
       { label: 'Subjects', href: ROUTES.ADMIN.SUBJECTS, icon: BookOpen },
       { label: 'Classes', href: ROUTES.ADMIN.CLASSES, icon: GraduationCap },
       { label: 'Timetable', href: ROUTES.ADMIN.TIMETABLE, icon: Clock },
+      { label: 'Datesheet', href: ROUTES.ADMIN.DATESHEET, icon: CalendarRange },
       { label: 'Attendance', href: ROUTES.ADMIN.ATTENDANCE, icon: CalendarCheck },
       { label: 'Admissions', href: ROUTES.ADMIN_ADMISSIONS.ROOT, icon: UserPlus },
       {
@@ -85,6 +87,7 @@ export const principalNavigation: NavGroup[] = [
       { label: 'Classes', href: ROUTES.PRINCIPAL.CLASSES, icon: GraduationCap },
       { label: 'Exams', href: ROUTES.PRINCIPAL.EXAMS, icon: ClipboardList },
       { label: 'Timetable', href: ROUTES.PRINCIPAL.TIMETABLE, icon: Clock },
+      { label: 'Datesheet', href: ROUTES.PRINCIPAL.DATESHEET, icon: CalendarRange },
       { label: 'Attendance', href: ROUTES.PRINCIPAL.ATTENDANCE, icon: CalendarCheck },
       { label: 'Diary', href: ROUTES.PRINCIPAL.DIARY, icon: BookOpenText },
     ],
@@ -120,6 +123,7 @@ export const teacherNavigation: NavGroup[] = [
       { label: 'Attendance', href: ROUTES.TEACHER.ATTENDANCE, icon: CalendarCheck },
       { label: 'Diary', href: ROUTES.TEACHER.DIARY, icon: BookOpenText },
       { label: 'Timetable', href: ROUTES.TEACHER.TIMETABLE, icon: Clock },
+      { label: 'Datesheet', href: ROUTES.TEACHER.DATESHEET, icon: CalendarRange },
     ],
   },
   {
@@ -150,6 +154,7 @@ export const studentNavigation: NavGroup[] = [
       { label: 'My Attendance', href: ROUTES.STUDENT.ATTENDANCE, icon: CalendarCheck },
       { label: 'Diary', href: ROUTES.STUDENT.DIARY, icon: BookOpenText },
       { label: 'My Timetable', href: ROUTES.STUDENT.TIMETABLE, icon: Clock },
+      { label: 'Datesheet', href: ROUTES.STUDENT.DATESHEET, icon: CalendarRange },
     ],
   },
   {
@@ -173,6 +178,7 @@ export const familyNavigation: NavGroup[] = [
       { label: 'Attendance', href: ROUTES.FAMILY.ATTENDANCE, icon: CalendarCheck },
       { label: 'Exams & Results', href: ROUTES.FAMILY.RESULTS, icon: BarChart3 },
       { label: 'Timetable', href: ROUTES.FAMILY.TIMETABLE, icon: Clock },
+      { label: 'Datesheet', href: ROUTES.FAMILY.DATESHEET, icon: CalendarRange },
       { label: 'Diary', href: ROUTES.FAMILY.DIARY, icon: BookOpenText },
     ],
   },

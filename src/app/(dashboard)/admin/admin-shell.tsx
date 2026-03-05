@@ -20,6 +20,7 @@ type AdminShellProps = {
     subjects: { id: string; name: string; code: string }[];
     classes: { id: string; name: string; sections: { id: string; name: string }[] }[];
     academicSessions: { id: string; name: string; isCurrent: boolean }[];
+    subjectClassLinks: { subjectId: string; classId: string; className: string }[];
   };
   children: React.ReactNode;
 };
@@ -37,7 +38,7 @@ export function AdminShell({ user, referenceData, children }: AdminShellProps) {
         classes: referenceData.classes,
         academicSessions: referenceData.academicSessions,
         tags: [],
-        subjectClassLinks: [],
+        subjectClassLinks: referenceData.subjectClassLinks,
       });
     }
   }, [user, referenceData]);

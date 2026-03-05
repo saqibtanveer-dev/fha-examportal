@@ -158,6 +158,21 @@ export const queryKeys = {
       [...queryKeys.timetable.all, 'teacher', teacherProfileId] as const,
   },
 
+  // ── Datesheet ──
+  datesheet: {
+    all: ['datesheet'] as const,
+    lists: () => [...queryKeys.datesheet.all, 'list'] as const,
+    list: (filters: Record<string, unknown>) => [...queryKeys.datesheet.lists(), filters] as const,
+    details: () => [...queryKeys.datesheet.all, 'detail'] as const,
+    detail: (id: string) => [...queryKeys.datesheet.details(), id] as const,
+    entries: (datesheetId: string) => [...queryKeys.datesheet.all, 'entries', datesheetId] as const,
+    stats: (datesheetId: string) => [...queryKeys.datesheet.all, 'stats', datesheetId] as const,
+    byClass: (classId: string, sectionId: string) =>
+      [...queryKeys.datesheet.all, 'class', classId, sectionId] as const,
+    teacherDuties: (teacherProfileId: string) =>
+      [...queryKeys.datesheet.all, 'teacher-duties', teacherProfileId] as const,
+  },
+
   // ── Attendance ──
   attendance: {
     all: ['attendance'] as const,

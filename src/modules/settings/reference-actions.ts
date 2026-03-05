@@ -91,10 +91,10 @@ export async function fetchTeacherReferenceData(): Promise<ActionResult<Referenc
 /**
  * Fetches reference data for admin pages.
  */
-export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions'>>> {
+export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions' | 'subjectClassLinks'>>> {
   await requireRole('ADMIN');
 
-  const [subjects, classes, academicSessions] = await Promise.all([
+  const [subjects, classes, academicSessions, links] = await Promise.all([
     prisma.subject.findMany({
       where: { isActive: true },
       orderBy: { name: 'asc' },
@@ -109,6 +109,10 @@ export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<Refer
       orderBy: { startDate: 'desc' },
       select: { id: true, name: true, isCurrent: true },
     }),
+    prisma.subjectClassLink.findMany({
+      where: { isActive: true },
+      include: { class: { select: { id: true, name: true } } },
+    }),
   ]);
 
   return {
@@ -117,6 +121,11 @@ export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<Refer
       subjects,
       classes: classes.map((c) => ({ id: c.id, name: c.name, sections: c.sections })),
       academicSessions,
+      subjectClassLinks: links.map((l) => ({
+        subjectId: l.subjectId,
+        classId: l.classId,
+        className: l.class.name,
+      })),
     },
   };
 }

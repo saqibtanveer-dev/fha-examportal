@@ -132,6 +132,25 @@ export function useInvalidateCache() {
       await invalidateQueries(queryKeys.timetable.all);
     },
 
+    // ── Datesheet Module Invalidation ──
+    datesheet: () => invalidateQueries(queryKeys.datesheet.all),
+    datesheetLists: () => invalidateQueries(queryKeys.datesheet.lists()),
+    datesheetDetail: (id: string) => invalidateQueries(queryKeys.datesheet.detail(id)),
+    datesheetEntries: (datesheetId: string) =>
+      invalidateQueries(queryKeys.datesheet.entries(datesheetId)),
+    afterDatesheetMutation: async (datesheetId?: string) => {
+      const promises = [invalidateQueries(queryKeys.datesheet.all)];
+      if (datesheetId) promises.push(invalidateQueries(queryKeys.datesheet.detail(datesheetId)));
+      await Promise.all(promises);
+    },
+    afterDatesheetPublish: async (datesheetId: string) => {
+      await Promise.all([
+        invalidateQueries(queryKeys.datesheet.all),
+        invalidateQueries(queryKeys.datesheet.detail(datesheetId)),
+        invalidateQueries(queryKeys.notifications.all),
+      ]);
+    },
+
     // ── Attendance Module Invalidation ──
     attendance: () => invalidateQueries(queryKeys.attendance.all),
     dailyAttendance: () => invalidateQueries(queryKeys.attendance.daily()),
