@@ -26,6 +26,12 @@ export const createExamAction = safeAction(async function createExamAction(input
 
   const { questions, classAssignments, scheduledStartAt, scheduledEndAt, academicSessionId, ...examData } = parsed.data;
 
+  // For written exams, enforce certain defaults
+  if (examData.deliveryMode === 'WRITTEN') {
+    examData.shuffleQuestions = false;
+    examData.maxAttempts = 1;
+  }
+
   // Auto-set academic session to current if not provided
   let sessionId = academicSessionId;
   if (!sessionId) {
@@ -104,25 +110,28 @@ export const publishExamAction = safeAction(async function publishExamAction(id:
 
   await prisma.exam.update({ where: { id }, data: { status: 'PUBLISHED' } });
 
-  // Notify active students in assigned classes
-  const classIds = exam.examClassAssignments.map((a) => a.classId);
-  const students = await prisma.studentProfile.findMany({
-    where: {
-      classId: { in: classIds },
-      status: 'ACTIVE',
-      user: { isActive: true, deletedAt: null },
-    },
-    select: { userId: true },
-  });
-  const studentIds = students.map((s) => s.userId);
-  if (studentIds.length > 0) {
-    await createBulkNotifications(
-      studentIds,
-      'EXAM_ASSIGNED',
-      'New Exam Assigned',
-      `Exam "${exam.title}" has been published. Check your dashboard.`,
-      '/student/exams',
-    );
+  // Skip student notifications for written exams (students don't see them on portal)
+  if (exam.deliveryMode !== 'WRITTEN') {
+    // Notify active students in assigned classes
+    const classIds = exam.examClassAssignments.map((a) => a.classId);
+    const students = await prisma.studentProfile.findMany({
+      where: {
+        classId: { in: classIds },
+        status: 'ACTIVE',
+        user: { isActive: true, deletedAt: null },
+      },
+      select: { userId: true },
+    });
+    const studentIds = students.map((s) => s.userId);
+    if (studentIds.length > 0) {
+      await createBulkNotifications(
+        studentIds,
+        'EXAM_ASSIGNED',
+        'New Exam Assigned',
+        `Exam "${exam.title}" has been published. Check your dashboard.`,
+        '/student/exams',
+      );
+    }
   }
 
   createAuditLog(session.user.id, 'PUBLISH_EXAM', 'EXAM', id).catch(() => {});

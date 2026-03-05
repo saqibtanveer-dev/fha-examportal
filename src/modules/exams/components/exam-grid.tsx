@@ -21,12 +21,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { MoreHorizontal, Pencil, Trash2, Send, Clock, FileQuestion, Users } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Send, Clock, FileQuestion, Users, ClipboardEdit } from 'lucide-react';
 import { Spinner } from '@/components/shared';
 import { publishExamAction, deleteExamAction } from '@/modules/exams/exam-actions';
 import { EditExamDialog } from './edit-exam-dialog';
 import { toast } from 'sonner';
 import { formatDate, formatDuration } from '@/utils/format';
+import { useRouter } from 'next/navigation';
 import type { ExamWithRelations } from '@/modules/exams/exam-queries';
 import type { DeepSerialize } from '@/utils/serialize';
 
@@ -49,6 +50,7 @@ export function ExamGrid({ exams }: Props) {
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
   const [publishConfirm, setPublishConfirm] = useState<{ id: string; title: string } | null>(null);
   const invalidate = useInvalidateCache();
+  const router = useRouter();
 
   const startLoading = useCallback((key: LoadingKey) => {
     setLoadingKeys((prev) => new Set(prev).add(key));
@@ -115,7 +117,14 @@ export function ExamGrid({ exams }: Props) {
             <CardHeader className="flex flex-row items-start justify-between gap-2 pb-2">
               <div className="min-w-0 flex-1 space-y-1">
                 <CardTitle className="line-clamp-2 break-words text-base leading-snug">{exam.title}</CardTitle>
-                <Badge variant="outline">{exam.subject.code}</Badge>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant="outline">{exam.subject.code}</Badge>
+                  {(exam as any).deliveryMode === 'WRITTEN' && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                      Written
+                    </Badge>
+                  )}
+                </div>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <Badge className={statusColors[exam.status] ?? ''} variant="outline">
@@ -128,6 +137,11 @@ export function ExamGrid({ exams }: Props) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
+                    {(exam as any).deliveryMode === 'WRITTEN' && exam.status !== 'DRAFT' && (
+                      <DropdownMenuItem onClick={() => router.push(`/teacher/exams/${exam.id}/marks`)}>
+                        <ClipboardEdit className="mr-2 h-4 w-4" />Enter Marks
+                      </DropdownMenuItem>
+                    )}
                     {exam.status === 'DRAFT' && (
                       <DropdownMenuItem onClick={() => setEditingExam(exam)}>
                         <Pencil className="mr-2 h-4 w-4" />Edit

@@ -19,6 +19,12 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.exams.details(), id] as const,
   },
 
+  // ── Written Exams ──
+  writtenExams: {
+    all: ['written-exams'] as const,
+    markEntry: (examId: string) => [...queryKeys.writtenExams.all, 'mark-entry', examId] as const,
+  },
+
   // ── Questions ──
   questions: {
     all: ['questions'] as const,

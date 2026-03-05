@@ -99,6 +99,7 @@ export async function getExamsForStudent(studentId: string, classId: string, sec
     where: {
       deletedAt: null,
       status: { in: ['PUBLISHED', 'ACTIVE'] },
+      deliveryMode: 'ONLINE',
       examClassAssignments: {
         some: {
           classId,

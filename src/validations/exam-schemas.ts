@@ -30,6 +30,7 @@ export const createExamSchema = z.object({
   subjectId: z.string().uuid('Invalid subject'),
   academicSessionId: z.string().uuid('Invalid session').optional(),
   type: z.enum(['QUIZ', 'MIDTERM', 'FINAL', 'PRACTICE', 'CUSTOM']),
+  deliveryMode: z.enum(['ONLINE', 'WRITTEN']).default('ONLINE'),
   totalMarks: z.number().positive('Total marks must be positive'),
   passingMarks: z.number().positive('Passing marks must be positive'),
   duration: z.number().int().min(5, 'Min 5 minutes').max(300, 'Max 300 minutes'),

@@ -1,4 +1,4 @@
-# Written Exam System — Brutal Analysis & Gap Assessment
+    # Written Exam System — Brutal Analysis & Gap Assessment
 
 > **Date:** March 5, 2026  
 > **Scope:** Complete analysis of current online-only exam architecture and what must change for written exam support  

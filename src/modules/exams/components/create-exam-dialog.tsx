@@ -47,6 +47,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
   const [isPending, startTransition] = useTransition();
   const [subjectId, setSubjectId] = useState('');
   const [type, setType] = useState('QUIZ');
+  const [deliveryMode, setDeliveryMode] = useState<'ONLINE' | 'WRITTEN'>('ONLINE');
   const [duration, setDuration] = useState('');
   const [academicSessionId, setAcademicSessionId] = useState(() => {
     const current = academicSessions.find((s) => s.isCurrent);
@@ -104,6 +105,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
         subjectId,
         academicSessionId: academicSessionId || undefined,
         type: type as 'QUIZ' | 'MIDTERM' | 'FINAL' | 'PRACTICE' | 'CUSTOM',
+        deliveryMode,
         totalMarks,
         passingMarks: parseFloat(formData.get('passingMarks') as string),
         duration: parseInt(duration, 10),
@@ -134,6 +136,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
   function resetForm() {
     setSubjectId('');
     setType('QUIZ');
+    setDeliveryMode('ONLINE');
     setDuration('');
     setSelectedQuestions([]);
     setSelectedClasses([]);
@@ -147,6 +150,36 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
           <DialogDescription>Build a new exam from your question bank.</DialogDescription>
         </DialogHeader>
         <form action={handleSubmit} className="space-y-4">
+          {/* Delivery Mode Toggle */}
+          <div className="flex items-center gap-3 rounded-lg border p-3">
+            <Label className="text-sm font-medium">Delivery Mode:</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={deliveryMode === 'ONLINE' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDeliveryMode('ONLINE')}
+                disabled={isPending}
+              >
+                Online
+              </Button>
+              <Button
+                type="button"
+                variant={deliveryMode === 'WRITTEN' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setDeliveryMode('WRITTEN')}
+                disabled={isPending}
+              >
+                Written (Paper)
+              </Button>
+            </div>
+          </div>
+          {deliveryMode === 'WRITTEN' && (
+            <p className="text-xs text-muted-foreground">
+              Written exams are conducted on paper. You&apos;ll enter marks per question per student on the portal after checking papers.
+            </p>
+          )}
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>

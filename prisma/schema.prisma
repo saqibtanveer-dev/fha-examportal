@@ -44,6 +44,11 @@ enum TagCategory {
   CUSTOM
 }
 
+enum ExamDeliveryMode {
+  ONLINE
+  WRITTEN
+}
+
 enum ExamType {
   QUIZ
   MIDTERM
@@ -67,6 +72,7 @@ enum SessionStatus {
   TIMED_OUT
   GRADING
   GRADED
+  ABSENT
 }
 
 enum ShowResultAfter {
@@ -221,6 +227,7 @@ model User {
   examSessions   ExamSession[]
   answerGrades   AnswerGrade[]    @relation("GraderUser")
   examResults    ExamResult[]
+  sessionsEntered ExamSession[]   @relation("MarksEnteredBy")
   auditLogs      AuditLog[]
   notifications  Notification[]
   promotionsDone StudentPromotion[]
@@ -560,6 +567,7 @@ model Exam {
   academicSessionId String?
   type              ExamType
   status            ExamStatus      @default(DRAFT)
+  deliveryMode      ExamDeliveryMode @default(ONLINE)
   totalMarks        Decimal
   passingMarks      Decimal
   duration          Int
@@ -586,6 +594,7 @@ model Exam {
   @@index([createdById])
   @@index([academicSessionId])
   @@index([status])
+  @@index([deliveryMode])
   @@index([scheduledStartAt])
   @@index([scheduledEndAt])
 }
@@ -643,16 +652,19 @@ model ExamSession {
   fullscreenExits  Int           @default(0)
   copyPasteAttempts Int          @default(0)
   isFlagged        Boolean       @default(false)
+  enteredById      String?
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
   exam           Exam            @relation(fields: [examId], references: [id])
   student        User            @relation(fields: [studentId], references: [id])
+  enteredBy      User?           @relation("MarksEnteredBy", fields: [enteredById], references: [id])
   studentAnswers StudentAnswer[]
   examResult     ExamResult?
 
   @@unique([examId, studentId, attemptNumber])
   @@index([status])
+  @@index([enteredById])
 }
 
 model StudentAnswer {

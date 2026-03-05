@@ -68,6 +68,24 @@ export function useInvalidateCache() {
       ]);
     },
 
+    // ── Written Exam Invalidation ──
+    writtenExams: () => invalidateQueries(queryKeys.writtenExams.all),
+    writtenExamMarkEntry: (examId: string) =>
+      invalidateQueries(queryKeys.writtenExams.markEntry(examId)),
+    afterWrittenMarksChange: async (examId: string) => {
+      await Promise.all([
+        invalidateQueries(queryKeys.writtenExams.markEntry(examId)),
+        invalidateQueries(queryKeys.exams.detail(examId)),
+      ]);
+    },
+    afterWrittenExamFinalize: async (examId: string) => {
+      await Promise.all([
+        invalidateQueries(queryKeys.writtenExams.markEntry(examId)),
+        invalidateQueries(queryKeys.exams.all),
+        invalidateQueries(queryKeys.results.all),
+      ]);
+    },
+
     // ── Admission Module Invalidation ──
     campaigns: () => invalidateQueries(queryKeys.campaigns.all),
     campaignLists: () => invalidateQueries(queryKeys.campaigns.lists()),

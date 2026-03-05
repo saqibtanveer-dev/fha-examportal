@@ -49,6 +49,13 @@ export const AI_REVIEW_RECOMMENDED_THRESHOLD = 0.6;
 export const AI_MAX_ANSWER_LENGTH = 4000;
 
 // ============================================
+// Written Exam
+// ============================================
+
+export const WRITTEN_EXAM_MAX_BULK_ENTRIES = 500;
+export const WRITTEN_EXAM_AUTOSAVE_DEBOUNCE_MS = 500;
+
+// ============================================
 // Admission Test Constants
 // ============================================
 
