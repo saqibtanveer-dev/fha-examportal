@@ -15,6 +15,7 @@ import {
 import { PerStudentView } from './per-student-view';
 import { SpreadsheetView } from './spreadsheet-view';
 import { FinalizeDialog } from './finalize-dialog';
+import { ExcelActions } from './excel-actions';
 
 type Props = { examId: string };
 
@@ -119,7 +120,10 @@ export function MarksEntryPageClient({ examId }: Props) {
           </TabsList>
         </Tabs>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {sessions.length > 0 && (
+            <ExcelActions examId={examId} data={data} isFinalized={isFinalized} />
+          )}
           {sessions.length === 0 && (
             <Button
               size="sm"

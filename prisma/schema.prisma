@@ -175,6 +175,16 @@ enum EvaluationStage {
 }
 
 // ============================================
+// DATESHEET ENUMS
+// ============================================
+
+enum DatesheetStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+// ============================================
 // ATTENDANCE & TIMETABLE ENUMS
 // ============================================
 
@@ -251,6 +261,10 @@ model User {
   // Family relations
   familyStudentLinksCreated FamilyStudentLink[] @relation("LinkCreator")
 
+  // Datesheet relations
+  publishedDatesheets      Datesheet[] @relation("DatesheetPublisher")
+  createdDatesheets        Datesheet[] @relation("DatesheetCreator")
+
   @@index([role])
   @@index([isActive])
   @@index([deletedAt])
@@ -309,6 +323,9 @@ model TeacherProfile {
 
   // Diary relations
   diaryEntries     DiaryEntry[]
+
+  // Datesheet relations
+  datesheetDuties  DatesheetDuty[]
 }
 
 model FamilyProfile {
@@ -380,6 +397,7 @@ model Subject {
   timetableEntries  TimetableEntry[]
   subjectAttendance SubjectAttendance[]
   diaryEntries      DiaryEntry[]
+  datesheetEntries  DatesheetEntry[]
 
   @@index([departmentId])
 }
@@ -441,6 +459,7 @@ model Class {
   dailyAttendance      DailyAttendance[]
   subjectAttendance    SubjectAttendance[]
   diaryEntries         DiaryEntry[]
+  datesheetEntries     DatesheetEntry[]
 
   @@index([grade])
 }
@@ -465,6 +484,7 @@ model Section {
   dailyAttendance      DailyAttendance[]
   subjectAttendance    SubjectAttendance[]
   diaryEntries         DiaryEntry[]
+  datesheetEntries     DatesheetEntry[]
 
   @@unique([classId, name])
   @@index([classId])
@@ -760,6 +780,7 @@ model AcademicSession {
   dailyAttendance   DailyAttendance[]
   subjectAttendance SubjectAttendance[]
   diaryEntries      DiaryEntry[]
+  datesheets        Datesheet[]
 
   @@index([isCurrent])
 }
@@ -1444,4 +1465,80 @@ model DiaryPrincipalNote {
 
   @@index([diaryEntryId])
   @@index([principalId])
+}
+
+// ============================================
+// DATESHEET SYSTEM
+// ============================================
+
+model Datesheet {
+  id                String          @id @default(uuid())
+  title             String
+  description       String?
+  examType          ExamType
+  academicSessionId String
+  status            DatesheetStatus @default(DRAFT)
+  startDate         DateTime        @db.Date
+  endDate           DateTime        @db.Date
+  publishedAt       DateTime?
+  publishedById     String?
+  createdById       String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  publishedBy     User?           @relation("DatesheetPublisher", fields: [publishedById], references: [id])
+  createdBy       User            @relation("DatesheetCreator", fields: [createdById], references: [id])
+  entries         DatesheetEntry[]
+
+  @@index([academicSessionId])
+  @@index([status])
+  @@index([examType])
+  @@index([startDate, endDate])
+}
+
+model DatesheetEntry {
+  id           String   @id @default(uuid())
+  datesheetId  String
+  classId      String
+  sectionId    String?
+  subjectId    String
+  examDate     DateTime @db.Date
+  startTime    String   // HH:mm format
+  endTime      String   // HH:mm format
+  room         String?
+  instructions String?
+  totalMarks   Decimal?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  datesheet Datesheet @relation(fields: [datesheetId], references: [id], onDelete: Cascade)
+  class     Class     @relation(fields: [classId], references: [id])
+  section   Section?  @relation(fields: [sectionId], references: [id])
+  subject   Subject   @relation(fields: [subjectId], references: [id])
+  duties    DatesheetDuty[]
+
+  @@unique([datesheetId, classId, sectionId, subjectId])
+  @@index([datesheetId])
+  @@index([classId, sectionId])
+  @@index([examDate])
+  @@index([subjectId])
+}
+
+model DatesheetDuty {
+  id               String   @id @default(uuid())
+  datesheetEntryId String
+  teacherProfileId String
+  role             String   @default("INVIGILATOR")
+  room             String?
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  datesheetEntry DatesheetEntry @relation(fields: [datesheetEntryId], references: [id], onDelete: Cascade)
+  teacherProfile TeacherProfile @relation(fields: [teacherProfileId], references: [id])
+
+  @@unique([datesheetEntryId, teacherProfileId])
+  @@index([teacherProfileId])
+  @@index([datesheetEntryId])
 }

@@ -12,7 +12,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { CheckCircle2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, AlertTriangle, Users, UserX, UserCheck, Clock } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 type Stats = {
   totalStudents: number;
@@ -48,66 +49,96 @@ export function FinalizeDialog({ open, onOpenChange, examId, isRefinalize, stats
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-md sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
             {canFinalize ? (
-              <CheckCircle2 className="h-5 w-5 text-green-600" />
+              <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600 dark:text-green-400" />
             ) : (
-              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600 dark:text-amber-400" />
             )}
             {isRefinalize ? 'Recalculate Results' : 'Finalize Results'}
           </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-3">
-              {isRefinalize ? (
-                <p>This will recalculate scores, grades, and rankings for all students.</p>
-              ) : (
-                <p>
-                  This will calculate final scores, assign grades, and rank all students.
-                  Make sure all marks are entered correctly before proceeding.
-                </p>
-              )}
-
-              {/* Stats summary */}
-              <div className="rounded-md border p-3 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span>Completed</span>
-                  <span className="font-medium text-green-700">{stats.completedCount}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Absent</span>
-                  <span className="font-medium text-red-700">{stats.absentCount}</span>
-                </div>
-                {incompleteCount > 0 && (
-                  <div className="flex justify-between text-amber-700">
-                    <span>Incomplete (marks not entered)</span>
-                    <span className="font-medium">{incompleteCount}</span>
-                  </div>
-                )}
-                <div className="flex justify-between border-t pt-1">
-                  <span>Total</span>
-                  <span className="font-medium">{stats.totalStudents}</span>
-                </div>
-              </div>
-
-              {!canFinalize && incompleteCount > 0 && (
-                <p className="text-sm text-destructive">
-                  Cannot finalize: {incompleteCount} student{incompleteCount !== 1 ? 's' : ''} still
-                  have incomplete marks. Enter all marks or mark them as absent first.
-                </p>
-              )}
-            </div>
+          <AlertDialogDescription>
+            {isRefinalize
+              ? 'This will recalculate scores, grades, and rankings for all students.'
+              : 'This will calculate final scores, assign grades, and rank all students. Make sure all marks are entered correctly before proceeding.'}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={activeMutation.isPending}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={handleConfirm} disabled={!canFinalize || activeMutation.isPending}>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-2">
+          <StatCard
+            icon={UserCheck}
+            label="Completed"
+            value={stats.completedCount}
+            className="text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-900"
+          />
+          <StatCard
+            icon={UserX}
+            label="Absent"
+            value={stats.absentCount}
+            className="text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900"
+          />
+          {incompleteCount > 0 && (
+            <StatCard
+              icon={Clock}
+              label="Incomplete"
+              value={incompleteCount}
+              className="text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900"
+            />
+          )}
+          <StatCard
+            icon={Users}
+            label="Total"
+            value={stats.totalStudents}
+            className="text-foreground bg-muted/50 border-border"
+          />
+        </div>
+
+        {!canFinalize && incompleteCount > 0 && (
+          <p className="text-sm text-destructive">
+            Cannot finalize: {incompleteCount} student{incompleteCount !== 1 ? 's' : ''} still
+            have incomplete marks. Enter all marks or mark them as absent first.
+          </p>
+        )}
+
+        <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
+          <AlertDialogCancel disabled={activeMutation.isPending} className="min-h-10">
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={handleConfirm}
+            disabled={!canFinalize || activeMutation.isPending}
+            className="min-h-10"
+          >
             {activeMutation.isPending && <Spinner size="sm" className="mr-2" />}
             {isRefinalize ? 'Recalculate' : 'Finalize'}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
+  );
+}
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: number;
+  className?: string;
+}) {
+  return (
+    <div className={cn('flex items-center gap-2.5 rounded-lg border p-2.5', className)}>
+      <Icon className="h-4 w-4 shrink-0" />
+      <div className="min-w-0">
+        <p className="text-xs leading-none opacity-80">{label}</p>
+        <p className="text-lg font-bold tabular-nums leading-tight">{value}</p>
+      </div>
+    </div>
   );
 }

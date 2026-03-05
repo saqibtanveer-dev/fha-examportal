@@ -3,6 +3,8 @@ import { notFound } from 'next/navigation';
 import { getExamDetail } from '@/modules/exams/exam-queries';
 import { MarksEntryPageClient } from '@/modules/written-exams/components/marks-entry-page-client';
 
+export const maxDuration = 30;
+
 type Props = {
   params: Promise<{ examId: string }>;
 };

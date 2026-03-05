@@ -61,26 +61,33 @@ export const bulkEnterWrittenMarksAction = safeAction(
       }
     }
 
-    let savedCount = 0;
+    // Collect all affected session IDs
+    const affectedSessionIds = [...new Set(entries.map((e) => e.sessionId))];
 
-    await prisma.$transaction(async (tx) => {
+    const savedCount = await prisma.$transaction(async (tx) => {
+      // 1) Batch fetch ALL student answers for affected sessions (1 query)
+      const studentAnswers = await tx.studentAnswer.findMany({
+        where: { sessionId: { in: affectedSessionIds } },
+        select: { id: true, sessionId: true, examQuestionId: true },
+      });
+
+      // Build lookup: "sessionId:examQuestionId" → answerId
+      const answerLookup = new Map(
+        studentAnswers.map((a) => [`${a.sessionId}:${a.examQuestionId}`, a.id]),
+      );
+
+      // 2) Upsert grades (still individual due to Prisma upsert limitations, but
+      //    we eliminated the findUnique + update per entry — down from 3 queries to 1 per entry)
+      let count = 0;
       for (const entry of entries) {
-        const studentAnswer = await tx.studentAnswer.findUnique({
-          where: {
-            sessionId_examQuestionId: {
-              sessionId: entry.sessionId,
-              examQuestionId: entry.examQuestionId,
-            },
-          },
-        });
-        if (!studentAnswer) continue;
+        const answerId = answerLookup.get(`${entry.sessionId}:${entry.examQuestionId}`);
+        if (!answerId) continue;
 
         const maxMarks = questionMaxMap.get(entry.examQuestionId)!;
-
         await tx.answerGrade.upsert({
-          where: { studentAnswerId: studentAnswer.id },
+          where: { studentAnswerId: answerId },
           create: {
-            studentAnswerId: studentAnswer.id,
+            studentAnswerId: answerId,
             gradedBy: 'TEACHER',
             graderId: session.user.id,
             marksAwarded: entry.marksAwarded,
@@ -92,35 +99,50 @@ export const bulkEnterWrittenMarksAction = safeAction(
             graderId: session.user.id,
           },
         });
+        count++;
+      }
 
-        await tx.studentAnswer.update({
-          where: { id: studentAnswer.id },
+      // 3) Batch update all answered timestamps at once (1 query instead of N)
+      const answeredIds = entries
+        .map((e) => answerLookup.get(`${e.sessionId}:${e.examQuestionId}`))
+        .filter((id): id is string => !!id);
+      if (answeredIds.length > 0) {
+        await tx.studentAnswer.updateMany({
+          where: { id: { in: answeredIds } },
           data: { answeredAt: new Date() },
         });
-
-        savedCount++;
       }
-    });
 
-    // Update session statuses for affected sessions
-    const affectedSessionIds = [...new Set(entries.map((e) => e.sessionId))];
-    for (const sessionId of affectedSessionIds) {
-      const gradedCount = await prisma.answerGrade.count({
-        where: { studentAnswer: { sessionId } },
+      // 4) Batch update session statuses (inside transaction for atomicity)
+      //    Fetch graded counts per session, then batch update
+      const sessionsWithStatus = await tx.examSession.findMany({
+        where: { id: { in: affectedSessionIds }, status: { notIn: ['GRADED', 'ABSENT'] } },
+        select: { id: true, _count: { select: { studentAnswers: { where: { answerGrade: { isNot: null } } } } } },
       });
-      const isComplete = gradedCount >= examQuestions.length;
 
-      const currentSession = await prisma.examSession.findUnique({
-        where: { id: sessionId },
-        select: { status: true },
-      });
-      if (currentSession && !['GRADED', 'ABSENT'].includes(currentSession.status)) {
-        await prisma.examSession.update({
-          where: { id: sessionId },
-          data: { status: isComplete ? 'SUBMITTED' : 'IN_PROGRESS' },
+      const totalQCount = examQuestions.length;
+      const completedIds = sessionsWithStatus
+        .filter((s) => s._count.studentAnswers >= totalQCount)
+        .map((s) => s.id);
+      const inProgressIds = sessionsWithStatus
+        .filter((s) => s._count.studentAnswers < totalQCount)
+        .map((s) => s.id);
+
+      if (completedIds.length > 0) {
+        await tx.examSession.updateMany({
+          where: { id: { in: completedIds } },
+          data: { status: 'SUBMITTED' },
         });
       }
-    }
+      if (inProgressIds.length > 0) {
+        await tx.examSession.updateMany({
+          where: { id: { in: inProgressIds } },
+          data: { status: 'IN_PROGRESS' },
+        });
+      }
+
+      return count;
+    });
 
     revalidatePath(MARKS_PATH);
     return { success: true, data: { totalEntriesSaved: savedCount } };
@@ -297,7 +319,7 @@ export const finalizeWrittenExamAction = safeAction(
     const totalMarks = Number(exam.totalMarks);
     const passingMarks = Number(exam.passingMarks);
 
-    // Calculate results in transaction
+    // Calculate results, assign ranks, and mark exam completed — all in one transaction
     const results = await prisma.$transaction(async (tx) => {
       const createdResults = [];
 
@@ -330,39 +352,54 @@ export const finalizeWrittenExamAction = safeAction(
           },
         });
 
-        await tx.examSession.update({
-          where: { id: s.id },
-          data: { status: 'GRADED', submittedAt: new Date() },
-        });
-
         createdResults.push(result);
       }
 
-      return createdResults;
-    });
-
-    // Calculate and assign ranks
-    const ranked = results
-      .sort((a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks));
-
-    let currentRank = 1;
-    let prevMarks: number | null = null;
-    for (const [i, result] of ranked.entries()) {
-      const marks = Number(result.obtainedMarks);
-      if (prevMarks !== null && marks < prevMarks) {
-        currentRank = i + 1;
-      }
-      await prisma.examResult.update({
-        where: { id: result.id },
-        data: { rank: currentRank },
+      // Batch update all active sessions to GRADED
+      const sessionIds = activeSessions.map((s) => s.id);
+      await tx.examSession.updateMany({
+        where: { id: { in: sessionIds } },
+        data: { status: 'GRADED', submittedAt: new Date() },
       });
-      prevMarks = marks;
-    }
 
-    // Mark exam as completed
-    await prisma.exam.update({
-      where: { id: examId },
-      data: { status: 'COMPLETED' },
+      // Calculate and assign ranks inside transaction
+      const ranked = createdResults.sort(
+        (a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks),
+      );
+
+      let currentRank = 1;
+      let prevMarks: number | null = null;
+      const rankUpdates: Array<{ id: string; rank: number }> = [];
+      for (const [i, result] of ranked.entries()) {
+        const marks = Number(result.obtainedMarks);
+        if (prevMarks !== null && marks < prevMarks) {
+          currentRank = i + 1;
+        }
+        rankUpdates.push({ id: result.id, rank: currentRank });
+        prevMarks = marks;
+      }
+
+      // Batch rank updates by grouping same-rank results
+      const rankGroups = new Map<number, string[]>();
+      for (const { id, rank } of rankUpdates) {
+        const group = rankGroups.get(rank) ?? [];
+        group.push(id);
+        rankGroups.set(rank, group);
+      }
+      for (const [rank, ids] of rankGroups) {
+        await tx.examResult.updateMany({
+          where: { id: { in: ids } },
+          data: { rank },
+        });
+      }
+
+      // Mark exam as completed
+      await tx.exam.update({
+        where: { id: examId },
+        data: { status: 'COMPLETED' },
+      });
+
+      return createdResults;
     });
 
     createAuditLog(session.user.id, 'FINALIZE_WRITTEN_EXAM', 'EXAM', examId, {
@@ -441,24 +478,33 @@ export const refinalizeWrittenExamAction = safeAction(
         });
         updated.push(result);
       }
+
+      // Recalculate ranks inside transaction
+      const ranked = updated.sort((a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks));
+      let currentRank = 1;
+      let prevMarks: number | null = null;
+      const rankGroups = new Map<number, string[]>();
+
+      for (const [i, result] of ranked.entries()) {
+        const marks = Number(result.obtainedMarks);
+        if (prevMarks !== null && marks < prevMarks) {
+          currentRank = i + 1;
+        }
+        const group = rankGroups.get(currentRank) ?? [];
+        group.push(result.id);
+        rankGroups.set(currentRank, group);
+        prevMarks = marks;
+      }
+
+      for (const [rank, ids] of rankGroups) {
+        await tx.examResult.updateMany({
+          where: { id: { in: ids } },
+          data: { rank },
+        });
+      }
+
       return updated;
     });
-
-    // Recalculate ranks
-    const ranked = results.sort((a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks));
-    let currentRank = 1;
-    let prevMarks: number | null = null;
-    for (const [i, result] of ranked.entries()) {
-      const marks = Number(result.obtainedMarks);
-      if (prevMarks !== null && marks < prevMarks) {
-        currentRank = i + 1;
-      }
-      await prisma.examResult.update({
-        where: { id: result.id },
-        data: { rank: currentRank },
-      });
-      prevMarks = marks;
-    }
 
     createAuditLog(session.user.id, 'REFINALIZE_WRITTEN_EXAM', 'EXAM', examId, {
       resultsUpdated: results.length,

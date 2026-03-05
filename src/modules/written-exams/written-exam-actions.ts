@@ -97,27 +97,34 @@ export const initializeWrittenExamSessionsAction = safeAction(
       select: { id: true },
     });
 
-    // Bulk create sessions + empty answers in transaction
+    // Bulk create sessions + empty answers in transaction (batch insert, not sequential)
     await prisma.$transaction(async (tx) => {
-      for (const studentId of newStudentIds) {
-        const newSession = await tx.examSession.create({
-          data: {
-            examId,
-            studentId,
-            attemptNumber: 1,
-            status: 'NOT_STARTED',
-            enteredById: session.user.id,
-          },
-        });
+      // 1) Batch create all sessions at once
+      await tx.examSession.createMany({
+        data: newStudentIds.map((studentId) => ({
+          examId,
+          studentId,
+          attemptNumber: 1,
+          status: 'NOT_STARTED' as const,
+          enteredById: session.user.id,
+        })),
+      });
 
-        if (examQuestions.length > 0) {
-          await tx.studentAnswer.createMany({
-            data: examQuestions.map((eq) => ({
-              sessionId: newSession.id,
-              examQuestionId: eq.id,
-            })),
-          });
-        }
+      // 2) Fetch back the created session IDs
+      const createdSessions = await tx.examSession.findMany({
+        where: { examId, studentId: { in: newStudentIds } },
+        select: { id: true },
+      });
+
+      // 3) Batch create all empty answers at once
+      if (examQuestions.length > 0 && createdSessions.length > 0) {
+        const answerData = createdSessions.flatMap((s) =>
+          examQuestions.map((eq) => ({
+            sessionId: s.id,
+            examQuestionId: eq.id,
+          })),
+        );
+        await tx.studentAnswer.createMany({ data: answerData });
       }
     });
 
@@ -279,24 +286,25 @@ export const batchEnterWrittenMarksAction = safeAction(
     let totalObtained = 0;
 
     await prisma.$transaction(async (tx) => {
+      // 1) Batch fetch all student answers for this session
+      const studentAnswers = await tx.studentAnswer.findMany({
+        where: { sessionId },
+        select: { id: true, examQuestionId: true },
+      });
+      const answerMap = new Map(studentAnswers.map((a) => [a.examQuestionId, a.id]));
+
+      // 2) Batch upsert grades + update answers
       for (const entry of marks) {
-        const studentAnswer = await tx.studentAnswer.findUnique({
-          where: {
-            sessionId_examQuestionId: {
-              sessionId,
-              examQuestionId: entry.examQuestionId,
-            },
-          },
-        });
-        if (!studentAnswer) continue;
+        const answerId = answerMap.get(entry.examQuestionId);
+        if (!answerId) continue;
 
         const maxMarks = questionMap.get(entry.examQuestionId)!;
         totalObtained += entry.marksAwarded;
 
         await tx.answerGrade.upsert({
-          where: { studentAnswerId: studentAnswer.id },
+          where: { studentAnswerId: answerId },
           create: {
-            studentAnswerId: studentAnswer.id,
+            studentAnswerId: answerId,
             gradedBy: 'TEACHER',
             graderId: session.user.id,
             marksAwarded: entry.marksAwarded,
@@ -310,9 +318,15 @@ export const batchEnterWrittenMarksAction = safeAction(
             graderId: session.user.id,
           },
         });
+      }
 
-        await tx.studentAnswer.update({
-          where: { id: studentAnswer.id },
+      // 3) Batch update all answered timestamps at once
+      const answeredIds = marks
+        .map((e) => answerMap.get(e.examQuestionId))
+        .filter((id): id is string => !!id);
+      if (answeredIds.length > 0) {
+        await tx.studentAnswer.updateMany({
+          where: { id: { in: answeredIds } },
           data: { answeredAt: new Date() },
         });
       }
