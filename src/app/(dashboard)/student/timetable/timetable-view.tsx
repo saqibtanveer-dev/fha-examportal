@@ -27,7 +27,7 @@ export function StudentTimetableView({ studentProfile }: Props) {
     queryFn: () => fetchCurrentAcademicSessionAction(),
   });
 
-  const { data: periodSlots, isLoading: slotsLoading } = useActivePeriodSlots(studentProfile.classId);
+  const { data: periodSlots, isLoading: slotsLoading } = useActivePeriodSlots(studentProfile.classId, studentProfile.sectionId);
 
   const sessionId = (currentSession as any)?.id ?? '';
 

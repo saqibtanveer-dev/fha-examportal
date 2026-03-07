@@ -15,41 +15,90 @@ const periodSlotSelect = {
   isBreak: true,
   isActive: true,
   classId: true,
+  sectionId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
-/** List all global period slots (classId = null) */
+/** List all global period slots (classId = null, sectionId = null) */
 export async function listPeriodSlots() {
   return prisma.periodSlot.findMany({
-    where: { classId: null },
+    where: { classId: null, sectionId: null },
     orderBy: { sortOrder: 'asc' },
     select: periodSlotSelect,
   });
 }
 
-/** List active period slots for a class: class-specific if they exist, otherwise global */
-export async function listActivePeriodSlots(classId?: string) {
-  if (classId) {
-    const classSpecific = await prisma.periodSlot.findMany({
-      where: { classId, isActive: true },
+/** List ALL period slots (global + class + section) for admin management */
+export async function listAllPeriodSlots() {
+  return prisma.periodSlot.findMany({
+    orderBy: [{ classId: 'asc' }, { sectionId: 'asc' }, { sortOrder: 'asc' }],
+    select: periodSlotSelect,
+  });
+}
+
+/**
+ * 3-tier merge: Global → Class → Section.
+ * Each tier overrides the previous at the same sortOrder, adds at new sortOrders.
+ * - No classId → pure global
+ * - classId only → global + class overrides
+ * - classId + sectionId → global + class overrides + section overrides
+ */
+export async function listActivePeriodSlots(classId?: string, sectionId?: string) {
+  const globalSlots = await prisma.periodSlot.findMany({
+    where: { isActive: true, classId: null, sectionId: null },
+    orderBy: { sortOrder: 'asc' },
+    select: periodSlotSelect,
+  });
+
+  if (!classId) return globalSlots;
+
+  // Layer 2: class-level overrides (sectionId = null)
+  const classSlots = await prisma.periodSlot.findMany({
+    where: { classId, sectionId: null, isActive: true },
+    orderBy: { sortOrder: 'asc' },
+    select: periodSlotSelect,
+  });
+
+  // Merge class on top of global
+  let merged = mergeSlotLayers(globalSlots, classSlots);
+
+  if (sectionId) {
+    // Layer 3: section-level overrides
+    const sectionSlots = await prisma.periodSlot.findMany({
+      where: { classId, sectionId, isActive: true },
       orderBy: { sortOrder: 'asc' },
       select: periodSlotSelect,
     });
-    if (classSpecific.length > 0) return classSpecific;
+    merged = mergeSlotLayers(merged, sectionSlots);
   }
-  // Fallback to global slots
+
+  return merged;
+}
+
+/** Override base slots with overlay at matching sortOrders, add new ones */
+function mergeSlotLayers<T extends { sortOrder: number }>(base: T[], overlay: T[]): T[] {
+  if (overlay.length === 0) return base;
+  const overlaySortOrders = new Set(overlay.map((s) => s.sortOrder));
+  return [
+    ...base.filter((s) => !overlaySortOrders.has(s.sortOrder)),
+    ...overlay,
+  ].sort((a, b) => a.sortOrder - b.sortOrder);
+}
+
+/** List period slots for a specific class (sectionId=null, for admin management) */
+export async function listPeriodSlotsByClass(classId: string) {
   return prisma.periodSlot.findMany({
-    where: { isActive: true, classId: null },
+    where: { classId, sectionId: null },
     orderBy: { sortOrder: 'asc' },
     select: periodSlotSelect,
   });
 }
 
-/** List all period slots for a specific class (for admin management) */
-export async function listPeriodSlotsByClass(classId: string) {
+/** List period slots for a specific section (for admin management) */
+export async function listPeriodSlotsBySection(classId: string, sectionId: string) {
   return prisma.periodSlot.findMany({
-    where: { classId },
+    where: { classId, sectionId },
     orderBy: { sortOrder: 'asc' },
     select: periodSlotSelect,
   });
@@ -62,10 +111,10 @@ export async function getPeriodSlotById(id: string) {
   });
 }
 
-export async function getMaxPeriodSortOrder(classId?: string | null): Promise<number> {
+export async function getMaxPeriodSortOrder(classId?: string | null, sectionId?: string | null): Promise<number> {
   const result = await prisma.periodSlot.aggregate({
     _max: { sortOrder: true },
-    where: { classId: classId ?? null },
+    where: { classId: classId ?? null, sectionId: sectionId ?? null },
   });
   return result._max.sortOrder ?? 0;
 }

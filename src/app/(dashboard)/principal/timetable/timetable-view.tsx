@@ -26,7 +26,7 @@ export function PrincipalTimetableView({ periodSlots, classes, currentSessionId 
   const sections = selectedClass?.sections ?? [];
   const sectionId = selectedSectionId || sections[0]?.id || '';
 
-  const { data: classSpecificSlots } = useActivePeriodSlots(selectedClassId || undefined);
+  const { data: classSpecificSlots } = useActivePeriodSlots(selectedClassId || undefined, sectionId || undefined);
   const effectivePeriodSlots = classSpecificSlots ?? periodSlots;
 
   const { data: entries, isLoading } = useTimetableByClass(

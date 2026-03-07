@@ -492,6 +492,7 @@ model Section {
   promotionsTo         StudentPromotion[]   @relation("PromotionToSection")
   admissionPlacements  AdmissionDecisionRecord[]
   timetableEntries     TimetableEntry[]
+  periodSlots          PeriodSlot[]
   dailyAttendance      DailyAttendance[]
   subjectAttendance    SubjectAttendance[]
   diaryEntries         DiaryEntry[]
@@ -1302,18 +1303,21 @@ model PeriodSlot {
   sortOrder Int
   isBreak   Boolean  @default(false)
   isActive  Boolean  @default(true)
-  classId   String?  // null = global (all classes), set = class-specific override
+  classId   String?  // null = global, set = class-level or section-level override
+  sectionId String?  // null = global/class-level, set = section-specific override
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   class             Class?           @relation(fields: [classId], references: [id])
+  section           Section?         @relation(fields: [sectionId], references: [id])
   timetableEntries  TimetableEntry[]
   subjectAttendance SubjectAttendance[]
 
-  @@unique([sortOrder, classId])   // same sortOrder allowed across different classes
+  @@unique([sortOrder, classId, sectionId])
   @@index([isActive])
   @@index([sortOrder])
   @@index([classId])
+  @@index([sectionId])
 }
 
 model TimetableEntry {

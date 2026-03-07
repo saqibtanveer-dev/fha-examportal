@@ -117,8 +117,18 @@ export async function getExamsForStudent(
   return prisma.exam.findMany({
     where: {
       deletedAt: null,
-      status: { in: ['PUBLISHED', 'ACTIVE'] },
-      deliveryMode: 'ONLINE',
+      OR: [
+        // Online exams: PUBLISHED or ACTIVE
+        {
+          deliveryMode: 'ONLINE',
+          status: { in: ['PUBLISHED', 'ACTIVE'] },
+        },
+        // Written exams: ACTIVE or COMPLETED (finalized)
+        {
+          deliveryMode: 'WRITTEN',
+          status: { in: ['ACTIVE', 'COMPLETED'] },
+        },
+      ],
       // Only show exams for subjects the student is enrolled in (if enrollments configured)
       ...(enrolledSubjectIds ? { subjectId: { in: Array.from(enrolledSubjectIds) } } : {}),
       examClassAssignments: {
@@ -131,12 +141,17 @@ export async function getExamsForStudent(
         },
       },
     },
-    orderBy: { scheduledStartAt: 'desc' },
+    orderBy: { createdAt: 'desc' },
     include: {
       subject: { select: { id: true, name: true, code: true } },
       examSessions: {
         where: { studentId },
         select: { id: true, status: true, attemptNumber: true },
+      },
+      examResults: {
+        where: { studentId },
+        select: { id: true, obtainedMarks: true, totalMarks: true, percentage: true, grade: true, isPassed: true },
+        take: 1,
       },
       _count: { select: { examQuestions: true } },
     },

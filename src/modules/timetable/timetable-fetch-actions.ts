@@ -5,6 +5,7 @@ import { serialize } from '@/utils/serialize';
 import { prisma } from '@/lib/prisma';
 import {
   listPeriodSlots,
+  listAllPeriodSlots,
   listActivePeriodSlots,
   listPeriodSlotsByClass,
   getPeriodSlotById,
@@ -27,9 +28,15 @@ export async function fetchPeriodSlotsAction(classId?: string) {
   return serialize(slots);
 }
 
-export async function fetchActivePeriodSlotsAction(classId?: string) {
+export async function fetchAllPeriodSlotsAction() {
+  await requireRole('ADMIN');
+  const slots = await listAllPeriodSlots();
+  return serialize(slots);
+}
+
+export async function fetchActivePeriodSlotsAction(classId?: string, sectionId?: string) {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
-  const slots = await listActivePeriodSlots(classId);
+  const slots = await listActivePeriodSlots(classId, sectionId);
   return serialize(slots);
 }
 

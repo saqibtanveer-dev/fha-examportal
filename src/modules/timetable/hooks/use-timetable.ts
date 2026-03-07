@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 import {
   fetchPeriodSlotsAction,
+  fetchAllPeriodSlotsAction,
   fetchActivePeriodSlotsAction,
   fetchTimetableByClassAction,
   fetchTimetableByTeacherAction,
@@ -19,10 +20,17 @@ export function usePeriodSlots() {
   });
 }
 
-export function useActivePeriodSlots(classId?: string) {
+export function useAllPeriodSlots() {
   return useQuery({
-    queryKey: [...queryKeys.timetable.periodSlots(), 'active', classId ?? 'global'],
-    queryFn: () => fetchActivePeriodSlotsAction(classId),
+    queryKey: [...queryKeys.timetable.periodSlots(), 'all'],
+    queryFn: () => fetchAllPeriodSlotsAction(),
+  });
+}
+
+export function useActivePeriodSlots(classId?: string, sectionId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.timetable.periodSlots(), 'active', classId ?? 'global', sectionId ?? 'all'],
+    queryFn: () => fetchActivePeriodSlotsAction(classId, sectionId),
   });
 }
 

@@ -10,19 +10,14 @@ import {
   initializeWrittenSessionsSchema,
   enterWrittenMarksSchema,
   batchEnterWrittenMarksSchema,
-  bulkEnterWrittenMarksSchema,
   type InitializeWrittenSessionsInput,
   type EnterWrittenMarksInput,
   type BatchEnterWrittenMarksInput,
-  type BulkEnterWrittenMarksInput,
 } from '@/validations/written-exam-schemas';
 
 const MARKS_PATH = '/teacher/exams';
 
-// ============================================
 // Verify Written Exam Ownership
-// ============================================
-
 async function verifyWrittenExamOwnership(examId: string, userId: string, role: string) {
   const exam = await prisma.exam.findUnique({
     where: { id: examId, deletedAt: null },
@@ -36,9 +31,7 @@ async function verifyWrittenExamOwnership(examId: string, userId: string, role: 
   return { exam };
 }
 
-// ============================================
 // Initialize Written Exam Sessions
-// ============================================
 
 export const initializeWrittenExamSessionsAction = safeAction(
   async function initializeWrittenExamSessions(
@@ -142,9 +135,7 @@ export const initializeWrittenExamSessionsAction = safeAction(
   },
 );
 
-// ============================================
 // Enter Marks for Single Question
-// ============================================
 
 export const enterWrittenMarksAction = safeAction(
   async function enterWrittenMarks(
@@ -236,9 +227,7 @@ export const enterWrittenMarksAction = safeAction(
   },
 );
 
-// ============================================
 // Batch Enter Marks (One Student, All Questions)
-// ============================================
 
 export const batchEnterWrittenMarksAction = safeAction(
   async function batchEnterWrittenMarks(

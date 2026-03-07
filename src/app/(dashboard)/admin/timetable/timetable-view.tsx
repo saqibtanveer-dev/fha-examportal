@@ -52,8 +52,8 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
 
   const { data: teachers } = useTeacherProfiles();
 
-  // Get class-specific period slots (falls back to global if class has no custom slots)
-  const { data: classSpecificSlots } = useActivePeriodSlots(selectedClassId || undefined);
+  // Get effective period slots (3-tier: global → class → section)
+  const { data: classSpecificSlots } = useActivePeriodSlots(selectedClassId || undefined, sectionId || undefined);
   const effectivePeriodSlots = classSpecificSlots ?? periodSlots;
 
   // Build grid from flat entries
@@ -116,7 +116,7 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
         </TabsContent>
 
         <TabsContent value="periods" className="mt-4">
-          <PeriodSlotManager periodSlots={periodSlots} selectedClassId={selectedClassId || null} />
+          <PeriodSlotManager />
         </TabsContent>
 
         <TabsContent value="class-teachers" className="mt-4">

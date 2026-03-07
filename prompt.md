@@ -3,6 +3,7 @@ amdin dashboard pr ui sy teacher ko kysy class subject assinment ho gi brutally 
 ----
 ik senior developer, senior architect, senior designer, senior nextjs expert ki tra kam kro 
 ----
+kisi file me 300 line sy zyada ka code na ho proper code modularity ho 
 in chizon ka khyal rakhan zrori hy 
 maintainability
 scalability

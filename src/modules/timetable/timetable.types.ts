@@ -16,7 +16,7 @@ export type PeriodSlotRow = PeriodSlot;
 
 export type PeriodSlotListItem = Pick<
   PeriodSlot,
-  'id' | 'name' | 'shortName' | 'startTime' | 'endTime' | 'sortOrder' | 'isBreak' | 'isActive' | 'classId'
+  'id' | 'name' | 'shortName' | 'startTime' | 'endTime' | 'sortOrder' | 'isBreak' | 'isActive' | 'classId' | 'sectionId'
 >;
 
 // ── Timetable Entry Types ──
