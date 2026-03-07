@@ -212,7 +212,7 @@ async function main() {
     // TeacherSubject assignments
     for (const sub of t.subjects) {
       await prisma.teacherSubject.upsert({
-        where: { teacherId_subjectId: { teacherId: profile.id, subjectId: sub.subjectId } },
+        where: { teacherId_subjectId_classId: { teacherId: profile.id, subjectId: sub.subjectId, classId: sub.classId } },
         update: {},
         create: { teacherId: profile.id, subjectId: sub.subjectId, classId: sub.classId },
       });

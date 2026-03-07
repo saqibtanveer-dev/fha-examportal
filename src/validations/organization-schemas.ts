@@ -90,14 +90,17 @@ export type UpdateAcademicSessionInput = z.infer<typeof updateAcademicSessionSch
 export const assignTeacherToSubjectSchema = z.object({
   teacherId: z.string().uuid('Invalid teacher'),
   subjectId: z.string().uuid('Invalid subject'),
-  classId: z.string().uuid().optional(),
+  classId: z.string().uuid('Invalid class'),
 });
 
 export type AssignTeacherToSubjectInput = z.infer<typeof assignTeacherToSubjectSchema>;
 
 export const bulkAssignTeacherSubjectsSchema = z.object({
   teacherId: z.string().uuid('Invalid teacher'),
-  subjectIds: z.array(z.string().uuid()).min(1, 'Select at least one subject'),
+  assignments: z.array(z.object({
+    subjectId: z.string().uuid('Invalid subject'),
+    classId: z.string().uuid('Invalid class'),
+  })).min(0),
 });
 
 export type BulkAssignTeacherSubjectsInput = z.infer<typeof bulkAssignTeacherSubjectsSchema>;

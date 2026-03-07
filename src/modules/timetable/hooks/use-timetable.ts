@@ -19,10 +19,10 @@ export function usePeriodSlots() {
   });
 }
 
-export function useActivePeriodSlots() {
+export function useActivePeriodSlots(classId?: string) {
   return useQuery({
-    queryKey: [...queryKeys.timetable.periodSlots(), 'active'],
-    queryFn: () => fetchActivePeriodSlotsAction(),
+    queryKey: [...queryKeys.timetable.periodSlots(), 'active', classId ?? 'global'],
+    queryFn: () => fetchActivePeriodSlotsAction(classId),
   });
 }
 

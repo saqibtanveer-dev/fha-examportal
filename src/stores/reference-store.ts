@@ -12,7 +12,13 @@ export type RefSubject = { id: string; name: string; code: string };
 export type RefClass = { id: string; name: string; sections: { id: string; name: string }[] };
 export type RefAcademicSession = { id: string; name: string; isCurrent: boolean };
 export type RefTag = { id: string; name: string; category: string; _count: { questionTags: number } };
-export type RefSubjectClassLink = { subjectId: string; classId: string; className: string };
+export type RefSubjectClassLink = {
+  subjectId: string;
+  classId: string;
+  className: string;
+  isElective: boolean;
+  electiveGroupName: string | null;
+};
 
 type ReferenceState = {
   subjects: RefSubject[];

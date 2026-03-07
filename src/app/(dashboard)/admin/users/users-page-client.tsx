@@ -42,6 +42,15 @@ export function UsersPageClient() {
         grade: c.grade,
         sections: c.sections?.map((s: any) => ({ id: s.id, name: s.name })) ?? [],
       }))}
+      subjectClassLinks={subjects.flatMap((s: any) =>
+        (s.subjectClassLinks ?? [])
+          .filter((link: any) => link.isActive !== false && link.class)
+          .map((link: any) => ({
+            subjectId: s.id,
+            classId: link.class.id,
+            className: link.class.name,
+          })),
+      )}
     />
   );
 }

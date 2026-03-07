@@ -12,8 +12,12 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import { ConfirmDialog, Spinner } from '@/components/shared';
 import { useInvalidateCache } from '@/lib/cache-utils';
+import { useReferenceStore } from '@/stores';
 import { toast } from 'sonner';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { createPeriodSlotAction, updatePeriodSlotAction, deletePeriodSlotAction } from '../period-slot-actions';
@@ -22,6 +26,7 @@ import type { PeriodSlotListItem } from '../timetable.types';
 
 type Props = {
   periodSlots: PeriodSlotListItem[];
+  selectedClassId?: string | null;  // null/undefined = show global slots
 };
 
 type FormState = {
@@ -31,6 +36,7 @@ type FormState = {
   endTime: string;
   sortOrder: string;
   isBreak: boolean;
+  classId: string | null;
 };
 
 const emptyForm: FormState = {
@@ -40,24 +46,31 @@ const emptyForm: FormState = {
   endTime: '',
   sortOrder: '',
   isBreak: false,
+  classId: null,
 };
 
-export function PeriodSlotManager({ periodSlots }: Props) {
+export function PeriodSlotManager({ periodSlots, selectedClassId }: Props) {
   const [isPending, startTransition] = useTransition();
   const invalidate = useInvalidateCache();
+  const { classes } = useReferenceStore();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
 
-  const sortedSlots = [...periodSlots].sort((a, b) => a.sortOrder - b.sortOrder);
+  // Filter slots by selected class (null = global)
+  const filteredSlots = periodSlots.filter((slot) =>
+    selectedClassId ? slot.classId === selectedClassId : slot.classId === null,
+  );
+  const sortedSlots = [...filteredSlots].sort((a, b) => a.sortOrder - b.sortOrder);
 
   function openCreate() {
     setEditingId(null);
     setForm({
       ...emptyForm,
       sortOrder: String((sortedSlots.at(-1)?.sortOrder ?? 0) + 1),
+      classId: selectedClassId ?? null,
     });
     setDialogOpen(true);
   }
@@ -71,6 +84,7 @@ export function PeriodSlotManager({ periodSlots }: Props) {
       endTime: slot.endTime,
       sortOrder: String(slot.sortOrder),
       isBreak: slot.isBreak,
+      classId: slot.classId ?? null,
     });
     setDialogOpen(true);
   }
@@ -84,6 +98,7 @@ export function PeriodSlotManager({ periodSlots }: Props) {
         endTime: form.endTime,
         sortOrder: Number(form.sortOrder),
         isBreak: form.isBreak,
+        classId: form.classId,
       };
 
       const result = editingId
@@ -117,7 +132,19 @@ export function PeriodSlotManager({ periodSlots }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-semibold">Period Slots</h3>
+        <div>
+          <h3 className="text-lg font-semibold">Period Slots</h3>
+          {selectedClassId && (
+            <p className="text-sm text-muted-foreground">
+              Class-specific periods for {classes.find((c) => c.id === selectedClassId)?.name ?? 'selected class'}
+            </p>
+          )}
+          {!selectedClassId && (
+            <p className="text-sm text-muted-foreground">
+              Global periods (shared by all classes without custom periods)
+            </p>
+          )}
+        </div>
         <Button onClick={openCreate} size="sm">
           <Plus className="mr-1 h-4 w-4" />
           Add Period
@@ -194,6 +221,24 @@ export function PeriodSlotManager({ periodSlots }: Props) {
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label>Scope</Label>
+              <Select
+                value={form.classId ?? '__global__'}
+                onValueChange={(v) => setForm((f) => ({ ...f, classId: v === '__global__' ? null : v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select scope" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__global__">Global (All Classes)</SelectItem>
+                  {classes.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Name</Label>

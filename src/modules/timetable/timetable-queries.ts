@@ -14,20 +14,42 @@ const periodSlotSelect = {
   sortOrder: true,
   isBreak: true,
   isActive: true,
+  classId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
 
+/** List all global period slots (classId = null) */
 export async function listPeriodSlots() {
   return prisma.periodSlot.findMany({
+    where: { classId: null },
     orderBy: { sortOrder: 'asc' },
     select: periodSlotSelect,
   });
 }
 
-export async function listActivePeriodSlots() {
+/** List active period slots for a class: class-specific if they exist, otherwise global */
+export async function listActivePeriodSlots(classId?: string) {
+  if (classId) {
+    const classSpecific = await prisma.periodSlot.findMany({
+      where: { classId, isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: periodSlotSelect,
+    });
+    if (classSpecific.length > 0) return classSpecific;
+  }
+  // Fallback to global slots
   return prisma.periodSlot.findMany({
-    where: { isActive: true },
+    where: { isActive: true, classId: null },
+    orderBy: { sortOrder: 'asc' },
+    select: periodSlotSelect,
+  });
+}
+
+/** List all period slots for a specific class (for admin management) */
+export async function listPeriodSlotsByClass(classId: string) {
+  return prisma.periodSlot.findMany({
+    where: { classId },
     orderBy: { sortOrder: 'asc' },
     select: periodSlotSelect,
   });
@@ -40,9 +62,10 @@ export async function getPeriodSlotById(id: string) {
   });
 }
 
-export async function getMaxPeriodSortOrder(): Promise<number> {
+export async function getMaxPeriodSortOrder(classId?: string | null): Promise<number> {
   const result = await prisma.periodSlot.aggregate({
     _max: { sortOrder: true },
+    where: { classId: classId ?? null },
   });
   return result._max.sortOrder ?? 0;
 }

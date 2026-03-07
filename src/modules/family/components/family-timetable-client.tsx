@@ -25,7 +25,7 @@ export function FamilyTimetableClient() {
     queryFn: () => fetchCurrentAcademicSessionAction(),
   });
 
-  const { data: periodSlots, isLoading: slotsLoading } = useActivePeriodSlots();
+  const { data: periodSlots, isLoading: slotsLoading } = useActivePeriodSlots(selectedChild?.classId);
 
   const sessionId = (currentSession as Record<string, string> | null)?.id ?? '';
 

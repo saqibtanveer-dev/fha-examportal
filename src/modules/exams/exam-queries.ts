@@ -2,6 +2,10 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma, ExamStatus } from '@prisma/client';
 import type { PaginationParams } from '@/utils/pagination';
 import { getSkipTake, buildPaginatedResult } from '@/utils/pagination';
+import {
+  getStudentEnrolledSubjectIds,
+  hasEnrollmentsForClass,
+} from '@/modules/subjects/enrollment-queries';
 
 export type ExamWithRelations = Prisma.ExamGetPayload<{
   include: {
@@ -94,12 +98,29 @@ export async function getExamDetail(id: string) {
   });
 }
 
-export async function getExamsForStudent(studentId: string, classId: string, sectionId?: string) {
+export async function getExamsForStudent(
+  studentId: string,
+  classId: string,
+  sectionId?: string,
+  studentProfileId?: string,
+  academicSessionId?: string,
+) {
+  // Build subject filter: if enrollments exist, only show exams for enrolled subjects
+  let enrolledSubjectIds: Set<string> | null = null;
+  if (studentProfileId && academicSessionId) {
+    const hasEnrollments = await hasEnrollmentsForClass(classId, academicSessionId);
+    if (hasEnrollments) {
+      enrolledSubjectIds = await getStudentEnrolledSubjectIds(studentProfileId, academicSessionId);
+    }
+  }
+
   return prisma.exam.findMany({
     where: {
       deletedAt: null,
       status: { in: ['PUBLISHED', 'ACTIVE'] },
       deliveryMode: 'ONLINE',
+      // Only show exams for subjects the student is enrolled in (if enrollments configured)
+      ...(enrolledSubjectIds ? { subjectId: { in: Array.from(enrolledSubjectIds) } } : {}),
       examClassAssignments: {
         some: {
           classId,

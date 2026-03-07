@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole, getAuthSession } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from '@/modules/grading/grading-engine';
+import { isSubjectElective, hasEnrollmentsForClass, getStudentEnrolledSubjectIds } from '@/modules/subjects/enrollment-queries';
 import type { ActionResult } from '@/types/action-result';
 
 // ============================================
@@ -34,7 +35,7 @@ export async function startSessionAction(examId: string): Promise<ActionResult<{
   // Verify student is assigned to exam's class
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId },
-    select: { classId: true, sectionId: true },
+    select: { id: true, classId: true, sectionId: true },
   });
   if (!studentProfile) return { success: false, error: 'Student profile not found. Contact admin.' };
 
@@ -42,6 +43,20 @@ export async function startSessionAction(examId: string): Promise<ActionResult<{
     (a) => a.classId === studentProfile.classId && (!a.sectionId || a.sectionId === studentProfile.sectionId),
   );
   if (!isAssigned) return { success: false, error: 'This exam is not assigned to your class' };
+
+  // Verify student is enrolled in the exam's subject (for electives)
+  if (exam.subjectId && exam.academicSessionId) {
+    const elective = await isSubjectElective(exam.subjectId, studentProfile.classId);
+    if (elective) {
+      const hasEnrollments = await hasEnrollmentsForClass(studentProfile.classId, exam.academicSessionId);
+      if (hasEnrollments) {
+        const enrolledSubjects = await getStudentEnrolledSubjectIds(studentProfile.id, exam.academicSessionId);
+        if (!enrolledSubjects.has(exam.subjectId)) {
+          return { success: false, error: 'You are not enrolled in this subject' };
+        }
+      }
+    }
+  }
 
   // Use serializable transaction to prevent race condition on maxAttempts
   try {

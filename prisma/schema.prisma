@@ -301,6 +301,9 @@ model StudentProfile {
   // Family relations
   familyLinks       FamilyStudentLink[]
 
+  // Subject enrollment (for electives)
+  subjectEnrollments StudentSubjectEnrollment[]
+
   @@index([classId])
   @@index([sectionId])
   @@index([rollNumber])
@@ -398,6 +401,7 @@ model Subject {
   subjectAttendance SubjectAttendance[]
   diaryEntries      DiaryEntry[]
   datesheetEntries  DatesheetEntry[]
+  studentSubjectEnrollments StudentSubjectEnrollment[]
 
   @@index([departmentId])
 }
@@ -407,13 +411,15 @@ model Subject {
 // ============================================
 
 model SubjectClassLink {
-  id        String   @id @default(uuid())
-  subjectId String
-  classId   String
-  syllabus  String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(uuid())
+  subjectId        String
+  classId          String
+  syllabus         String?
+  isElective       Boolean  @default(false)  // true = optional subject (CS vs Bio)
+  electiveGroupName String?                  // e.g. "Science Elective", "Arts Elective" — students pick one from the group
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   class   Class   @relation(fields: [classId], references: [id], onDelete: Cascade)
@@ -421,20 +427,23 @@ model SubjectClassLink {
   @@unique([subjectId, classId])
   @@index([classId])
   @@index([subjectId])
+  @@index([classId, isElective])
 }
 
 model TeacherSubject {
   id        String   @id @default(uuid())
   teacherId String
   subjectId String
-  classId   String?
+  classId   String
   createdAt DateTime @default(now())
 
   teacher TeacherProfile @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   subject Subject        @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  class   Class?         @relation(fields: [classId], references: [id])
+  class   Class          @relation(fields: [classId], references: [id])
 
-  @@unique([teacherId, subjectId])
+  @@unique([teacherId, subjectId, classId])
+  @@index([teacherId])
+  @@index([classId])
 }
 
 model Class {
@@ -460,6 +469,8 @@ model Class {
   subjectAttendance    SubjectAttendance[]
   diaryEntries         DiaryEntry[]
   datesheetEntries     DatesheetEntry[]
+  periodSlots          PeriodSlot[]         // class-specific period overrides
+  studentSubjectEnrollments StudentSubjectEnrollment[]
 
   @@index([grade])
 }
@@ -781,6 +792,7 @@ model AcademicSession {
   subjectAttendance SubjectAttendance[]
   diaryEntries      DiaryEntry[]
   datesheets        Datesheet[]
+  studentSubjectEnrollments StudentSubjectEnrollment[]
 
   @@index([isCurrent])
 }
@@ -1287,17 +1299,21 @@ model PeriodSlot {
   shortName String
   startTime String   // HH:mm format (e.g., "08:00")
   endTime   String   // HH:mm format (e.g., "08:45")
-  sortOrder Int      @unique
+  sortOrder Int
   isBreak   Boolean  @default(false)
   isActive  Boolean  @default(true)
+  classId   String?  // null = global (all classes), set = class-specific override
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  class             Class?           @relation(fields: [classId], references: [id])
   timetableEntries  TimetableEntry[]
   subjectAttendance SubjectAttendance[]
 
+  @@unique([sortOrder, classId])   // same sortOrder allowed across different classes
   @@index([isActive])
   @@index([sortOrder])
+  @@index([classId])
 }
 
 model TimetableEntry {
@@ -1541,4 +1557,30 @@ model DatesheetDuty {
   @@unique([datesheetEntryId, teacherProfileId])
   @@index([teacherProfileId])
   @@index([datesheetEntryId])
+}
+
+// ============================================
+// STUDENT SUBJECT ENROLLMENT (Electives Support)
+// ============================================
+
+model StudentSubjectEnrollment {
+  id                String   @id @default(uuid())
+  studentProfileId  String
+  subjectId         String
+  classId           String
+  academicSessionId String
+  isActive          Boolean  @default(true)
+  enrolledAt        DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  studentProfile  StudentProfile  @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  subject         Subject         @relation(fields: [subjectId], references: [id])
+  class           Class           @relation(fields: [classId], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+
+  @@unique([studentProfileId, subjectId, academicSessionId])
+  @@index([studentProfileId, academicSessionId])
+  @@index([classId, subjectId, academicSessionId])
+  @@index([subjectId])
 }
