@@ -13,9 +13,11 @@ import {
   bulkEnterWrittenMarksAction,
   markStudentAbsentAction,
   unmarkStudentAbsentAction,
+} from '@/modules/written-exams/written-exam-finalize-actions';
+import {
   finalizeWrittenExamAction,
   refinalizeWrittenExamAction,
-} from '@/modules/written-exams/written-exam-finalize-actions';
+} from '@/modules/written-exams/written-exam-result-actions';
 import { toast } from 'sonner';
 
 /**

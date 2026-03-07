@@ -12,8 +12,7 @@ import {
   type MarkAbsentInput,
 } from '@/validations/written-exam-schemas';
 
-// Re-export from result-actions so existing imports keep working
-export { finalizeWrittenExamAction, refinalizeWrittenExamAction } from './written-exam-result-actions';
+
 
 const MARKS_PATH = '/teacher/exams';
 
