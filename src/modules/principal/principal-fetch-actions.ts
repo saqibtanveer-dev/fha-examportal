@@ -13,102 +13,67 @@ import {
 } from '@/modules/principal/principal-queries';
 import { requireRole } from '@/lib/auth-utils';
 import { serialize } from '@/utils/serialize';
+import { safeFetchAction } from '@/lib/safe-action';
 
-/**
- * Fetch principal dashboard stats.
- */
-export async function fetchDashboardStatsAction() {
+export const fetchDashboardStatsAction = safeFetchAction(async () => {
   await requireRole('PRINCIPAL');
-  const stats = await getPrincipalDashboardStats();
-  return serialize(stats);
-}
+  return serialize(await getPrincipalDashboardStats());
+});
 
-/**
- * Fetch recent activity for principal dashboard.
- */
-export async function fetchRecentActivityAction() {
+export const fetchRecentActivityAction = safeFetchAction(async () => {
   await requireRole('PRINCIPAL');
-  const activity = await getRecentActivity();
-  return serialize(activity);
-}
+  return serialize(await getRecentActivity());
+});
 
-/**
- * Fetch performance trends for principal dashboard.
- */
-export async function fetchPerformanceTrendsAction() {
+export const fetchPerformanceTrendsAction = safeFetchAction(async () => {
   await requireRole('PRINCIPAL');
-  const trends = await getPerformanceTrends();
-  return serialize(trends);
-}
+  return serialize(await getPerformanceTrends());
+});
 
-/**
- * Fetch grade distribution for principal dashboard.
- */
-export async function fetchGradeDistributionAction() {
+export const fetchGradeDistributionAction = safeFetchAction(async () => {
   await requireRole('PRINCIPAL');
-  const distribution = await getGradeDistributionOverall();
-  return serialize(distribution);
-}
+  return serialize(await getGradeDistributionOverall());
+});
 
-/**
- * Fetch students list with pagination and filters.
- */
-export async function fetchStudentsListAction(params?: {
+export const fetchStudentsListAction = safeFetchAction(async (params?: {
   search?: string;
   classId?: string;
   sectionId?: string;
   status?: string;
   page?: number;
   pageSize?: number;
-}) {
+}) => {
   await requireRole('PRINCIPAL');
-  const result = await getStudentsList(params);
-  return serialize(result);
-}
+  return serialize(await getStudentsList(params));
+});
 
-/**
- * Fetch teachers list with pagination and filters.
- */
-export async function fetchTeachersListAction(params?: {
+export const fetchTeachersListAction = safeFetchAction(async (params?: {
   search?: string;
   page?: number;
   pageSize?: number;
-}) {
+}) => {
   await requireRole('PRINCIPAL');
-  const result = await getTeachersList(params);
-  return serialize(result);
-}
+  return serialize(await getTeachersList(params));
+});
 
-/**
- * Fetch exams list with pagination and filters.
- */
-export async function fetchExamsListAction(params?: {
+export const fetchExamsListAction = safeFetchAction(async (params?: {
   search?: string;
   status?: string;
   subjectId?: string;
   type?: string;
   page?: number;
   pageSize?: number;
-}) {
+}) => {
   await requireRole('PRINCIPAL');
-  const result = await getExamsList(params);
-  return serialize(result);
-}
+  return serialize(await getExamsList(params));
+});
 
-/**
- * Fetch classes list.
- */
-export async function fetchClassesListAction() {
+export const fetchClassesListAction = safeFetchAction(async () => {
   await requireRole('PRINCIPAL');
-  const result = await getClassesList();
-  return serialize(result);
-}
+  return serialize(await getClassesList());
+});
 
-/**
- * Fetch filter options (subjects, classes, sections) — cached in reference store.
- */
-export async function fetchFilterOptionsAction() {
+export const fetchFilterOptionsAction = safeFetchAction(async () => {
   await requireRole('PRINCIPAL');
-  const options = await getFilterOptions();
-  return serialize(options);
-}
+  return serialize(await getFilterOptions());
+});

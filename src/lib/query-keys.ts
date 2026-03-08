@@ -56,6 +56,7 @@ export const queryKeys = {
   subjects: {
     all: ['subjects'] as const,
     list: () => [...queryKeys.subjects.all, 'list'] as const,
+    detail: (id: string) => [...queryKeys.subjects.all, 'detail', id] as const,
     forTeacher: (teacherId: string) => [...queryKeys.subjects.all, 'teacher', teacherId] as const,
   },
 
@@ -63,6 +64,7 @@ export const queryKeys = {
   classes: {
     all: ['classes'] as const,
     active: () => [...queryKeys.classes.all, 'active'] as const,
+    detail: (id: string) => [...queryKeys.classes.all, 'detail', id] as const,
   },
 
   // ── Academic Sessions ──
@@ -93,12 +95,14 @@ export const queryKeys = {
   departments: {
     all: ['departments'] as const,
     list: () => [...queryKeys.departments.all, 'list'] as const,
+    detail: (id: string) => [...queryKeys.departments.all, 'detail', id] as const,
   },
 
   // ── Principal ──
   principal: {
     all: ['principal'] as const,
     dashboard: {
+      all: ['principal', 'dashboard'] as const,
       stats: () => ['principal', 'dashboard', 'stats'] as const,
       activity: () => ['principal', 'dashboard', 'activity'] as const,
       trends: () => ['principal', 'dashboard', 'trends'] as const,
@@ -115,6 +119,13 @@ export const queryKeys = {
   sessions: {
     all: ['sessions'] as const,
     studentDashboard: () => ['student', 'dashboard', 'stats'] as const,
+  },
+
+  // ── Student-specific ──
+  student: {
+    all: ['student'] as const,
+    exams: () => [...queryKeys.student.all, 'exams'] as const,
+    results: () => [...queryKeys.student.all, 'results'] as const,
   },
 
   // ── Admission Campaigns ──

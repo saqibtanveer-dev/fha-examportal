@@ -1,28 +1,25 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { 
-  fetchDepartmentsAction, 
-  fetchDepartmentByIdAction 
+import { queryKeys } from '@/lib/query-keys';
+import {
+  fetchDepartmentsAction,
+  fetchDepartmentByIdAction,
 } from '@/modules/departments/department-fetch-actions';
 
-/**
- * Departments list.
- */
+const STALE_TIME = 2 * 60 * 1000; // 2 minutes
+
 export function useDepartmentsList() {
   return useQuery({
-    queryKey: ['admin', 'departments'],
+    queryKey: queryKeys.departments.all,
     queryFn: fetchDepartmentsAction,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: STALE_TIME,
   });
 }
 
-/**
- * Single department by ID.
- */
 export function useDepartmentById(departmentId: string) {
   return useQuery({
-    queryKey: ['admin', 'departments', departmentId],
+    queryKey: queryKeys.departments.detail(departmentId),
     queryFn: () => fetchDepartmentByIdAction(departmentId),
     enabled: Boolean(departmentId),
   });

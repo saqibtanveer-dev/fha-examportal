@@ -7,6 +7,7 @@ import { getNavigationByRole } from '@/components/layout';
 import { logoutAction } from '@/app/(public)/login/actions';
 import { useAuthStore } from '@/stores/auth-store';
 import { useReferenceStore } from '@/stores/reference-store';
+import type { ReferenceDataPayload } from '@/modules/settings/reference-actions';
 
 type AdminShellProps = {
   user: {
@@ -16,12 +17,7 @@ type AdminShellProps = {
     email: string;
     role: string;
   };
-  referenceData?: {
-    subjects: { id: string; name: string; code: string }[];
-    classes: { id: string; name: string; sections: { id: string; name: string }[] }[];
-    academicSessions: { id: string; name: string; isCurrent: boolean }[];
-    subjectClassLinks: { subjectId: string; classId: string; className: string; isElective: boolean; electiveGroupName: string | null }[];
-  };
+  referenceData?: Partial<ReferenceDataPayload>;
   children: React.ReactNode;
 };
 

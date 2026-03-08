@@ -20,13 +20,10 @@ export function useExamsQuery(
   });
 }
 
-/**
- * Client-first data fetching for student's available exams.
- */
 export function useStudentExamsQuery() {
   return useQuery({
-    queryKey: ['student', 'exams'],
+    queryKey: queryKeys.student.exams(),
     queryFn: fetchStudentExamsAction,
-    staleTime: 2 * 60 * 1000, // 2 minutes - exams may become available
+    staleTime: 2 * 60 * 1000,
   });
 }

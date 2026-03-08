@@ -31,11 +31,12 @@ type ReferenceState = {
 
 type ReferenceActions = {
   hydrate: (data: Partial<ReferenceState>) => void;
+  forceHydrate: (data: Partial<ReferenceState>) => void;
   isStale: () => boolean;
   invalidate: () => void;
 };
 
-const STALE_TIME = 10 * 60 * 1000; // 10 minutes
+const STALE_TIME = 2 * 60 * 1000; // 2 minutes — match React Query staleTime
 
 const initialState: ReferenceState = {
   subjects: [],
@@ -54,6 +55,11 @@ export const useReferenceStore = create<ReferenceState & ReferenceActions>()(
       const current = get();
       // Only rehydrate if stale or not yet hydrated
       if (current._hydratedAt && !current.isStale()) return;
+      set({ ...data, _hydratedAt: Date.now() });
+    },
+
+    // Bypass stale gate — used after structural mutations (class/subject/session CRUD)
+    forceHydrate: (data) => {
       set({ ...data, _hydratedAt: Date.now() });
     },
 

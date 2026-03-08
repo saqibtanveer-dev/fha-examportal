@@ -4,8 +4,8 @@
 // Diary Module — Mutation Hooks
 // ============================================
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/query-keys';
+import { useMutation } from '@tanstack/react-query';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
 import {
   createDiaryEntryAction,
@@ -20,20 +20,15 @@ import {
 } from '../diary-secondary-actions';
 import type { CreateDiaryEntryInput, UpdateDiaryEntryInput } from '@/validations/diary-schemas';
 
-function useInvalidateDiary() {
-  const qc = useQueryClient();
-  return () => qc.invalidateQueries({ queryKey: queryKeys.diary.all });
-}
-
 export function useCreateDiaryEntry() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateCache();
 
   return useMutation({
     mutationFn: (input: CreateDiaryEntryInput) => createDiaryEntryAction(input),
     onSuccess: (result) => {
       if (result.success) {
         toast.success('Diary entry created');
-        invalidate();
+        invalidate.diary();
       } else {
         toast.error(result.error ?? 'Failed to create diary entry');
       }
@@ -43,7 +38,7 @@ export function useCreateDiaryEntry() {
 }
 
 export function useUpdateDiaryEntry() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateCache();
 
   return useMutation({
     mutationFn: (input: { entryId: string } & UpdateDiaryEntryInput) =>
@@ -51,7 +46,7 @@ export function useUpdateDiaryEntry() {
     onSuccess: (result) => {
       if (result.success) {
         toast.success('Diary entry updated');
-        invalidate();
+        invalidate.diary();
       } else {
         toast.error(result.error ?? 'Failed to update diary entry');
       }
@@ -61,14 +56,14 @@ export function useUpdateDiaryEntry() {
 }
 
 export function useDeleteDiaryEntry() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateCache();
 
   return useMutation({
     mutationFn: (entryId: string) => deleteDiaryEntryAction(entryId),
     onSuccess: (result) => {
       if (result.success) {
         toast.success('Diary entry deleted');
-        invalidate();
+        invalidate.diary();
       } else {
         toast.error(result.error ?? 'Failed to delete diary entry');
       }
@@ -78,14 +73,14 @@ export function useDeleteDiaryEntry() {
 }
 
 export function usePublishDiaryEntry() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateCache();
 
   return useMutation({
     mutationFn: (entryId: string) => publishDiaryEntryAction(entryId),
     onSuccess: (result) => {
       if (result.success) {
         toast.success('Diary entry published');
-        invalidate();
+        invalidate.diary();
       } else {
         toast.error(result.error ?? 'Failed to publish diary entry');
       }
@@ -95,7 +90,7 @@ export function usePublishDiaryEntry() {
 }
 
 export function useCopyDiaryToSections() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateCache();
 
   return useMutation({
     mutationFn: (input: { entryId: string; targetSectionIds: string[] }) =>
@@ -103,7 +98,7 @@ export function useCopyDiaryToSections() {
     onSuccess: (result) => {
       if (result.success) {
         toast.success(`Diary copied to ${result.data?.count ?? 0} sections`);
-        invalidate();
+        invalidate.diary();
       } else {
         toast.error(result.error ?? 'Failed to copy diary');
       }
@@ -119,7 +114,7 @@ export function useMarkDiaryRead() {
 }
 
 export function useAddPrincipalNote() {
-  const invalidate = useInvalidateDiary();
+  const invalidate = useInvalidateCache();
 
   return useMutation({
     mutationFn: (input: { diaryEntryId: string; note: string }) =>
@@ -127,7 +122,7 @@ export function useAddPrincipalNote() {
     onSuccess: (result) => {
       if (result.success) {
         toast.success('Note added');
-        invalidate();
+        invalidate.diary();
       } else {
         toast.error(result.error ?? 'Failed to add note');
       }

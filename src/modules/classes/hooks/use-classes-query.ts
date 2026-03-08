@@ -1,40 +1,34 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { 
-  fetchClassesAction, 
-  fetchActiveClassesAction, 
-  fetchClassByIdAction 
+import { queryKeys } from '@/lib/query-keys';
+import {
+  fetchClassesAction,
+  fetchActiveClassesAction,
+  fetchClassByIdAction,
 } from '@/modules/classes/class-fetch-actions';
 
-/**
- * All classes list.
- */
+const STALE_TIME = 2 * 60 * 1000; // 2 minutes
+
 export function useClassesList() {
   return useQuery({
-    queryKey: ['admin', 'classes'],
+    queryKey: queryKeys.classes.all,
     queryFn: fetchClassesAction,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: STALE_TIME,
   });
 }
 
-/**
- * Active classes only.
- */
 export function useActiveClasses() {
   return useQuery({
-    queryKey: ['admin', 'classes', 'active'],
+    queryKey: queryKeys.classes.active(),
     queryFn: fetchActiveClassesAction,
-    staleTime: 10 * 60 * 1000,
+    staleTime: STALE_TIME,
   });
 }
 
-/**
- * Single class by ID.
- */
 export function useClassById(classId: string) {
   return useQuery({
-    queryKey: ['admin', 'classes', classId],
+    queryKey: queryKeys.classes.detail(classId),
     queryFn: () => fetchClassByIdAction(classId),
     enabled: Boolean(classId),
   });

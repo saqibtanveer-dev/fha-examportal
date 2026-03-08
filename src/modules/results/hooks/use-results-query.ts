@@ -35,13 +35,10 @@ export function useExamAnalytics(examId: string) {
   });
 }
 
-/**
- * Client-first data fetching for student's own results.
- */
 export function useStudentResults() {
   return useQuery({
-    queryKey: ['student', 'results'],
+    queryKey: queryKeys.student.results(),
     queryFn: fetchStudentResultsAction,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
   });
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/query-keys';
 import {
   fetchDashboardStatsAction,
   fetchRecentActivityAction,
@@ -13,61 +14,42 @@ import {
   fetchFilterOptionsAction,
 } from '@/modules/principal/principal-fetch-actions';
 
-// =============================================
-// Dashboard Queries
-// =============================================
+// ── Dashboard Queries ──
 
-/**
- * Dashboard stats (counts, totals).
- */
 export function useDashboardStats() {
   return useQuery({
-    queryKey: ['principal', 'dashboard', 'stats'],
+    queryKey: queryKeys.principal.dashboard.stats(),
     queryFn: fetchDashboardStatsAction,
-    staleTime: 10 * 60 * 1000, // 10 minutes — dashboard data rarely changes
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-/**
- * Recent activity feed.
- */
 export function useRecentActivity() {
   return useQuery({
-    queryKey: ['principal', 'dashboard', 'activity'],
+    queryKey: queryKeys.principal.dashboard.activity(),
     queryFn: fetchRecentActivityAction,
-    staleTime: 2 * 60 * 1000, // 2 minutes — activity updates more often
+    staleTime: 2 * 60 * 1000,
   });
 }
 
-/**
- * Performance trends (monthly averages).
- */
 export function usePerformanceTrends() {
   return useQuery({
-    queryKey: ['principal', 'dashboard', 'trends'],
+    queryKey: queryKeys.principal.dashboard.trends(),
     queryFn: fetchPerformanceTrendsAction,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-/**
- * Grade distribution chart data.
- */
 export function useGradeDistribution() {
   return useQuery({
-    queryKey: ['principal', 'dashboard', 'gradeDistribution'],
+    queryKey: queryKeys.principal.dashboard.gradeDistribution(),
     queryFn: fetchGradeDistributionAction,
-    staleTime: 10 * 60 * 1000,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
-// =============================================
-// List Queries
-// =============================================
+// ── List Queries ──
 
-/**
- * Students list with pagination and filtering.
- */
 export function useStudentsList(params?: {
   search?: string;
   classId?: string;
@@ -77,28 +59,22 @@ export function useStudentsList(params?: {
   pageSize?: number;
 }) {
   return useQuery({
-    queryKey: ['principal', 'students', params ?? {}],
+    queryKey: queryKeys.principal.students(params ?? {}),
     queryFn: () => fetchStudentsListAction(params),
   });
 }
 
-/**
- * Teachers list with pagination and filtering.
- */
 export function useTeachersList(params?: {
   search?: string;
   page?: number;
   pageSize?: number;
 }) {
   return useQuery({
-    queryKey: ['principal', 'teachers', params ?? {}],
+    queryKey: queryKeys.principal.teachers(params ?? {}),
     queryFn: () => fetchTeachersListAction(params),
   });
 }
 
-/**
- * Exams list with pagination and filtering.
- */
 export function useExamsList(params?: {
   search?: string;
   status?: string;
@@ -108,31 +84,24 @@ export function useExamsList(params?: {
   pageSize?: number;
 }) {
   return useQuery({
-    queryKey: ['principal', 'exams', params ?? {}],
+    queryKey: queryKeys.principal.exams(params ?? {}),
     queryFn: () => fetchExamsListAction(params),
   });
 }
 
-/**
- * Classes list.
- */
 export function useClassesList() {
   return useQuery({
-    queryKey: ['principal', 'classes'],
+    queryKey: queryKeys.principal.classes({}),
     queryFn: fetchClassesListAction,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 2 * 60 * 1000,
   });
 }
 
-/**
- * Filter options (subjects, classes, sections).
- * Cached for 30 minutes since these rarely change.
- */
 export function useFilterOptions() {
   return useQuery({
-    queryKey: ['principal', 'filterOptions'],
+    queryKey: queryKeys.principal.filterOptions(),
     queryFn: fetchFilterOptionsAction,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }

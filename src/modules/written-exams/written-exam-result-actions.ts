@@ -89,48 +89,47 @@ export const finalizeWrittenExamAction = safeAction(
     const passingMarks = Number(exam.passingMarks);
 
     const results = await prisma.$transaction(async (tx) => {
-      const createdResults = [];
+      const now = new Date();
 
-      for (const s of activeSessions) {
-        const obtainedMarks = s.studentAnswers.reduce(
-          (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
-          0,
-        );
+      // Batch upsert all results in parallel (replaces sequential N+1 loop)
+      const createdResults = await Promise.all(
+        activeSessions.map((s) => {
+          const obtainedMarks = s.studentAnswers.reduce(
+            (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
+            0,
+          );
+          const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
 
-        const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
-
-        const now = new Date();
-        const result = await tx.examResult.upsert({
-          where: { sessionId: s.id },
-          create: {
-            sessionId: s.id,
-            studentId: s.studentId,
-            examId,
-            obtainedMarks: score.obtainedMarks,
-            totalMarks: score.totalMarks,
-            percentage: score.percentage,
-            isPassed: score.isPassed,
-            grade: score.grade,
-            publishedAt: now,
-          },
-          update: {
-            obtainedMarks: score.obtainedMarks,
-            totalMarks: score.totalMarks,
-            percentage: score.percentage,
-            isPassed: score.isPassed,
-            grade: score.grade,
-            publishedAt: now,
-          },
-        });
-
-        createdResults.push(result);
-      }
+          return tx.examResult.upsert({
+            where: { sessionId: s.id },
+            create: {
+              sessionId: s.id,
+              studentId: s.studentId,
+              examId,
+              obtainedMarks: score.obtainedMarks,
+              totalMarks: score.totalMarks,
+              percentage: score.percentage,
+              isPassed: score.isPassed,
+              grade: score.grade,
+              publishedAt: now,
+            },
+            update: {
+              obtainedMarks: score.obtainedMarks,
+              totalMarks: score.totalMarks,
+              percentage: score.percentage,
+              isPassed: score.isPassed,
+              grade: score.grade,
+              publishedAt: now,
+            },
+          });
+        }),
+      );
 
       // Batch update all active sessions to GRADED
       const sessionIds = activeSessions.map((s) => s.id);
       await tx.examSession.updateMany({
         where: { id: { in: sessionIds } },
-        data: { status: 'GRADED', submittedAt: new Date() },
+        data: { status: 'GRADED', submittedAt: now },
       });
 
       // Calculate and assign ranks
@@ -229,27 +228,29 @@ export const refinalizeWrittenExamAction = safeAction(
 
     const results = await prisma.$transaction(async (tx) => {
       const now = new Date();
-      const updated = [];
-      for (const s of gradedSessions) {
-        const obtainedMarks = s.studentAnswers.reduce(
-          (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
-          0,
-        );
-        const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
 
-        const result = await tx.examResult.update({
-          where: { sessionId: s.id },
-          data: {
-            obtainedMarks: score.obtainedMarks,
-            totalMarks: score.totalMarks,
-            percentage: score.percentage,
-            isPassed: score.isPassed,
-            grade: score.grade,
-            publishedAt: now,
-          },
-        });
-        updated.push(result);
-      }
+      // Batch update all results in parallel (replaces sequential N+1 loop)
+      const updated = await Promise.all(
+        gradedSessions.map((s) => {
+          const obtainedMarks = s.studentAnswers.reduce(
+            (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
+            0,
+          );
+          const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
+
+          return tx.examResult.update({
+            where: { sessionId: s.id },
+            data: {
+              obtainedMarks: score.obtainedMarks,
+              totalMarks: score.totalMarks,
+              percentage: score.percentage,
+              isPassed: score.isPassed,
+              grade: score.grade,
+              publishedAt: now,
+            },
+          });
+        }),
+      );
 
       // Recalculate ranks
       const ranked = updated.sort((a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks));

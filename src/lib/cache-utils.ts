@@ -3,6 +3,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '@/lib/query-keys';
+import { useReferenceStore } from '@/stores/reference-store';
 
 /**
  * Hook for targeted cache invalidation after mutations.
@@ -29,15 +30,16 @@ export function useInvalidateCache() {
     questions: () => invalidateQueries(queryKeys.questions.all),
     grading: () => invalidateQueries(queryKeys.grading.all),
     results: () => invalidateQueries(queryKeys.results.all),
-    subjects: () => invalidateQueries(queryKeys.subjects.all),
-    classes: () => invalidateQueries(queryKeys.classes.all),
-    academicSessions: () => invalidateQueries(queryKeys.academicSessions.all),
+    subjects: () => { useReferenceStore.getState().invalidate(); return invalidateQueries(queryKeys.subjects.all); },
+    classes: () => { useReferenceStore.getState().invalidate(); return invalidateQueries(queryKeys.classes.all); },
+    academicSessions: () => { useReferenceStore.getState().invalidate(); return invalidateQueries(queryKeys.academicSessions.all); },
     users: () => invalidateQueries(queryKeys.users.all),
     notifications: () => invalidateQueries(queryKeys.notifications.all),
     departments: () => invalidateQueries(queryKeys.departments.all),
     settings: () => invalidateQueries(queryKeys.settings.all),
     principal: () => invalidateQueries(queryKeys.principal.all),
-    principalDashboard: () => invalidateQueries(['principal', 'dashboard']),
+    principalDashboard: () => invalidateQueries(queryKeys.principal.dashboard.all),
+    diary: () => invalidateQueries(queryKeys.diary.all),
 
     // ── Granular invalidation ──
     examLists: () => invalidateQueries(queryKeys.exams.lists()),
@@ -166,6 +168,23 @@ export function useInvalidateCache() {
       await Promise.all([
         invalidateQueries(queryKeys.attendance.subject()),
         invalidateQueries(queryKeys.attendance.stats()),
+      ]);
+    },
+
+    // ── Cross-module invalidation for structural changes ──
+    afterStructuralChange: async () => {
+      useReferenceStore.getState().invalidate();
+      await Promise.all([
+        invalidateQueries(queryKeys.classes.all),
+        invalidateQueries(queryKeys.subjects.all),
+        invalidateQueries(queryKeys.academicSessions.all),
+        invalidateQueries(queryKeys.principal.all),
+      ]);
+    },
+    afterUserMutation: async () => {
+      await Promise.all([
+        invalidateQueries(queryKeys.users.all),
+        invalidateQueries(queryKeys.principal.all),
       ]);
     },
 

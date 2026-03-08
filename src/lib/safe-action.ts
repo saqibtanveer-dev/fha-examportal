@@ -88,3 +88,28 @@ function handlePrismaError(error: { code: string; meta?: Record<string, unknown>
       return actionError('A database error occurred. Please try again.');
   }
 }
+
+/**
+ * Wraps a read-only server action (fetch) with error sanitization.
+ * Unlike safeAction, this re-throws a clean Error so React Query
+ * enters error state with a safe message (no Prisma/DB internals leaked).
+ */
+export function safeFetchAction<TArgs extends unknown[], TResult>(
+  action: (...args: TArgs) => Promise<TResult>,
+): (...args: TArgs) => Promise<TResult> {
+  return async (...args: TArgs): Promise<TResult> => {
+    try {
+      return await action(...args);
+    } catch (error: unknown) {
+      if (isNextRedirect(error)) throw error;
+
+      if (isPrismaError(error)) {
+        logger.error({ prismaCode: error.code, meta: error.meta }, 'Prisma error in fetch action');
+        throw new Error('Failed to load data. Please try again.');
+      }
+
+      logger.error({ err: error }, 'Unhandled error in fetch action');
+      throw new Error('Failed to load data. Please try again.');
+    }
+  };
+}
