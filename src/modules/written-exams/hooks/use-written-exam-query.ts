@@ -7,8 +7,8 @@ import { fetchWrittenExamMarkEntryAction } from '@/modules/written-exams/written
 import {
   initializeWrittenExamSessionsAction,
   enterWrittenMarksAction,
-  batchEnterWrittenMarksAction,
 } from '@/modules/written-exams/written-exam-actions';
+import { batchEnterWrittenMarksAction } from '@/modules/written-exams/written-exam-batch-actions';
 import {
   bulkEnterWrittenMarksAction,
   markStudentAbsentAction,

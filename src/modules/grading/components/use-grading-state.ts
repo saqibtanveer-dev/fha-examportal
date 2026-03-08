@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { gradeAnswerAction, batchGradeAnswersAction } from '@/modules/grading/grading-actions';
-import { approveAiGradeAction, finalizeSessionAction } from '@/modules/grading/ai-grading-actions';
+import { approveAiGradeAction, finalizeSessionAction } from '@/modules/grading/ai-grading-review-actions';
 import { toast } from 'sonner';
 import type { Answer, ViewMode } from './grading-types';
 

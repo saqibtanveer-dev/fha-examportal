@@ -14,7 +14,6 @@ import { revalidatePath } from 'next/cache';
 import {
   createDiaryEntrySchema,
   updateDiaryEntrySchema,
-  copyDiaryToSectionsSchema,
 } from '@/validations/diary-schemas';
 import type { ActionResult } from '@/types/action-result';
 import { isFutureDate, isToday } from './diary.utils';
@@ -221,5 +220,4 @@ export const publishDiaryEntryAction = safeAction(
   },
 );
 
-// Re-export copy action from split file
-export { copyDiaryToSectionsAction } from './diary-copy-actions';
+

@@ -141,5 +141,3 @@ export async function aiGradeSingleAnswerAction(
   return { success: true };
 }
 
-// Re-export finalize/review actions from split file
-export { approveAiGradeAction, finalizeSessionAction, reopenSessionAction } from './ai-grading-review-actions';

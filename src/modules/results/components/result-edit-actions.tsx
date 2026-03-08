@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/shared';
-import { reopenSessionAction } from '@/modules/grading/ai-grading-actions';
+import { reopenSessionAction } from '@/modules/grading/ai-grading-review-actions';
 import { toast } from 'sonner';
 import { RotateCcw, PenLine } from 'lucide-react';
 import Link from 'next/link';

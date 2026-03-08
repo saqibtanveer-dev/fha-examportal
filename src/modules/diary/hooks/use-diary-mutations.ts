@@ -12,8 +12,8 @@ import {
   updateDiaryEntryAction,
   deleteDiaryEntryAction,
   publishDiaryEntryAction,
-  copyDiaryToSectionsAction,
 } from '../diary-mutation-actions';
+import { copyDiaryToSectionsAction } from '../diary-copy-actions';
 import {
   markDiaryReadAction,
   addPrincipalNoteAction,

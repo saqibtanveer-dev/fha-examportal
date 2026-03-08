@@ -14,8 +14,6 @@ import {
   type EnterWrittenMarksInput,
 } from '@/validations/written-exam-schemas';
 
-// Re-export batch action from split file
-export { batchEnterWrittenMarksAction } from './written-exam-batch-actions';
 
 const MARKS_PATH = '/teacher/exams';
 
