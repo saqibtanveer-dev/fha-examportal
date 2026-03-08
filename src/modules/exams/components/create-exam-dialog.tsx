@@ -54,7 +54,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
     return current?.id ?? '';
   });
   const [selectedQuestions, setSelectedQuestions] = useState<string[]>([]);
-  const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [selectedSections, setSelectedSections] = useState<{ classId: string; sectionId: string }[]>([]);
   const invalidate = useInvalidateCache();
 
   const { data: pickerQuestions = [], isLoading: isLoadingQuestions } = useQuestionsForPicker(subjectId);
@@ -120,7 +120,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
           marks: questions.find((q) => q.id === qId)?.marks ?? 1,
           isRequired: true,
         })),
-        classAssignments: selectedClasses.map((classId) => ({ classId })),
+        classAssignments: selectedSections,
       });
       if (result.success) {
         toast.success('Exam created');
@@ -139,7 +139,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
     setDeliveryMode('ONLINE');
     setDuration('');
     setSelectedQuestions([]);
-    setSelectedClasses([]);
+    setSelectedSections([]);
   }
 
   return (
@@ -269,19 +269,27 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
 
           {/* Class Assignment */}
           <div className="space-y-2">
-            <Label>Assign to Classes ({selectedClasses.length} selected)</Label>
-            <div className="flex flex-wrap gap-2">
+            <Label>Assign to Sections ({selectedSections.length} selected)</Label>
+            <div className="space-y-1">
               {classes.map((c) => (
-                <label key={c.id} className="flex items-center gap-1 cursor-pointer">
-                  <Checkbox
-                    checked={selectedClasses.includes(c.id)}
-                    onCheckedChange={(checked) => {
-                      if (checked) setSelectedClasses((p) => [...p, c.id]);
-                      else setSelectedClasses((p) => p.filter((x) => x !== c.id));
-                    }}
-                  />
-                  <span className="text-sm">{c.name}</span>
-                </label>
+                <div key={c.id} className="flex flex-wrap gap-2 items-center">
+                  <span className="text-sm font-medium w-16">{c.name}:</span>
+                  {c.sections.map((s) => {
+                    const isChecked = selectedSections.some((x) => x.classId === c.id && x.sectionId === s.id);
+                    return (
+                      <label key={s.id} className="flex items-center gap-1 cursor-pointer">
+                        <Checkbox
+                          checked={isChecked}
+                          onCheckedChange={(checked) => {
+                            if (checked) setSelectedSections((p) => [...p, { classId: c.id, sectionId: s.id }]);
+                            else setSelectedSections((p) => p.filter((x) => !(x.classId === c.id && x.sectionId === s.id)));
+                          }}
+                        />
+                        <span className="text-sm">{s.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               ))}
             </div>
           </div>
@@ -296,7 +304,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => { resetForm(); onOpenChange(false); }}>Cancel</Button>
-            <Button type="submit" disabled={isPending || !subjectId || selectedQuestions.length === 0 || selectedClasses.length === 0}>
+            <Button type="submit" disabled={isPending || !subjectId || selectedQuestions.length === 0 || selectedSections.length === 0}>
               {isPending && <Spinner size="sm" className="mr-2" />}Create Exam
             </Button>
           </div>

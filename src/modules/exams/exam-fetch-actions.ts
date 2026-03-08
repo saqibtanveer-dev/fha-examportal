@@ -2,6 +2,7 @@
 
 import { listExams, getExamById, getExamsForStudent } from '@/modules/exams/exam-queries';
 import { requireRole } from '@/lib/auth-utils';
+import { assertExamAccess } from '@/lib/authorization-guards';
 import { serialize } from '@/utils/serialize';
 import { prisma } from '@/lib/prisma';
 import type { PaginationParams } from '@/utils/pagination';
@@ -16,11 +17,25 @@ export const fetchExamsAction = safeFetchAction(async (
   filters: ExamListFilters,
 ) => {
   const session = await requireRole('TEACHER', 'ADMIN');
-  const scopedFilters = {
-    ...filters,
-    createdById: session.user.role === 'TEACHER' ? session.user.id : filters.createdById,
-  };
-  const result = await listExams(params, scopedFilters);
+  // Teachers see exams they created OR exams assigned to their sections
+  if (session.user.role === 'TEACHER') {
+    const teacherProfile = await prisma.teacherProfile.findUnique({
+      where: { userId: session.user.id },
+      select: { id: true },
+    });
+    const assignments = teacherProfile
+      ? await prisma.teacherSubject.findMany({
+          where: { teacherId: teacherProfile.id },
+          select: { classId: true, sectionId: true },
+        })
+      : [];
+    const result = await listExams(params, filters, {
+      createdById: session.user.id,
+      sectionAssignments: assignments,
+    });
+    return serialize(result);
+  }
+  const result = await listExams(params, filters);
   return serialize(result);
 });
 
@@ -28,7 +43,8 @@ export const fetchExamsAction = safeFetchAction(async (
  * Server action to fetch a single exam detail.
  */
 export const fetchExamDetailAction = safeFetchAction(async (id: string) => {
-  await requireRole('TEACHER', 'ADMIN');
+  const session = await requireRole('TEACHER', 'ADMIN', 'PRINCIPAL');
+  await assertExamAccess(session.user.id, session.user.role, id);
   const result = await getExamById(id);
   if (!result) return null;
   return serialize(result);
@@ -47,7 +63,7 @@ export const fetchStudentExamsAction = safeFetchAction(async () => {
     select: { id: true, classId: true, sectionId: true },
   });
 
-  if (!studentProfile?.classId) {
+  if (!studentProfile?.classId || !studentProfile?.sectionId) {
     return { exams: [], profile: null };
   }
 
@@ -60,7 +76,7 @@ export const fetchStudentExamsAction = safeFetchAction(async () => {
   const exams = await getExamsForStudent(
     userId,
     studentProfile.classId,
-    studentProfile.sectionId ?? undefined,
+    studentProfile.sectionId,
     studentProfile.id,
     academicSession?.id,
   );

@@ -80,11 +80,38 @@ export async function getStudentSessions(studentId: string) {
   });
 }
 
-export async function getSessionsForGrading(teacherId: string, isAdmin = false) {
+export async function getSessionsForGrading(
+  teacherId: string,
+  isAdmin = false,
+  sectionAssignments?: Array<{ classId: string; sectionId: string }>,
+) {
+  const sectionFilter =
+    !isAdmin && sectionAssignments && sectionAssignments.length > 0
+      ? {
+          exam: {
+            OR: [
+              { createdById: teacherId },
+              {
+                examClassAssignments: {
+                  some: {
+                    OR: sectionAssignments.map((a) => ({
+                      classId: a.classId,
+                      sectionId: a.sectionId,
+                    })),
+                  },
+                },
+              },
+            ],
+          },
+        }
+      : isAdmin
+        ? {}
+        : { exam: { createdById: teacherId } };
+
   return prisma.examSession.findMany({
     where: {
       status: { in: ['SUBMITTED', 'GRADING'] },
-      ...(isAdmin ? {} : { exam: { createdById: teacherId } }),
+      ...sectionFilter,
     },
     orderBy: { submittedAt: 'asc' },
     include: {

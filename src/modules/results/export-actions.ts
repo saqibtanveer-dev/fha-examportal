@@ -90,11 +90,21 @@ export async function exportExamResultsAction(
 export async function exportStudentResultsAction(
   studentId: string,
 ): Promise<ActionResult<ExportResult>> {
-  const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT');
+  const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
 
-  // Students can only export their own
   if (session.user.role === 'STUDENT' && session.user.id !== studentId) {
     return { success: false, error: 'Access denied' };
+  }
+
+  if (session.user.role === 'FAMILY') {
+    const link = await prisma.familyStudentLink.findFirst({
+      where: {
+        familyProfile: { userId: session.user.id },
+        studentProfile: { userId: studentId },
+        isActive: true,
+      },
+    });
+    if (!link) return { success: false, error: 'Access denied' };
   }
 
   const results = await prisma.examResult.findMany({

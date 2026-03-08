@@ -26,17 +26,41 @@ export type ExamListFilters = {
   academicSessionId?: string;
 };
 
-export async function listExams(params: PaginationParams, filters: ExamListFilters) {
+type TeacherScope = {
+  createdById: string;
+  sectionAssignments: Array<{ classId: string; sectionId: string }>;
+};
+
+export async function listExams(
+  params: PaginationParams,
+  filters: ExamListFilters,
+  teacherScope?: TeacherScope,
+) {
   const where: Prisma.ExamWhereInput = { deletedAt: null };
 
   if (filters.subjectId) where.subjectId = filters.subjectId;
   if (filters.status) where.status = filters.status;
-  if (filters.createdById) where.createdById = filters.createdById;
   if (filters.academicSessionId) where.academicSessionId = filters.academicSessionId;
   if (filters.search) {
-    where.OR = [
-      { title: { contains: filters.search, mode: 'insensitive' } },
+    where.AND = [
+      { OR: [{ title: { contains: filters.search, mode: 'insensitive' } }] },
     ];
+  }
+
+  // Teacher scope: see own exams + exams assigned to their sections
+  if (teacherScope) {
+    const sectionConditions = teacherScope.sectionAssignments.map((a) => ({
+      classId: a.classId,
+      sectionId: a.sectionId,
+    }));
+    where.OR = [
+      { createdById: teacherScope.createdById },
+      ...(sectionConditions.length > 0
+        ? [{ examClassAssignments: { some: { OR: sectionConditions } } }]
+        : []),
+    ];
+  } else if (filters.createdById) {
+    where.createdById = filters.createdById;
   }
 
   const [data, totalCount] = await Promise.all([
@@ -101,7 +125,7 @@ export async function getExamDetail(id: string) {
 export async function getExamsForStudent(
   studentId: string,
   classId: string,
-  sectionId?: string,
+  sectionId: string,
   studentProfileId?: string,
   academicSessionId?: string,
 ) {
@@ -134,7 +158,7 @@ export async function getExamsForStudent(
       examClassAssignments: {
         some: {
           classId,
-          ...(sectionId ? { sectionId } : {}),
+          sectionId,
         },
       },
     },

@@ -21,17 +21,14 @@ export const createQuestionAction = safeAction(async function createQuestionActi
 
   const { mcqOptions, tagIds, gradingRubric, ...questionData } = parsed.data;
 
-  // Teacher-subject enforcement (soft — warn but allow if no assignments exist)
+  // Teacher-subject enforcement — hard check
   if (session.user.role === 'TEACHER') {
     const teacherProfile = await prisma.teacherProfile.findUnique({ where: { userId: session.user.id } });
-    if (teacherProfile) {
-      const assignments = await prisma.teacherSubject.findMany({ where: { teacherId: teacherProfile.id } });
-      if (assignments.length > 0) {
-        const assignedSubjectIds = assignments.map((a) => a.subjectId);
-        if (!assignedSubjectIds.includes(questionData.subjectId)) {
-          return { success: false, error: 'You are not assigned to this subject. Contact admin.' };
-        }
-      }
+    if (!teacherProfile) return { success: false, error: 'Teacher profile not found. Contact admin.' };
+    const assignments = await prisma.teacherSubject.findMany({ where: { teacherId: teacherProfile.id } });
+    const assignedSubjectIds = assignments.map((a) => a.subjectId);
+    if (!assignedSubjectIds.includes(questionData.subjectId)) {
+      return { success: false, error: 'You are not assigned to this subject. Contact admin.' };
     }
   }
 

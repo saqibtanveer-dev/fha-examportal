@@ -191,10 +191,10 @@ async function main() {
   // ============================================
   const teacherPw = pw('Teacher123!');
   const teacherDefs = [
-    { email: 'ahmed.khan@examcore.school', first: 'Ahmed', last: 'Khan', empId: 'TCH-001', qual: 'MSc Physics', spec: 'Mechanics & Thermodynamics', subjects: [{ subjectId: physics.id, classId: class9.id }, { subjectId: physics.id, classId: class10.id }, { subjectId: maths.id, classId: class9.id }] },
-    { email: 'fatima.ali@examcore.school', first: 'Fatima', last: 'Ali', empId: 'TCH-002', qual: 'MA English Literature', spec: 'Grammar & Composition', subjects: [{ subjectId: english.id, classId: class9.id }, { subjectId: english.id, classId: class10.id }, { subjectId: urdu.id, classId: class9.id }] },
-    { email: 'bilal.ahmed@examcore.school', first: 'Bilal', last: 'Ahmed', empId: 'TCH-003', qual: 'MSc Chemistry', spec: 'Organic Chemistry', subjects: [{ subjectId: chemistry.id, classId: class9.id }, { subjectId: chemistry.id, classId: class10.id }, { subjectId: biology.id, classId: class9.id }] },
-    { email: 'ayesha.nawaz@examcore.school', first: 'Ayesha', last: 'Nawaz', empId: 'TCH-004', qual: 'MSc Mathematics', spec: 'Calculus & Algebra', subjects: [{ subjectId: maths.id, classId: class10.id }, { subjectId: maths.id, classId: class11.id }, { subjectId: computer.id, classId: class11.id }] },
+    { email: 'ahmed.khan@examcore.school', first: 'Ahmed', last: 'Khan', empId: 'TCH-001', qual: 'MSc Physics', spec: 'Mechanics & Thermodynamics', subjects: [{ subjectId: physics.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: physics.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: maths.id, classId: class9.id, sectionId: secId('9-A') }] },
+    { email: 'fatima.ali@examcore.school', first: 'Fatima', last: 'Ali', empId: 'TCH-002', qual: 'MA English Literature', spec: 'Grammar & Composition', subjects: [{ subjectId: english.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: english.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: urdu.id, classId: class9.id, sectionId: secId('9-A') }] },
+    { email: 'bilal.ahmed@examcore.school', first: 'Bilal', last: 'Ahmed', empId: 'TCH-003', qual: 'MSc Chemistry', spec: 'Organic Chemistry', subjects: [{ subjectId: chemistry.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: chemistry.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: biology.id, classId: class9.id, sectionId: secId('9-A') }] },
+    { email: 'ayesha.nawaz@examcore.school', first: 'Ayesha', last: 'Nawaz', empId: 'TCH-004', qual: 'MSc Mathematics', spec: 'Calculus & Algebra', subjects: [{ subjectId: maths.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: maths.id, classId: class11.id, sectionId: secId('11-A') }, { subjectId: computer.id, classId: class11.id, sectionId: secId('11-A') }] },
   ];
 
   const teachers: { user: typeof admin; profile: { id: string } }[] = [];
@@ -212,9 +212,9 @@ async function main() {
     // TeacherSubject assignments
     for (const sub of t.subjects) {
       await prisma.teacherSubject.upsert({
-        where: { teacherId_subjectId_classId: { teacherId: profile.id, subjectId: sub.subjectId, classId: sub.classId } },
+        where: { teacherId_subjectId_classId_sectionId: { teacherId: profile.id, subjectId: sub.subjectId, classId: sub.classId, sectionId: sub.sectionId } },
         update: {},
-        create: { teacherId: profile.id, subjectId: sub.subjectId, classId: sub.classId },
+        create: { teacherId: profile.id, subjectId: sub.subjectId, classId: sub.classId, sectionId: sub.sectionId },
       });
     }
     teachers.push({ user, profile });
@@ -436,7 +436,7 @@ async function main() {
             })),
           },
         },
-        examClassAssignments: { create: { classId: class9.id } },
+        examClassAssignments: { create: { classId: class9.id, sectionId: secId('9-A') } },
       },
     });
 
@@ -463,7 +463,7 @@ async function main() {
             })),
           },
         },
-        examClassAssignments: { create: { classId: class9.id } },
+        examClassAssignments: { create: { classId: class9.id, sectionId: secId('9-A') } },
       },
     });
 
@@ -489,7 +489,7 @@ async function main() {
             })),
           },
         },
-        examClassAssignments: { create: { classId: class9.id } },
+        examClassAssignments: { create: { classId: class9.id, sectionId: secId('9-A') } },
       },
     });
 
@@ -515,7 +515,7 @@ async function main() {
             })),
           },
         },
-        examClassAssignments: { create: { classId: class10.id } },
+        examClassAssignments: { create: { classId: class10.id, sectionId: secId('10-A') } },
       },
     });
 
@@ -541,7 +541,7 @@ async function main() {
             })),
           },
         },
-        examClassAssignments: { create: { classId: class11.id } },
+        examClassAssignments: { create: { classId: class11.id, sectionId: secId('11-A') } },
       },
     });
 
@@ -567,7 +567,7 @@ async function main() {
             })),
           },
         },
-        examClassAssignments: { create: { classId: class9.id } },
+        examClassAssignments: { create: { classId: class9.id, sectionId: secId('9-A') } },
       },
     });
 

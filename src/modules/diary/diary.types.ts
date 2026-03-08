@@ -66,7 +66,7 @@ export type DiaryPrincipalNoteRecord = {
 export type TeacherSubjectClass = {
   subjectId: string;
   subjectName: string;
-  subjectCode: string;
+  subjectCode: string | null;
   classId: string;
   className: string;
   sections: { id: string; name: string }[];

@@ -1,6 +1,7 @@
 'use server';
 
-import { requireRole } from '@/lib/auth-utils';
+import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
+import { assertTeacherSectionAccess } from '@/lib/authorization-guards';
 import { serialize } from '@/utils/serialize';
 import { prisma } from '@/lib/prisma';
 import { safeFetchAction } from '@/lib/safe-action';
@@ -42,7 +43,10 @@ async function getCurrentAcademicSessionId(): Promise<string | null> {
 
 export const fetchDailyAttendanceAction = safeFetchAction(
   async (classId: string, sectionId: string, date: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    if (session.user.role === 'TEACHER') {
+      await assertTeacherSectionAccess(session.user.id, classId, sectionId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
     const dateObj = new Date(date + 'T00:00:00.000Z');
@@ -52,7 +56,10 @@ export const fetchDailyAttendanceAction = safeFetchAction(
 
 export const fetchStudentDailyAttendanceAction = safeFetchAction(
   async (studentProfileId: string, startDate: string, endDate: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+    if (session.user.role === 'FAMILY') {
+      await assertFamilyStudentAccess(session.user.id, studentProfileId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
     return serialize(await getDailyAttendanceByStudent(
@@ -66,7 +73,10 @@ export const fetchStudentDailyAttendanceAction = safeFetchAction(
 
 export const fetchHasDailyAttendanceAction = safeFetchAction(
   async (classId: string, sectionId: string, date: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    if (session.user.role === 'TEACHER') {
+      await assertTeacherSectionAccess(session.user.id, classId, sectionId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return false;
     const dateObj = new Date(date + 'T00:00:00.000Z');
@@ -92,7 +102,10 @@ export const fetchSubjectAttendanceAction = safeFetchAction(
 
 export const fetchStudentSubjectAttendanceAction = safeFetchAction(
   async (studentProfileId: string, startDate: string, endDate: string, subjectId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+    if (session.user.role === 'FAMILY') {
+      await assertFamilyStudentAccess(session.user.id, studentProfileId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
     return serialize(await getSubjectAttendanceByStudent(
@@ -111,7 +124,10 @@ export const fetchStudentSubjectAttendanceAction = safeFetchAction(
 
 export const fetchStudentsForMarkingAction = safeFetchAction(
   async (classId: string, sectionId: string, subjectId?: string) => {
-    await requireRole('ADMIN', 'TEACHER');
+    const session = await requireRole('ADMIN', 'TEACHER');
+    if (session.user.role === 'TEACHER') {
+      await assertTeacherSectionAccess(session.user.id, classId, sectionId);
+    }
 
     if (subjectId) {
       const academicSessionId = await getCurrentAcademicSessionId();
@@ -150,7 +166,10 @@ export const fetchDailyAttendanceCountsAction = safeFetchAction(
 
 export const fetchStudentDailyAttendanceCountsAction = safeFetchAction(
   async (studentProfileId: string, startDate: string, endDate: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+    if (session.user.role === 'FAMILY') {
+      await assertFamilyStudentAccess(session.user.id, studentProfileId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
     return serialize(await getStudentDailyAttendanceCounts(
@@ -164,7 +183,10 @@ export const fetchStudentDailyAttendanceCountsAction = safeFetchAction(
 
 export const fetchClassAttendanceTrendAction = safeFetchAction(
   async (classId: string, sectionId: string, startDate: string, endDate: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    if (session.user.role === 'TEACHER') {
+      await assertTeacherSectionAccess(session.user.id, classId, sectionId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
     return serialize(await getClassDailyAttendanceTrend(
@@ -178,7 +200,10 @@ export const fetchClassAttendanceTrendAction = safeFetchAction(
 
 export const fetchStudentWiseAttendanceAction = safeFetchAction(
   async (classId: string, sectionId: string, startDate: string, endDate: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    if (session.user.role === 'TEACHER') {
+      await assertTeacherSectionAccess(session.user.id, classId, sectionId);
+    }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
 

@@ -138,7 +138,7 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
           }
         />
       ) : (
-        <UserTable users={result.data} allSubjects={allSubjects} subjectClassLinks={subjectClassLinks} />
+        <UserTable users={result.data} allSubjects={allSubjects} allClasses={allClasses} subjectClassLinks={subjectClassLinks} />
       )}
 
       {/* Pagination info */}

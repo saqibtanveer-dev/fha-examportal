@@ -53,10 +53,7 @@ export const fetchStudentDashboardStatsAction = safeFetchAction(async () : Promi
         examClassAssignments: {
           some: {
             classId: studentProfile.classId,
-            OR: [
-              { sectionId: null }, 
-              { sectionId: studentProfile.sectionId ?? undefined }
-            ],
+            sectionId: studentProfile.sectionId ?? undefined,
           },
         },
       },

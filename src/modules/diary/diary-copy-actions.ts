@@ -2,7 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
-import { getTeacherProfileIdOrThrow } from '@/lib/authorization-guards';
+import { getTeacherProfileIdOrThrow, assertTeacherSubjectSectionAccess } from '@/lib/authorization-guards';
 import { safeAction } from '@/lib/safe-action';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
@@ -34,9 +34,17 @@ export const copyDiaryToSectionsAction = safeAction(
       if (entry.teacherProfileId !== teacherProfileId) {
         return actionError('You can only copy your own diary entries');
       }
+      for (const sectionId of parsed.data.targetSectionIds) {
+        await assertTeacherSubjectSectionAccess(
+          teacherProfileId,
+          entry.subjectId,
+          entry.classId,
+          sectionId,
+        );
+      }
     }
 
-    const results = await prisma.$transaction(
+    const results = await Promise.all(
       parsed.data.targetSectionIds.map((sectionId) =>
         prisma.diaryEntry.upsert({
           where: {

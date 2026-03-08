@@ -40,9 +40,9 @@ export async function startSessionAction(examId: string): Promise<ActionResult<{
   if (!studentProfile) return { success: false, error: 'Student profile not found. Contact admin.' };
 
   const isAssigned = exam.examClassAssignments.some(
-    (a) => a.classId === studentProfile.classId && (!a.sectionId || a.sectionId === studentProfile.sectionId),
+    (a) => a.classId === studentProfile.classId && a.sectionId === studentProfile.sectionId,
   );
-  if (!isAssigned) return { success: false, error: 'This exam is not assigned to your class' };
+  if (!isAssigned) return { success: false, error: 'This exam is not assigned to your section' };
 
   // Verify student is enrolled in the exam's subject (for electives)
   if (exam.subjectId && exam.academicSessionId) {

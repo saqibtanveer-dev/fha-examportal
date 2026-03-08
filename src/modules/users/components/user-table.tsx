@@ -29,10 +29,12 @@ import type { UserWithProfile } from '@/modules/users/user-queries';
 
 type SubjectInfo = { id: string; name: string; code: string };
 type SubjectClassLinkInfo = { subjectId: string; classId: string; className: string };
+type ClassInfoWithSections = { id: string; name: string; grade: number; sections: { id: string; name: string }[] };
 
 type UserTableProps = {
   users: UserWithProfile[];
   allSubjects?: SubjectInfo[];
+  allClasses?: ClassInfoWithSections[];
   subjectClassLinks?: SubjectClassLinkInfo[];
 };
 
@@ -44,7 +46,7 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   FAMILY: 'outline',
 };
 
-export function UserTable({ users, allSubjects = [], subjectClassLinks = [] }: UserTableProps) {
+export function UserTable({ users, allSubjects = [], allClasses = [], subjectClassLinks = [] }: UserTableProps) {
   const [isPending, startTransition] = useTransition();
   const [editingUser, setEditingUser] = useState<UserWithProfile | null>(null);
   const [familyLinkUser, setFamilyLinkUser] = useState<UserWithProfile | null>(null);
@@ -142,6 +144,7 @@ export function UserTable({ users, allSubjects = [], subjectClassLinks = [] }: U
                       user.teacherProfile.teacherSubjects?.filter((ts: any) => ts.class && ts.subject).map((ts: any) => ({
                         subjectId: ts.subject.id,
                         classId: ts.class.id,
+                        sectionId: ts.section?.id ?? '',
                         subject: {
                           id: ts.subject.id,
                           name: ts.subject.name,
@@ -151,9 +154,11 @@ export function UserTable({ users, allSubjects = [], subjectClassLinks = [] }: U
                           id: ts.class.id,
                           name: ts.class.name,
                         },
+                        section: ts.section ? { id: ts.section.id, name: ts.section.name } : undefined,
                       })) ?? []
                     }
                     allSubjects={allSubjects}
+                    allClasses={allClasses}
                     subjectClassLinks={subjectClassLinks}
                   />
                 ) : (

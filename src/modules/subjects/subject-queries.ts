@@ -24,6 +24,7 @@ export async function getSubjectById(id: string) {
         include: {
           teacher: { include: { user: true } },
           class: { select: { id: true, name: true } },
+          section: { select: { id: true, name: true } },
         },
       },
       subjectClassLinks: {

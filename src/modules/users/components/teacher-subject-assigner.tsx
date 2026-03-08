@@ -20,12 +20,16 @@ import { BookOpen, Plus } from 'lucide-react';
 
 type SubjectInfo = { id: string; name: string; code: string };
 type ClassInfo = { id: string; name: string };
+type SectionInfo = { id: string; name: string };
 type SubjectClassLink = { subjectId: string; classId: string; className: string };
+type ClassInfoWithSections = { id: string; name: string; grade: number; sections: SectionInfo[] };
 type TeacherSubjectAssignment = {
   subjectId: string;
   classId: string;
+  sectionId: string;
   subject: SubjectInfo;
   class: ClassInfo;
+  section?: SectionInfo;
 };
 
 type Props = {
@@ -33,6 +37,7 @@ type Props = {
   teacherName: string;
   currentAssignments: TeacherSubjectAssignment[];
   allSubjects: SubjectInfo[];
+  allClasses?: ClassInfoWithSections[];
   subjectClassLinks: SubjectClassLink[];
 };
 
@@ -41,6 +46,7 @@ export function TeacherSubjectAssigner({
   teacherName,
   currentAssignments,
   allSubjects,
+  allClasses = [],
   subjectClassLinks,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -48,19 +54,22 @@ export function TeacherSubjectAssigner({
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const invalidate = useInvalidateCache();
 
-  // Group links by subject for organized display
+  // Group links by subject for organized display, include sections per class
+  const classMap = useMemo(() => new Map(allClasses.map((c) => [c.id, c])), [allClasses]);
+
   const subjectGroups = useMemo(() => {
     const subjectMap = new Map(allSubjects.map((s) => [s.id, s]));
-    const groups: { subject: SubjectInfo; classes: { classId: string; className: string }[] }[] = [];
-    const grouped = new Map<string, { classId: string; className: string }[]>();
+    const grouped = new Map<string, { classId: string; className: string; sections: SectionInfo[] }[]>();
 
     for (const link of subjectClassLinks) {
       if (!subjectMap.has(link.subjectId)) continue;
       const arr = grouped.get(link.subjectId) ?? [];
-      arr.push({ classId: link.classId, className: link.className });
+      const cls = classMap.get(link.classId);
+      arr.push({ classId: link.classId, className: link.className, sections: cls?.sections ?? [] });
       grouped.set(link.subjectId, arr);
     }
 
+    const groups: { subject: SubjectInfo; classes: { classId: string; className: string; sections: SectionInfo[] }[] }[] = [];
     for (const [subjectId, classes] of grouped) {
       const subject = subjectMap.get(subjectId);
       if (subject) {
@@ -69,21 +78,21 @@ export function TeacherSubjectAssigner({
     }
 
     return groups.sort((a, b) => a.subject.name.localeCompare(b.subject.name));
-  }, [allSubjects, subjectClassLinks]);
+  }, [allSubjects, subjectClassLinks, classMap]);
 
-  function makeKey(subjectId: string, classId: string) {
-    return `${subjectId}:${classId}`;
+  function makeKey(subjectId: string, classId: string, sectionId: string) {
+    return `${subjectId}:${classId}:${sectionId}`;
   }
 
   function handleOpenChange(isOpen: boolean) {
     setOpen(isOpen);
     if (isOpen) {
-      setSelectedKeys(new Set(currentAssignments.map((a) => makeKey(a.subjectId, a.classId))));
+      setSelectedKeys(new Set(currentAssignments.map((a) => makeKey(a.subjectId, a.classId, a.sectionId))));
     }
   }
 
-  function togglePair(subjectId: string, classId: string) {
-    const key = makeKey(subjectId, classId);
+  function togglePair(subjectId: string, classId: string, sectionId: string) {
+    const key = makeKey(subjectId, classId, sectionId);
     setSelectedKeys((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -95,8 +104,8 @@ export function TeacherSubjectAssigner({
   function handleSave() {
     startTransition(async () => {
       const assignments = Array.from(selectedKeys).map((key) => {
-        const [subjectId, classId] = key.split(':');
-        return { subjectId: subjectId!, classId: classId! };
+        const [subjectId, classId, sectionId] = key.split(':');
+        return { subjectId: subjectId!, classId: classId!, sectionId: sectionId! };
       });
 
       const result = await bulkAssignTeacherSubjectsAction({
@@ -118,8 +127,8 @@ export function TeacherSubjectAssigner({
       <div className="flex items-center gap-2 flex-wrap">
         {currentAssignments.length > 0 ? (
           currentAssignments.map((a) => (
-            <Badge key={makeKey(a.subjectId, a.classId)} variant="outline" className="text-xs">
-              {a.subject.name} — {a.class.name}
+            <Badge key={makeKey(a.subjectId, a.classId, a.sectionId)} variant="outline" className="text-xs">
+              {a.subject.name} — {a.class.name}{a.section ? ` (${a.section.name})` : ''}
             </Badge>
           ))
         ) : (
@@ -138,7 +147,7 @@ export function TeacherSubjectAssigner({
               Assign Subjects — {teacherName}
             </DialogTitle>
             <DialogDescription>
-              Select which subjects and classes this teacher teaches.
+              Select which subjects, classes, and sections this teacher teaches.
             </DialogDescription>
           </DialogHeader>
 
@@ -149,23 +158,30 @@ export function TeacherSubjectAssigner({
                   <span className="text-sm font-semibold">{subject.name}</span>
                   <code className="text-xs text-muted-foreground">{subject.code}</code>
                 </div>
-                <div className="grid grid-cols-2 gap-2 pl-2">
-                  {classes.map((cls) => {
-                    const key = makeKey(subject.id, cls.classId);
-                    return (
-                      <div key={key} className="flex items-center gap-2 rounded-md border p-2">
-                        <Checkbox
-                          id={`pair-${key}`}
-                          checked={selectedKeys.has(key)}
-                          onCheckedChange={() => togglePair(subject.id, cls.classId)}
-                          disabled={isPending}
-                        />
-                        <Label htmlFor={`pair-${key}`} className="flex-1 cursor-pointer text-sm">
-                          {cls.className}
-                        </Label>
+                <div className="space-y-1 pl-2">
+                  {classes.map((cls) => (
+                    <div key={cls.classId} className="space-y-1">
+                      <span className="text-xs font-medium text-muted-foreground">{cls.className}</span>
+                      <div className="grid grid-cols-2 gap-2 pl-2">
+                        {cls.sections.map((sec) => {
+                          const key = makeKey(subject.id, cls.classId, sec.id);
+                          return (
+                            <div key={key} className="flex items-center gap-2 rounded-md border p-2">
+                              <Checkbox
+                                id={`pair-${key}`}
+                                checked={selectedKeys.has(key)}
+                                onCheckedChange={() => togglePair(subject.id, cls.classId, sec.id)}
+                                disabled={isPending}
+                              />
+                              <Label htmlFor={`pair-${key}`} className="flex-1 cursor-pointer text-sm">
+                                {sec.name}
+                              </Label>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}

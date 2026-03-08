@@ -43,7 +43,7 @@ export function TeacherDiaryView({ assignments, teacherProfileId, currentSession
     const map = new Map<string, { id: string; name: string; code: string }>();
     for (const a of assignments) {
       if (!map.has(a.subjectId)) {
-        map.set(a.subjectId, { id: a.subjectId, name: a.subjectName, code: a.subjectCode });
+        map.set(a.subjectId, { id: a.subjectId, name: a.subjectName, code: a.subjectCode ?? '' });
       }
     }
     return Array.from(map.values());
