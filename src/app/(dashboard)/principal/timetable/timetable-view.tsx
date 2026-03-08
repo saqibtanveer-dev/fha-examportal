@@ -7,7 +7,7 @@ import {
   TimetableGrid,
   ClassSectionSelector,
 } from '@/modules/timetable/components';
-import { useTimetableByClass } from '@/modules/timetable/hooks/use-timetable';
+import { useActivePeriodSlots, useTimetableByClass } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import type { PeriodSlotListItem } from '@/modules/timetable/timetable.types';
 import type { RefClass } from '@/stores';
@@ -26,6 +26,9 @@ export function PrincipalTimetableView({ periodSlots, classes, currentSessionId 
   const sections = selectedClass?.sections ?? [];
   const sectionId = selectedSectionId || sections[0]?.id || '';
 
+  const { data: classSpecificSlots } = useActivePeriodSlots(selectedClassId || undefined, sectionId || undefined);
+  const effectivePeriodSlots = classSpecificSlots ?? periodSlots;
+
   const { data: entries, isLoading } = useTimetableByClass(
     selectedClassId,
     sectionId,
@@ -34,8 +37,8 @@ export function PrincipalTimetableView({ periodSlots, classes, currentSessionId 
   );
 
   const grid = useMemo(
-    () => buildTimetableGrid(entries as any, periodSlots),
-    [entries, periodSlots],
+    () => buildTimetableGrid(entries as any, effectivePeriodSlots),
+    [entries, effectivePeriodSlots],
   );
 
   return (
@@ -77,7 +80,7 @@ export function PrincipalTimetableView({ periodSlots, classes, currentSessionId 
           </CardHeader>
           <CardContent>
             <TimetableGrid
-              periodSlots={periodSlots}
+              periodSlots={effectivePeriodSlots}
               grid={grid}
             />
           </CardContent>

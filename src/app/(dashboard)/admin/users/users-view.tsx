@@ -31,13 +31,16 @@ type ClassInfo = {
   sections: { id: string; name: string }[];
 };
 
+type SubjectClassLinkInfo = { subjectId: string; classId: string; className: string };
+
 type Props = {
   result: PaginatedResult<UserWithProfile>;
   allSubjects?: SubjectInfo[];
   allClasses?: ClassInfo[];
+  subjectClassLinks?: SubjectClassLinkInfo[];
 };
 
-export function UsersView({ result, allSubjects = [], allClasses = [] }: Props) {
+export function UsersView({ result, allSubjects = [], allClasses = [], subjectClassLinks = [] }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -129,7 +132,7 @@ export function UsersView({ result, allSubjects = [], allClasses = [] }: Props) 
           }
         />
       ) : (
-        <UserTable users={result.data} allSubjects={allSubjects} />
+        <UserTable users={result.data} allSubjects={allSubjects} subjectClassLinks={subjectClassLinks} />
       )}
 
       {/* Pagination info */}

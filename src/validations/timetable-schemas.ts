@@ -12,6 +12,8 @@ export const createPeriodSlotSchema = z.object({
   endTime: z.string().regex(TIME_FORMAT_REGEX, 'Invalid time format. Use HH:mm'),
   sortOrder: z.number().int().min(1).max(MAX_PERIODS_PER_DAY),
   isBreak: z.boolean().default(false),
+  classId: z.string().uuid('Invalid class').optional().nullable(),
+  sectionId: z.string().uuid('Invalid section').optional().nullable(),
 });
 
 export type CreatePeriodSlotInput = z.infer<typeof createPeriodSlotSchema>;
@@ -24,6 +26,8 @@ export const updatePeriodSlotSchema = z.object({
   sortOrder: z.number().int().min(1).max(MAX_PERIODS_PER_DAY).optional(),
   isBreak: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  classId: z.string().uuid('Invalid class').optional().nullable(),
+  sectionId: z.string().uuid('Invalid section').optional().nullable(),
 });
 
 export type UpdatePeriodSlotInput = z.infer<typeof updatePeriodSlotSchema>;

@@ -15,6 +15,7 @@ import {
 import {
   useTimetableByClass,
   useTeacherProfiles,
+  useActivePeriodSlots,
 } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import type { PeriodSlotListItem, TimetableEntryWithRelations } from '@/modules/timetable/timetable.types';
@@ -51,8 +52,12 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
 
   const { data: teachers } = useTeacherProfiles();
 
+  // Get effective period slots (3-tier: global → class → section)
+  const { data: classSpecificSlots } = useActivePeriodSlots(selectedClassId || undefined, sectionId || undefined);
+  const effectivePeriodSlots = classSpecificSlots ?? periodSlots;
+
   // Build grid from flat entries
-  const grid = useMemo(() => buildTimetableGrid(timetableEntries as any, periodSlots), [timetableEntries, periodSlots]);
+  const grid = useMemo(() => buildTimetableGrid(timetableEntries as any, effectivePeriodSlots), [timetableEntries, effectivePeriodSlots]);
 
   function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, entry: TimetableEntryWithRelations | null) {
     setSelectedDay(dayOfWeek);
@@ -103,7 +108,7 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
             />
           ) : (
             <TimetableGrid
-              periodSlots={periodSlots}
+              periodSlots={effectivePeriodSlots}
               grid={grid}
               onCellClick={handleCellClick}
             />
@@ -111,7 +116,7 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
         </TabsContent>
 
         <TabsContent value="periods" className="mt-4">
-          <PeriodSlotManager periodSlots={periodSlots} />
+          <PeriodSlotManager />
         </TabsContent>
 
         <TabsContent value="class-teachers" className="mt-4">
@@ -127,7 +132,7 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
           classId={selectedClassId}
           sectionId={sectionId}
           academicSessionId={currentSessionId}
-          periodSlots={periodSlots}
+          periodSlots={effectivePeriodSlots}
           subjects={subjects}
           teachers={teachers ?? []}
           initialDayOfWeek={selectedDay}

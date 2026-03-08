@@ -20,7 +20,7 @@ type AdminShellProps = {
     subjects: { id: string; name: string; code: string }[];
     classes: { id: string; name: string; sections: { id: string; name: string }[] }[];
     academicSessions: { id: string; name: string; isCurrent: boolean }[];
-    subjectClassLinks: { subjectId: string; classId: string; className: string }[];
+    subjectClassLinks: { subjectId: string; classId: string; className: string; isElective: boolean; electiveGroupName: string | null }[];
   };
   children: React.ReactNode;
 };

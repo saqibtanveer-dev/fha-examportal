@@ -171,9 +171,9 @@ export const assignTeacherToSubjectAction = safeAction(async function assignTeac
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   const existing = await prisma.teacherSubject.findUnique({
-    where: { teacherId_subjectId: { teacherId: parsed.data.teacherId, subjectId: parsed.data.subjectId } },
+    where: { teacherId_subjectId_classId: { teacherId: parsed.data.teacherId, subjectId: parsed.data.subjectId, classId: parsed.data.classId } },
   });
-  if (existing) return { success: true }; // Already assigned
+  if (existing) return { success: true };
 
   await prisma.teacherSubject.create({ data: parsed.data });
   createAuditLog(session.user.id, 'ASSIGN_TEACHER_SUBJECT', 'TEACHER_SUBJECT', parsed.data.teacherId, parsed.data).catch(() => {});
@@ -187,28 +187,29 @@ export const bulkAssignTeacherSubjectsAction = safeAction(async function bulkAss
   const parsed = bulkAssignTeacherSubjectsSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
-  const { teacherId, subjectIds } = parsed.data;
+  const { teacherId, assignments } = parsed.data;
 
-  // Get existing assignments
   const existing = await prisma.teacherSubject.findMany({ where: { teacherId } });
-  const existingSubjectIds = new Set(existing.map((e) => e.subjectId));
+  const existingKeys = new Set(existing.map((e) => `${e.subjectId}:${e.classId}`));
+  const newKeys = new Set(assignments.map((a) => `${a.subjectId}:${a.classId}`));
 
   await prisma.$transaction(async (tx) => {
-    // Remove unselected
-    const toRemove = existing.filter((e) => !subjectIds.includes(e.subjectId));
+    // Remove deselected assignments
+    const toRemove = existing.filter((e) => !newKeys.has(`${e.subjectId}:${e.classId}`));
     if (toRemove.length > 0) {
       await tx.teacherSubject.deleteMany({ where: { id: { in: toRemove.map((e) => e.id) } } });
     }
 
-    // Add new
-    for (const subjectId of subjectIds) {
-      if (!existingSubjectIds.has(subjectId)) {
-        await tx.teacherSubject.create({ data: { teacherId, subjectId } });
-      }
+    // Add new assignments
+    const toAdd = assignments.filter((a) => !existingKeys.has(`${a.subjectId}:${a.classId}`));
+    if (toAdd.length > 0) {
+      await tx.teacherSubject.createMany({
+        data: toAdd.map((a) => ({ teacherId, subjectId: a.subjectId, classId: a.classId })),
+      });
     }
   });
 
-  createAuditLog(session.user.id, 'BULK_ASSIGN_TEACHER_SUBJECTS', 'TEACHER_SUBJECT', teacherId, { subjectIds }).catch(() => {});
+  createAuditLog(session.user.id, 'BULK_ASSIGN_TEACHER_SUBJECTS', 'TEACHER_SUBJECT', teacherId, { assignments }).catch(() => {});
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };

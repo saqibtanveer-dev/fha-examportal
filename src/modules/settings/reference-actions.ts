@@ -9,7 +9,7 @@ export type ReferenceDataPayload = {
   classes: { id: string; name: string; sections: { id: string; name: string }[] }[];
   academicSessions: { id: string; name: string; isCurrent: boolean }[];
   tags: { id: string; name: string; category: string; _count: { questionTags: number } }[];
-  subjectClassLinks: { subjectId: string; classId: string; className: string }[];
+  subjectClassLinks: { subjectId: string; classId: string; className: string; isElective: boolean; electiveGroupName: string | null }[];
   teacherProfileId: string | null;
 };
 
@@ -78,10 +78,12 @@ export async function fetchTeacherReferenceData(): Promise<ActionResult<Referenc
       classes: classes.map((c) => ({ id: c.id, name: c.name, sections: c.sections })),
       academicSessions,
       tags: tags.map((t) => ({ id: t.id, name: t.name, category: t.category, _count: t._count })),
-      subjectClassLinks: links.map((l) => ({
+      subjectClassLinks: links.filter((l) => l.class).map((l) => ({
         subjectId: l.subjectId,
         classId: l.classId,
         className: l.class.name,
+        isElective: l.isElective,
+        electiveGroupName: l.electiveGroupName,
       })),
       teacherProfileId,
     },
@@ -121,10 +123,12 @@ export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<Refer
       subjects,
       classes: classes.map((c) => ({ id: c.id, name: c.name, sections: c.sections })),
       academicSessions,
-      subjectClassLinks: links.map((l) => ({
+      subjectClassLinks: links.filter((l) => l.class).map((l) => ({
         subjectId: l.subjectId,
         classId: l.classId,
         className: l.class.name,
+        isElective: l.isElective,
+        electiveGroupName: l.electiveGroupName,
       })),
     },
   };

@@ -17,6 +17,11 @@ import {
   getSchoolDailyAttendanceForDate,
   getActiveStudentCountBySection,
 } from './attendance-queries';
+import {
+  isSubjectElective,
+  getStudentsEnrolledInSubject,
+  hasEnrollmentsForClass,
+} from '@/modules/subjects/enrollment-queries';
 
 // ============================================
 // HELPERS
@@ -120,11 +125,38 @@ export async function fetchStudentSubjectAttendanceAction(
 // STUDENTS FOR MARKING
 // ============================================
 
+/**
+ * Fetch students for attendance marking.
+ * If subjectId is provided and it's an elective with enrollments configured,
+ * only returns students enrolled in that subject.
+ */
 export async function fetchStudentsForMarkingAction(
   classId: string,
   sectionId: string,
+  subjectId?: string,
 ) {
   await requireRole('ADMIN', 'TEACHER');
+
+  // If a subject is specified, check if it's elective and has enrollments
+  if (subjectId) {
+    const academicSessionId = await getCurrentAcademicSessionId();
+    if (academicSessionId) {
+      const elective = await isSubjectElective(subjectId, classId);
+      if (elective) {
+        const hasEnrollments = await hasEnrollmentsForClass(classId, academicSessionId);
+        if (hasEnrollments) {
+          // Return only enrolled students, filtered by section
+          const enrollments = await getStudentsEnrolledInSubject(subjectId, classId, academicSessionId);
+          const filteredStudents = enrollments
+            .filter((e) => e.studentProfile.sectionId === sectionId)
+            .map((e) => e.studentProfile);
+          return serialize(filteredStudents);
+        }
+      }
+    }
+  }
+
+  // Default: return all active students in section
   const students = await getActiveStudentsInSection(classId, sectionId);
   return serialize(students);
 }

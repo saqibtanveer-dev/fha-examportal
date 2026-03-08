@@ -97,7 +97,7 @@ function deriveGrade(percentage: number): string {
 /**
  * Calculate and save exam result from graded answers.
  * Uses a serializable transaction to prevent race conditions.
- * Does NOT auto-publish — publishedAt is only set when explicitly publishing.
+ * Auto-publishes for IMMEDIATELY policy; for MANUAL/AFTER_DEADLINE, teacher must publish explicitly.
  */
 export async function calculateResult(sessionId: string) {
   return prisma.$transaction(async (tx) => {
@@ -122,6 +122,8 @@ export async function calculateResult(sessionId: string) {
     const isPassed = obtainedMarks >= passingMarks;
     const grade = deriveGrade(percentage);
 
+    // Auto-publish for IMMEDIATELY policy; for MANUAL, teacher must publish explicitly
+    const shouldAutoPublish = session.exam.showResultAfter === 'IMMEDIATELY';
     const result = await tx.examResult.upsert({
       where: { sessionId },
       create: {
@@ -133,7 +135,7 @@ export async function calculateResult(sessionId: string) {
         percentage,
         isPassed,
         grade,
-        // publishedAt intentionally NOT set — teacher must explicitly publish
+        publishedAt: shouldAutoPublish ? new Date() : undefined,
       },
       update: {
         obtainedMarks,

@@ -35,6 +35,7 @@ export async function fetchExamDetailAction(id: string) {
 
 /**
  * Server action to fetch exams for the current student.
+ * Filters by subject enrollment if elective enrollments are configured.
  */
 export async function fetchStudentExamsAction() {
   const session = await requireRole('STUDENT');
@@ -42,17 +43,25 @@ export async function fetchStudentExamsAction() {
 
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId },
-    select: { classId: true, sectionId: true },
+    select: { id: true, classId: true, sectionId: true },
   });
 
   if (!studentProfile?.classId) {
     return { exams: [], profile: null };
   }
 
+  // Get current academic session for enrollment filtering
+  const academicSession = await prisma.academicSession.findFirst({
+    where: { isCurrent: true },
+    select: { id: true },
+  });
+
   const exams = await getExamsForStudent(
     userId,
     studentProfile.classId,
     studentProfile.sectionId ?? undefined,
+    studentProfile.id,
+    academicSession?.id,
   );
 
   return serialize({ exams, profile: studentProfile });

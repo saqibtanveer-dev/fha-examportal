@@ -41,6 +41,8 @@ export const createPeriodSlotAction = safeAction(
         endTime: data.endTime,
         sortOrder: data.sortOrder,
         isBreak: data.isBreak,
+        classId: data.classId ?? null,
+        sectionId: data.sectionId ?? null,
       },
     });
 

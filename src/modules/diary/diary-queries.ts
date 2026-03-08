@@ -272,14 +272,12 @@ export async function getTeacherSubjectClasses(teacherProfileId: string) {
     },
   });
 
-  return assignments
-    .filter((a) => a.class !== null)
-    .map((a) => ({
-      subjectId: a.subject.id,
-      subjectName: a.subject.name,
-      subjectCode: a.subject.code,
-      classId: a.class!.id,
-      className: a.class!.name,
-      sections: a.class!.sections,
-    }));
+  return assignments.map((a) => ({
+    subjectId: a.subject.id,
+    subjectName: a.subject.name,
+    subjectCode: a.subject.code,
+    classId: a.class.id,
+    className: a.class.name,
+    sections: a.class.sections,
+  }));
 }

@@ -86,10 +86,24 @@ export async function fetchPublishedDatesheetForStudentAction(academicSessionId:
   const { prisma } = await import('@/lib/prisma');
   const student = await prisma.studentProfile.findUnique({
     where: { userId: session.user.id },
-    select: { classId: true, sectionId: true },
+    select: { id: true, classId: true, sectionId: true },
   });
   if (!student) return serialize([]);
   const data = await getPublishedDatesheetForClass(student.classId, student.sectionId, academicSessionId);
+
+  // Filter entries by enrolled subjects if enrollments are configured
+  const { hasEnrollmentsForClass, getStudentEnrolledSubjectIds } = await import('@/modules/subjects/enrollment-queries');
+  const hasEnrollments = await hasEnrollmentsForClass(student.classId, academicSessionId);
+  if (hasEnrollments) {
+    const enrolledIds = await getStudentEnrolledSubjectIds(student.id, academicSessionId);
+    // Filter entries in each datesheet to only show enrolled subjects
+    for (const ds of data) {
+      (ds as { entries: { subjectId: string }[] }).entries = (ds as { entries: { subjectId: string }[] }).entries.filter(
+        (entry) => enrolledIds.has(entry.subjectId),
+      );
+    }
+  }
+
   return serialize(data);
 }
 
@@ -111,10 +125,23 @@ export async function fetchPublishedDatesheetForChildAction(
   const { prisma } = await import('@/lib/prisma');
   const student = await prisma.studentProfile.findUnique({
     where: { id: childStudentProfileId },
-    select: { classId: true, sectionId: true },
+    select: { id: true, classId: true, sectionId: true },
   });
   if (!student) return serialize([]);
   const data = await getPublishedDatesheetForClass(student.classId, student.sectionId, academicSessionId);
+
+  // Filter entries by enrolled subjects if enrollments are configured
+  const { hasEnrollmentsForClass, getStudentEnrolledSubjectIds } = await import('@/modules/subjects/enrollment-queries');
+  const hasEnrollments = await hasEnrollmentsForClass(student.classId, academicSessionId);
+  if (hasEnrollments) {
+    const enrolledIds = await getStudentEnrolledSubjectIds(student.id, academicSessionId);
+    for (const ds of data) {
+      (ds as { entries: { subjectId: string }[] }).entries = (ds as { entries: { subjectId: string }[] }).entries.filter(
+        (entry) => enrolledIds.has(entry.subjectId),
+      );
+    }
+  }
+
   return serialize(data);
 }
 
