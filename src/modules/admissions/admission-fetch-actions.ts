@@ -6,7 +6,6 @@
 
 import { requireRole } from '@/lib/auth-utils';
 import { serialize } from '@/utils/serialize';
-import type { ActionResult } from '@/types/action-result';
 import { actionError, actionSuccess } from '@/types/action-result';
 import {
   listCampaigns,
@@ -20,83 +19,84 @@ import {
 } from './admission-queries';
 import type { CampaignListFilters, ApplicantListFilters } from './admission-queries';
 import type { PaginationParams } from '@/utils/pagination';
+import { safeFetchAction } from '@/lib/safe-action';
 
 // ============================================
 // Campaign Fetch Actions (Admin)
 // ============================================
 
-export async function fetchCampaignsAction(
+export const fetchCampaignsAction = safeFetchAction(async (
   params: PaginationParams,
   filters?: CampaignListFilters,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN', 'TEACHER');
   const result = await listCampaigns(params, filters);
   return actionSuccess(serialize(result));
-}
+});
 
-export async function fetchCampaignDetailAction(
+export const fetchCampaignDetailAction = safeFetchAction(async (
   campaignId: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN', 'TEACHER');
   const campaign = await getCampaignById(campaignId);
   if (!campaign) return actionError('Campaign not found');
   return actionSuccess(serialize(campaign));
-}
+});
 
-export async function fetchCampaignStatsAction(
+export const fetchCampaignStatsAction = safeFetchAction(async (
   campaignId: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN');
   const stats = await getCampaignStats(campaignId);
   return actionSuccess(serialize(stats));
-}
+});
 
-export async function fetchCampaignAnalyticsAction(
+export const fetchCampaignAnalyticsAction = safeFetchAction(async (
   campaignId: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN');
   const analytics = await getCampaignAnalytics(campaignId);
   return actionSuccess(serialize(analytics));
-}
+});
 
 // ============================================
 // Applicant Fetch Actions (Admin)
 // ============================================
 
-export async function fetchApplicantsAction(
+export const fetchApplicantsAction = safeFetchAction(async (
   params: PaginationParams,
   filters?: Partial<ApplicantListFilters>,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN', 'TEACHER');
   const result = await listApplicants(params, filters);
   return actionSuccess(serialize(result));
-}
+});
 
-export async function fetchApplicantDetailAction(
+export const fetchApplicantDetailAction = safeFetchAction(async (
   applicantId: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN', 'TEACHER');
   const applicant = await getApplicantById(applicantId);
   if (!applicant) return actionError('Applicant not found');
   return actionSuccess(serialize(applicant));
-}
+});
 
 // ============================================
 // Merit List & Scholarship (Admin)
 // ============================================
 
-export async function fetchMeritListAction(
+export const fetchMeritListAction = safeFetchAction(async (
   campaignId: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN');
   const meritList = await getMeritList(campaignId);
   return actionSuccess(serialize(meritList));
-}
+});
 
-export async function fetchScholarshipReportAction(
+export const fetchScholarshipReportAction = safeFetchAction(async (
   campaignId: string,
-): Promise<ActionResult<ReturnType<typeof serialize>>> {
+) => {
   await requireRole('ADMIN');
   const report = await getScholarshipReport(campaignId);
   return actionSuccess(serialize(report));
-}
+});

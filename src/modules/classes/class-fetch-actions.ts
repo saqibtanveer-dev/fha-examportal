@@ -3,30 +3,31 @@
 import { listClasses, listActiveClasses, getClassById } from '@/modules/classes/class-queries';
 import { requireRole } from '@/lib/auth-utils';
 import { serialize } from '@/utils/serialize';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Fetch all classes.
  */
-export async function fetchClassesAction() {
+export const fetchClassesAction = safeFetchAction(async () => {
   await requireRole('ADMIN');
   const result = await listClasses();
   return serialize(result);
-}
+});
 
 /**
  * Fetch active classes only.
  */
-export async function fetchActiveClassesAction() {
+export const fetchActiveClassesAction = safeFetchAction(async () => {
   await requireRole('ADMIN');
   const result = await listActiveClasses();
   return serialize(result);
-}
+});
 
 /**
  * Fetch single class by ID.
  */
-export async function fetchClassByIdAction(classId: string) {
+export const fetchClassByIdAction = safeFetchAction(async (classId: string) => {
   await requireRole('ADMIN');
   const classData = await getClassById(classId);
   return serialize(classData);
-}
+});

@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import { assertGradingAccess } from '@/lib/authorization-guards';
 import { safeAction } from '@/lib/safe-action';
 import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/types/action-result';
@@ -36,9 +37,7 @@ export const bulkEnterWrittenMarksAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
-      return { success: false, error: 'Access denied' };
-    }
+    await assertGradingAccess(session.user.id, session.user.role, examId);
 
     // Pre-load question max marks for validation
     const examQuestions = await prisma.examQuestion.findMany({
@@ -167,9 +166,7 @@ export const markStudentAbsentAction = safeAction(
     });
     if (!examSession) return { success: false, error: 'Session not found' };
     if (examSession.exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    if (session.user.role === 'TEACHER' && examSession.exam.createdById !== session.user.id) {
-      return { success: false, error: 'Access denied' };
-    }
+    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id);
     if (examSession.status === 'GRADED') {
       return { success: false, error: 'Cannot mark absent after finalization' };
     }
@@ -221,14 +218,12 @@ export const unmarkStudentAbsentAction = safeAction(
     const examSession = await prisma.examSession.findUnique({
       where: { id: parsed.data.sessionId },
       include: {
-        exam: { select: { deliveryMode: true, createdById: true } },
+        exam: { select: { id: true, deliveryMode: true, createdById: true } },
       },
     });
     if (!examSession) return { success: false, error: 'Session not found' };
     if (examSession.exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    if (session.user.role === 'TEACHER' && examSession.exam.createdById !== session.user.id) {
-      return { success: false, error: 'Access denied' };
-    }
+    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id);
     if (examSession.status !== 'ABSENT') {
       return { success: false, error: 'Student is not marked as absent' };
     }

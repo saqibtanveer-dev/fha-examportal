@@ -24,7 +24,7 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
     startTransition(async () => {
       const result = await generateMeritListAction(campaignId);
       if (result.success) {
-        toast.success(`Merit list generated: ${(result.data as any)?.ranked ?? 0} ranked`);
+        toast.success(`Merit list generated: ${result.data?.ranked ?? 0} ranked`);
         invalidate.afterDecision(campaignId);
       } else {
         toast.error(result.error);
@@ -36,7 +36,7 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
     startTransition(async () => {
       const result = await autoAssignScholarshipsAction(campaignId);
       if (result.success) {
-        toast.success(`Scholarships assigned: ${(result.data as any)?.assigned ?? 0}`);
+        toast.success(`Scholarships assigned: ${result.data?.assigned ?? 0}`);
         invalidate.afterDecision(campaignId);
       } else {
         toast.error(result.error);
@@ -46,7 +46,7 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
 
   if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
 
-  const result = data as any;
+  const result = data;
   const meritList = result?.success ? (result.data ?? []) : [];
 
   const canGenerate = ['TEST_CLOSED', 'GRADING', 'RESULTS_READY', 'RESULTS_PUBLISHED'].includes(campaignStatus);

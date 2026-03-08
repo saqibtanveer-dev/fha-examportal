@@ -20,6 +20,7 @@ import {
 } from './diary-queries';
 import type { DiaryFilters, DiaryCoverageData, DiaryCoverageRow, DiaryStatsData } from './diary.types';
 import { getWorkingDays, normalizeDiaryDate, getTodayDateString } from './diary.utils';
+import { safeFetchAction } from '@/lib/safe-action';
 
 // ── Helpers ──
 
@@ -34,7 +35,7 @@ async function getCurrentAcademicSessionId(): Promise<string> {
 
 // ── Teacher Fetch Actions ──
 
-export async function fetchTeacherDiaryEntriesAction(filters?: DiaryFilters) {
+export const fetchTeacherDiaryEntriesAction = safeFetchAction(async (filters?: DiaryFilters) => {
   const session = await requireRole('TEACHER', 'ADMIN');
   const teacherProfile = await prisma.teacherProfile.findUnique({
     where: { userId: session.user.id },
@@ -45,9 +46,9 @@ export async function fetchTeacherDiaryEntriesAction(filters?: DiaryFilters) {
   const academicSessionId = await getCurrentAcademicSessionId();
   const entries = await getDiaryEntriesByTeacher(teacherProfile.id, academicSessionId, filters);
   return serialize(entries);
-}
+});
 
-export async function fetchTeacherSubjectClassesAction() {
+export const fetchTeacherSubjectClassesAction = safeFetchAction(async () => {
   const session = await requireRole('TEACHER', 'ADMIN');
   const teacherProfile = await prisma.teacherProfile.findUnique({
     where: { userId: session.user.id },
@@ -57,9 +58,9 @@ export async function fetchTeacherSubjectClassesAction() {
 
   const assignments = await getTeacherSubjectClasses(teacherProfile.id);
   return serialize(assignments);
-}
+});
 
-export async function fetchTeacherDiaryCalendarAction(year: number, month: number) {
+export const fetchTeacherDiaryCalendarAction = safeFetchAction(async (year: number, month: number) => {
   const session = await requireRole('TEACHER', 'ADMIN');
   const teacherProfile = await prisma.teacherProfile.findUnique({
     where: { userId: session.user.id },
@@ -70,15 +71,15 @@ export async function fetchTeacherDiaryCalendarAction(year: number, month: numbe
   const academicSessionId = await getCurrentAcademicSessionId();
   const dates = await getTeacherDiaryDates(teacherProfile.id, academicSessionId, year, month);
   return serialize(dates);
-}
+});
 
 // ── Student Fetch Actions ──
 
-export async function fetchStudentDiaryAction(
+export const fetchStudentDiaryAction = safeFetchAction(async (
   startDate: string,
   endDate: string,
   subjectId?: string,
-) {
+) => {
   const session = await requireRole('STUDENT');
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId: session.user.id },
@@ -96,9 +97,9 @@ export async function fetchStudentDiaryAction(
     subjectId,
   );
   return serialize(entries);
-}
+});
 
-export async function fetchStudentTodayDiaryAction() {
+export const fetchStudentTodayDiaryAction = safeFetchAction(async () => {
   const session = await requireRole('STUDENT');
   const studentProfile = await prisma.studentProfile.findUnique({
     where: { userId: session.user.id },
@@ -115,9 +116,9 @@ export async function fetchStudentTodayDiaryAction() {
     today,
   );
   return serialize(entries);
-}
+});
 
-export async function fetchMyStudentDiaryProfileAction() {
+export const fetchMyStudentDiaryProfileAction = safeFetchAction(async () => {
   const session = await requireRole('STUDENT');
   const profile = await prisma.studentProfile.findUnique({
     where: { userId: session.user.id },
@@ -137,29 +138,29 @@ export async function fetchMyStudentDiaryProfileAction() {
     className: profile.class.name,
     sectionName: profile.section.name,
   });
-}
+});
 
 // ── Principal Fetch Actions ──
 
-export async function fetchAllDiaryEntriesAction(filters?: DiaryFilters) {
+export const fetchAllDiaryEntriesAction = safeFetchAction(async (filters?: DiaryFilters) => {
   await requireRole('PRINCIPAL', 'ADMIN');
   const academicSessionId = await getCurrentAcademicSessionId();
   const entries = await getAllDiaryEntries(academicSessionId, filters);
   return serialize(entries);
-}
+});
 
-export async function fetchDiaryEntryDetailAction(entryId: string) {
+export const fetchDiaryEntryDetailAction = safeFetchAction(async (entryId: string) => {
   await requireRole('TEACHER', 'PRINCIPAL', 'ADMIN');
   const entry = await getDiaryEntryById(entryId);
   if (!entry || entry.deletedAt) return null;
   return serialize(entry);
-}
+});
 
-export async function fetchDiaryCoverageAction(
+export const fetchDiaryCoverageAction = safeFetchAction(async (
   startDate: string,
   endDate: string,
   classId?: string,
-): Promise<DiaryCoverageData> {
+) : Promise<DiaryCoverageData> => {
   await requireRole('PRINCIPAL', 'ADMIN');
   const academicSessionId = await getCurrentAcademicSessionId();
 
@@ -237,12 +238,12 @@ export async function fetchDiaryCoverageAction(
     dates: workingDays,
     overallCoverage: totalExpected > 0 ? Math.round((totalSubmitted / totalExpected) * 100) : 0,
   };
-}
+});
 
-export async function fetchDiaryStatsAction(
+export const fetchDiaryStatsAction = safeFetchAction(async (
   startDate: string,
   endDate: string,
-): Promise<DiaryStatsData> {
+) : Promise<DiaryStatsData> => {
   await requireRole('PRINCIPAL', 'ADMIN');
   const academicSessionId = await getCurrentAcademicSessionId();
 
@@ -286,4 +287,4 @@ export async function fetchDiaryStatsAction(
       : 0,
     missingToday: uniqueMissing,
   };
-}
+});

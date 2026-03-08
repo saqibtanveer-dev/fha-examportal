@@ -57,12 +57,12 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
   const effectivePeriodSlots = classSpecificSlots ?? periodSlots;
 
   // Build grid from flat entries
-  const grid = useMemo(() => buildTimetableGrid(timetableEntries as any, effectivePeriodSlots), [timetableEntries, effectivePeriodSlots]);
+  const grid = useMemo(() => buildTimetableGrid(timetableEntries, effectivePeriodSlots), [timetableEntries, effectivePeriodSlots]);
 
-  function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, entry: TimetableEntryWithRelations | null) {
+  function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, entry: unknown) {
     setSelectedDay(dayOfWeek);
     setSelectedPeriodSlotId(periodSlotId);
-    setSelectedEntry(entry);
+    setSelectedEntry(entry as TimetableEntryWithRelations | null);
     setEntryFormOpen(true);
   }
 

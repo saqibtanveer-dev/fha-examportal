@@ -9,11 +9,12 @@ import {
 import { requireRole } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { serialize } from '@/utils/serialize';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Server action for fetching teacher's exams for the results list.
  */
-export async function fetchTeacherExamsAction() {
+export const fetchTeacherExamsAction = safeFetchAction(async () => {
   const session = await requireRole('TEACHER', 'ADMIN');
   const exams = await prisma.exam.findMany({
     where: { createdById: session.user.id, deletedAt: null },
@@ -26,32 +27,32 @@ export async function fetchTeacherExamsAction() {
     },
   });
   return serialize(exams);
-}
+});
 
 /**
  * Server action for fetching results by exam.
  */
-export async function fetchResultsByExamAction(examId: string) {
+export const fetchResultsByExamAction = safeFetchAction(async (examId: string) => {
   await requireRole('TEACHER', 'ADMIN');
   const results = await getResultsByExam(examId);
   return serialize(results);
-}
+});
 
 /**
  * Server action for fetching detailed exam analytics.
  */
-export async function fetchExamAnalyticsAction(examId: string) {
+export const fetchExamAnalyticsAction = safeFetchAction(async (examId: string) => {
   await requireRole('TEACHER', 'ADMIN');
   const analytics = await getExamDetailedAnalytics(examId);
   return serialize(analytics);
-}
+});
 
 /**
  * Server action for fetching student's own results.
  */
-export async function fetchStudentResultsAction() {
+export const fetchStudentResultsAction = safeFetchAction(async () => {
   const session = await requireRole('STUDENT');
   const results = await getResultsByStudent(session.user.id);
   const analytics = await getStudentAnalytics(session.user.id);
   return serialize({ results, analytics });
-}
+});

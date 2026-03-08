@@ -37,7 +37,7 @@ export function PrincipalTimetableView({ periodSlots, classes, currentSessionId 
   );
 
   const grid = useMemo(
-    () => buildTimetableGrid(entries as any, effectivePeriodSlots),
+    () => buildTimetableGrid(entries, effectivePeriodSlots),
     [entries, effectivePeriodSlots],
   );
 

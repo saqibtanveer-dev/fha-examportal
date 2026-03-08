@@ -17,7 +17,7 @@ const examQuestionSchema = z.object({
 
 const examClassAssignmentSchema = z.object({
   classId: z.string().uuid(),
-  sectionId: z.string().uuid().optional(),
+  sectionId: z.string().uuid(),
 });
 
 // ============================================

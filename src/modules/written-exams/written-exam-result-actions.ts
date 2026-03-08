@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import { assertGradingAccess } from '@/lib/authorization-guards';
 import { safeAction } from '@/lib/safe-action';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { revalidatePath } from 'next/cache';
@@ -48,9 +49,7 @@ export const finalizeWrittenExamAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
-      return { success: false, error: 'Access denied' };
-    }
+    await assertGradingAccess(session.user.id, session.user.role, examId);
 
     const totalQuestions = await prisma.examQuestion.count({ where: { examId } });
 
@@ -210,9 +209,7 @@ export const refinalizeWrittenExamAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    if (session.user.role === 'TEACHER' && exam.createdById !== session.user.id) {
-      return { success: false, error: 'Access denied' };
-    }
+    await assertGradingAccess(session.user.id, session.user.role, examId);
 
     const gradedSessions = await prisma.examSession.findMany({
       where: { examId, status: 'GRADED' },

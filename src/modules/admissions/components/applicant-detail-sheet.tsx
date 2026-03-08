@@ -26,18 +26,18 @@ type ApplicantDetail = {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string | null;
-  dateOfBirth: string | null;
-  gender: string | null;
-  guardianName: string | null;
-  guardianPhone: string | null;
-  address: string | null;
-  previousSchool: string | null;
-  previousClass: string | null;
-  applicationNumber: string;
-  accessToken: string;
+  phone?: string | null;
+  dateOfBirth?: string | null;
+  gender?: string | null;
+  guardianName?: string | null;
+  guardianPhone?: string | null;
+  address?: string | null;
+  previousSchool?: string | null;
+  previousClass?: string | null;
+  applicationNumber?: string;
+  accessToken?: string;
   status: string;
-  createdAt: string;
+  createdAt?: string;
   result?: {
     obtainedMarks: number;
     totalMarks: number;
@@ -70,7 +70,7 @@ export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
   const invalidate = useInvalidateCache();
 
   useEffect(() => {
-    if (applicant) { setPin(applicant.accessToken); setIsEditing(false); }
+    if (applicant) { setPin(applicant.accessToken ?? ''); setIsEditing(false); }
   }, [applicant]);
 
   if (!applicant) return null;

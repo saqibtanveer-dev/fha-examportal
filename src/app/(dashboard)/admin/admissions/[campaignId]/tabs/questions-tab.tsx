@@ -27,7 +27,7 @@ export function QuestionsTabContent({ campaignId, isDraft }: Props) {
 
   if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
 
-  const result = data as any;
+  const result = data;
   const campaign = result?.success ? result.data : null;
   const questions = campaign?.campaignQuestions ?? [];
 

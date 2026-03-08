@@ -8,6 +8,9 @@ import { UsersListSkeleton } from './users-skeleton';
 import { UsersView } from './users-view';
 import type { UserRole } from '@prisma/client';
 
+import type { PaginatedResult } from '@/utils/pagination';
+import type { UserWithProfile } from '@/modules/users/user-queries';
+
 export function UsersPageClient() {
   const searchParams = useSearchParams();
   
@@ -34,18 +37,19 @@ export function UsersPageClient() {
 
   return (
     <UsersView
-      result={usersResult as any}
-      allSubjects={subjects.map((s: any) => ({ id: s.id, name: s.name, code: s.code }))}
-      allClasses={classes.map((c: any) => ({
+      // Serialized data is structurally compatible (Date→string for unused fields)
+      result={usersResult as unknown as PaginatedResult<UserWithProfile>}
+      allSubjects={subjects.map((s) => ({ id: s.id, name: s.name, code: s.code }))}
+      allClasses={classes.map((c) => ({
         id: c.id,
         name: c.name,
         grade: c.grade,
-        sections: c.sections?.map((s: any) => ({ id: s.id, name: s.name })) ?? [],
+        sections: c.sections?.map((s) => ({ id: s.id, name: s.name })) ?? [],
       }))}
-      subjectClassLinks={subjects.flatMap((s: any) =>
+      subjectClassLinks={subjects.flatMap((s) =>
         (s.subjectClassLinks ?? [])
-          .filter((link: any) => link.isActive !== false && link.class)
-          .map((link: any) => ({
+          .filter((link) => link.isActive !== false && link.class)
+          .map((link) => ({
             subjectId: s.id,
             classId: link.class.id,
             className: link.class.name,

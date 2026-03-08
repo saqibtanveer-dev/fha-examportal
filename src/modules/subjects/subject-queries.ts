@@ -67,6 +67,7 @@ export async function getSubjectsForTeacher(teacherProfileId: string) {
     include: {
       subject: { select: { id: true, name: true, code: true } },
       class: { select: { id: true, name: true } },
+      section: { select: { id: true, name: true } },
     },
   });
 }

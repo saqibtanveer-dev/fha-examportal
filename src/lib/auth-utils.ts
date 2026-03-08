@@ -36,19 +36,6 @@ export async function getAuthSession() {
 }
 
 /**
- * Check if the current user can access a session for grading.
- * ADMIN can access all sessions, TEACHER can only access sessions for exams they created.
- */
-export function canAccessSession(
-  userRole: string,
-  userId: string,
-  examCreatedById: string,
-): boolean {
-  if (userRole === 'ADMIN') return true;
-  return userId === examCreatedById;
-}
-
-/**
  * Assert that a FAMILY user is linked to a specific student.
  * Throws if the link doesn't exist or is inactive.
  */

@@ -52,8 +52,9 @@ export function PrincipalDiaryView({ classes, currentSessionId }: Props) {
   const subjects = useMemo(() => {
     const map = new Map<string, { id: string; name: string; code: string }>();
     for (const cls of classes) {
-      if ('subjects' in cls && Array.isArray((cls as any).subjects)) {
-        for (const s of (cls as any).subjects) {
+      const clsWithSubjects = cls as RefClass & { subjects?: { id: string; name: string; code: string }[] };
+      if (clsWithSubjects.subjects?.length) {
+        for (const s of clsWithSubjects.subjects) {
           if (!map.has(s.id)) map.set(s.id, s);
         }
       }
@@ -96,9 +97,9 @@ export function PrincipalDiaryView({ classes, currentSessionId }: Props) {
             <div className="flex justify-center py-8"><Spinner size="lg" /></div>
           ) : stats ? (
             <>
-              <DiaryStatsCards stats={stats as any} />
-              {(stats as any).missingToday?.length > 0 && (
-                <DiaryMissingList items={(stats as any).missingToday} />
+              <DiaryStatsCards stats={stats} />
+              {stats.missingToday?.length > 0 && (
+                <DiaryMissingList items={stats.missingToday} />
               )}
             </>
           ) : (
@@ -137,7 +138,7 @@ export function PrincipalDiaryView({ classes, currentSessionId }: Props) {
           {coverageLoading ? (
             <div className="flex justify-center py-8"><Spinner size="lg" /></div>
           ) : coverage ? (
-            <DiaryCoverageMatrix data={coverage as any} />
+            <DiaryCoverageMatrix data={coverage} />
           ) : (
             <EmptyState title="No Coverage Data" description="No coverage data available for the selected range." />
           )}

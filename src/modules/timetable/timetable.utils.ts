@@ -52,20 +52,19 @@ export function formatTimeRange(startTime: string, endTime: string): string {
 }
 
 /** Build grid[dayOfWeek][periodSlotId] from flat timetable entries */
-export function buildTimetableGrid(
-  entries: TimetableEntryWithRelations[] | undefined,
+export function buildTimetableGrid<T extends { dayOfWeek: string; periodSlotId: string }>(
+  entries: T[] | undefined,
   periodSlots: PeriodSlotListItem[],
-): Record<string, Record<string, TimetableEntryWithRelations | null>> {
-  const grid: Record<string, Record<string, TimetableEntryWithRelations | null>> = {};
+): Record<string, Record<string, T | null>> {
+  const grid: Record<string, Record<string, T | null>> = {};
   for (const day of ORDERED_DAYS) {
     grid[day] = {};
     for (const slot of periodSlots) grid[day][slot.id] = null;
   }
   if (entries) {
     for (const entry of entries) {
-      const e = entry as unknown as TimetableEntryWithRelations;
-      const daySlots = grid[e.dayOfWeek];
-      if (daySlots) daySlots[e.periodSlotId] = e;
+      const daySlots = grid[entry.dayOfWeek];
+      if (daySlots) daySlots[entry.periodSlotId] = entry;
     }
   }
   return grid;

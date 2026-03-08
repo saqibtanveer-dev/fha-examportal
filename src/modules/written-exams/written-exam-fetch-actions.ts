@@ -1,26 +1,22 @@
 'use server';
 
 import { requireRole } from '@/lib/auth-utils';
+import { assertGradingAccess } from '@/lib/authorization-guards';
 import { serialize } from '@/utils/serialize';
 import { getWrittenExamMarkEntryData } from './written-exam-queries';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Server action wrapper for fetching written exam marks entry data.
  * Used by React Query on the client.
  */
-export async function fetchWrittenExamMarkEntryAction(examId: string) {
+export const fetchWrittenExamMarkEntryAction = safeFetchAction(async (examId: string) => {
   const session = await requireRole('TEACHER', 'ADMIN');
-  const data = await getWrittenExamMarkEntryData(examId);
 
+  await assertGradingAccess(session.user.id, session.user.role as 'TEACHER' | 'ADMIN', examId);
+
+  const data = await getWrittenExamMarkEntryData(examId);
   if (!data) return null;
 
-  // Teachers can only access their own exams
-  if (
-    session.user.role === 'TEACHER' &&
-    data.exam.createdBy.id !== session.user.id
-  ) {
-    return null;
-  }
-
   return serialize(data);
-}
+});

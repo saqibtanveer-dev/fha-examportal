@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import { assertTeacherSubjectSectionAccess, getTeacherProfileIdOrThrow } from '@/lib/authorization-guards';
 import {
   createExamSchema,
   updateExamSchema,
@@ -25,6 +26,19 @@ export const createExamAction = safeAction(async function createExamAction(input
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   const { questions, classAssignments, scheduledStartAt, scheduledEndAt, academicSessionId, ...examData } = parsed.data;
+
+  // Validate teacher has section access for all assigned class-sections
+  if (session.user.role === 'TEACHER') {
+    const teacherProfileId = await getTeacherProfileIdOrThrow(session.user.id);
+    for (const assignment of classAssignments) {
+      await assertTeacherSubjectSectionAccess(
+        teacherProfileId,
+        examData.subjectId,
+        assignment.classId,
+        assignment.sectionId,
+      );
+    }
+  }
 
   // For written exams, enforce certain defaults
   if (examData.deliveryMode === 'WRITTEN') {
@@ -53,7 +67,7 @@ export const createExamAction = safeAction(async function createExamAction(input
         createMany: {
           data: classAssignments.map((a) => ({
             classId: a.classId,
-            sectionId: a.sectionId ?? null,
+            sectionId: a.sectionId,
           })),
         },
       },
@@ -112,11 +126,11 @@ export const publishExamAction = safeAction(async function publishExamAction(id:
 
   // Skip student notifications for written exams (students don't see them on portal)
   if (exam.deliveryMode !== 'WRITTEN') {
-    // Notify active students in assigned classes
-    const classIds = exam.examClassAssignments.map((a) => a.classId);
+    // Notify active students in assigned sections only
+    const sectionIds = exam.examClassAssignments.map((a) => a.sectionId);
     const students = await prisma.studentProfile.findMany({
       where: {
-        classId: { in: classIds },
+        sectionId: { in: sectionIds },
         status: 'ACTIVE',
         user: { isActive: true, deletedAt: null },
       },

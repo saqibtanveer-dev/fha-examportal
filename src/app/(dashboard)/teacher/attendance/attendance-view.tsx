@@ -72,7 +72,7 @@ export function TeacherAttendanceView({ classes, teacherProfileId, currentSessio
 
   const existingRecordsForMarker = useMemo(() => {
     if (!dailyRecords) return [];
-    return dailyRecords.map((r: any) => ({
+    return dailyRecords.map((r) => ({
       id: r.id,
       studentProfileId: r.studentProfileId,
       status: r.status,
@@ -84,7 +84,7 @@ export function TeacherAttendanceView({ classes, teacherProfileId, currentSessio
   const classCountsData = useMemo(() => {
     if (!classCounts || !Array.isArray(classCounts)) return null;
     let present = 0, absent = 0, late = 0, excused = 0;
-    for (const r of classCounts as any[]) {
+    for (const r of classCounts) {
       const status = r.status as string;
       const count = Number(r._count?.id ?? 0);
       if (status === 'PRESENT') present += count;
@@ -157,12 +157,12 @@ export function TeacherAttendanceView({ classes, teacherProfileId, currentSessio
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {(students as any[])?.length ? (
+                {students?.length ? (
                   <DailyAttendanceMarker
                     classId={selectedClassId}
                     sectionId={sectionId}
                     date={selectedDate}
-                    students={(students as any[]) ?? []}
+                    students={students ?? []}
                     existingRecords={hasExistingRecords ? existingRecordsForMarker : undefined}
                     classDisplayName={selectedClass?.name}
                     sectionName={sections.find((s) => s.id === sectionId)?.name}
@@ -207,8 +207,8 @@ export function TeacherAttendanceView({ classes, teacherProfileId, currentSessio
 
           {reportLoading ? (
             <div className="flex justify-center py-12"><Spinner size="lg" /></div>
-          ) : (studentWiseData as any[])?.length ? (
-            <StudentWiseAttendanceTable data={studentWiseData as any} />
+          ) : studentWiseData?.length ? (
+            <StudentWiseAttendanceTable data={studentWiseData} />
           ) : (
             <EmptyState
               title="No report data"

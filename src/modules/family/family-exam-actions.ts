@@ -7,13 +7,14 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Fetch upcoming exams for a child.
  */
-export async function fetchChildUpcomingExamsAction(
+export const fetchChildUpcomingExamsAction = safeFetchAction(async (
   studentProfileId: string,
-): Promise<ActionResult<{ examId: string; title: string; subject: string; type: string; scheduledAt: string; totalMarks: number }[]>> {
+): Promise<ActionResult<{ examId: string; title: string; subject: string; type: string; scheduledAt: string; totalMarks: number }[]>> => {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -57,4 +58,4 @@ export async function fetchChildUpcomingExamsAction(
       totalMarks: Number(e.totalMarks),
     })),
   };
-}
+});

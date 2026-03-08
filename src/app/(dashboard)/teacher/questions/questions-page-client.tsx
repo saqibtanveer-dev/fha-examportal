@@ -75,7 +75,7 @@ export function QuestionsPageClient({ filters, pagination }: Props) {
               optionalColumns={['modelAnswer', 'explanation', 'description', 'mcqOptions']}
               sampleCsv={Q_CSV_SAMPLE}
               onImport={async (rows) => {
-                const res = await importQuestionsFromCsvAction(rows as any);
+                const res = await importQuestionsFromCsvAction(rows);
                 if (!res.success) throw new Error(res.error);
                 await invalidate.questions();
                 return res.data!;

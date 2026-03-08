@@ -25,11 +25,10 @@ export function CampaignsPageClient() {
 
   if (isLoading || !data) return <CampaignsListSkeleton />;
 
-  const result = data as { success: boolean; data?: { data: unknown[]; meta: unknown } };
-  const campaigns = result.success && result.data ? (result.data as any).data ?? [] : [];
+  const campaigns = data.success && data.data ? data.data.data ?? [] : [];
 
-  const classes = (classesRaw as any[] ?? []).map((c: any) => ({ id: c.id, name: c.name }));
-  const academicSessions = (sessionsRaw as any[] ?? []).map((s: any) => ({ id: s.id, name: s.name }));
+  const classes = (classesRaw ?? []).map((c) => ({ id: c.id, name: c.name }));
+  const academicSessions = (sessionsRaw ?? []).map((s) => ({ id: s.id, name: s.name }));
 
   return <CampaignsView campaigns={campaigns} classes={classes} academicSessions={academicSessions} />;
 }

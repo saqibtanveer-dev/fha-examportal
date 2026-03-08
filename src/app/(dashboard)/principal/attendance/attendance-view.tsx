@@ -66,7 +66,7 @@ export function PrincipalAttendanceView({ classes, currentSessionId }: Props) {
 
   // Parse school overview into counts
   const overviewCounts = useMemo(
-    () => parseSchoolOverviewCounts(schoolOverview as any),
+    () => parseSchoolOverviewCounts(schoolOverview),
     [schoolOverview],
   );
 
@@ -74,7 +74,7 @@ export function PrincipalAttendanceView({ classes, currentSessionId }: Props) {
   const classCountsData = useMemo(() => {
     if (!classCounts || !Array.isArray(classCounts)) return null;
     let present = 0, absent = 0, late = 0, excused = 0;
-    for (const r of classCounts as any[]) {
+    for (const r of classCounts) {
       const status = r.status as string;
       const count = Number(r._count?.id ?? 0);
       if (status === 'PRESENT') present += count;
@@ -149,7 +149,7 @@ export function PrincipalAttendanceView({ classes, currentSessionId }: Props) {
             <div className="flex justify-center py-12">
               <Spinner size="lg" />
             </div>
-          ) : (dailyRecords as any[])?.length ? (
+          ) : dailyRecords?.length ? (
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
@@ -157,7 +157,7 @@ export function PrincipalAttendanceView({ classes, currentSessionId }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <DailyAttendanceTable records={dailyRecords as any} showDate={false} />
+                <DailyAttendanceTable records={dailyRecords} showDate={false} />
               </CardContent>
             </Card>
           ) : (
@@ -202,8 +202,8 @@ export function PrincipalAttendanceView({ classes, currentSessionId }: Props) {
             <div className="flex justify-center py-12">
               <Spinner size="lg" />
             </div>
-          ) : (studentWiseData as any[])?.length ? (
-            <StudentWiseAttendanceTable data={studentWiseData as any} />
+          ) : studentWiseData?.length ? (
+            <StudentWiseAttendanceTable data={studentWiseData} />
           ) : (
             <EmptyState
               title="No report data"

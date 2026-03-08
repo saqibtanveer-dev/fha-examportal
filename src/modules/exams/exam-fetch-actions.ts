@@ -6,14 +6,15 @@ import { serialize } from '@/utils/serialize';
 import { prisma } from '@/lib/prisma';
 import type { PaginationParams } from '@/utils/pagination';
 import type { ExamListFilters } from '@/modules/exams/exam-queries';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Server action wrapper for client-side React Query to fetch exams.
  */
-export async function fetchExamsAction(
+export const fetchExamsAction = safeFetchAction(async (
   params: PaginationParams,
   filters: ExamListFilters,
-) {
+) => {
   const session = await requireRole('TEACHER', 'ADMIN');
   const scopedFilters = {
     ...filters,
@@ -21,23 +22,23 @@ export async function fetchExamsAction(
   };
   const result = await listExams(params, scopedFilters);
   return serialize(result);
-}
+});
 
 /**
  * Server action to fetch a single exam detail.
  */
-export async function fetchExamDetailAction(id: string) {
+export const fetchExamDetailAction = safeFetchAction(async (id: string) => {
   await requireRole('TEACHER', 'ADMIN');
   const result = await getExamById(id);
   if (!result) return null;
   return serialize(result);
-}
+});
 
 /**
  * Server action to fetch exams for the current student.
  * Filters by subject enrollment if elective enrollments are configured.
  */
-export async function fetchStudentExamsAction() {
+export const fetchStudentExamsAction = safeFetchAction(async () => {
   const session = await requireRole('STUDENT');
   const userId = session.user.id;
 
@@ -65,4 +66,4 @@ export async function fetchStudentExamsAction() {
   );
 
   return serialize({ exams, profile: studentProfile });
-}
+});

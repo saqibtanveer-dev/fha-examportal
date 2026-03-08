@@ -84,10 +84,10 @@ export function StudentAttendanceView({
     const dates = getMonthDates(selectedYear, selectedMonth);
     const recordMap = new Map<string, AttendanceStatus>();
     if (dailyRecords) {
-      for (const r of dailyRecords as any[]) {
+      for (const r of dailyRecords) {
         const dateStr = typeof r.date === 'string'
-          ? r.date.split('T')[0]
-          : new Date(r.date).toISOString().split('T')[0];
+          ? r.date.split('T')[0]!
+          : new Date(r.date).toISOString().split('T')[0]!;
         recordMap.set(dateStr, r.status);
       }
     }
@@ -105,7 +105,7 @@ export function StudentAttendanceView({
       return { present: 0, absent: 0, late: 0, excused: 0 };
     }
     let present = 0, absent = 0, late = 0, excused = 0;
-    for (const r of attendanceCounts as any[]) {
+    for (const r of attendanceCounts) {
       const status = r.status as string;
       const count = Number(r._count?.id ?? 0);
       if (status === 'PRESENT') present = count;
@@ -195,7 +195,7 @@ export function StudentAttendanceView({
             </div>
           ) : (
             <DailyAttendanceTable
-              records={(dailyRecords as any[]) ?? []}
+              records={dailyRecords ?? []}
               showStudent={false}
             />
           )}
@@ -208,7 +208,7 @@ export function StudentAttendanceView({
             </div>
           ) : (
             <SubjectAttendanceTable
-              records={(subjectRecords as any[]) ?? []}
+              records={subjectRecords ?? []}
               showStudent={false}
             />
           )}

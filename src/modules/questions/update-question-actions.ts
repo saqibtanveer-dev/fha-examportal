@@ -1,6 +1,7 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import { requireRole } from '@/lib/auth-utils';
 import { updateQuestionSchema, type UpdateQuestionInput } from '@/validations/question-schemas';
 import { revalidatePath } from 'next/cache';
@@ -44,7 +45,7 @@ export const updateQuestionAction = safeAction(async function updateQuestionActi
   const { mcqOptions, tagIds, ...rest } = parsed.data;
   const questionData = {
     ...rest,
-    gradingRubric: rest.gradingRubric as Record<string, unknown> | undefined as any,
+    gradingRubric: rest.gradingRubric as Prisma.InputJsonValue | undefined,
   };
 
   await prisma.$transaction(async (tx) => {

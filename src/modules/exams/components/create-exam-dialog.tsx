@@ -59,8 +59,8 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
 
   const { data: pickerQuestions = [], isLoading: isLoadingQuestions } = useQuestionsForPicker(subjectId);
   const questions: QuestionItem[] = useMemo(
-    () => (pickerQuestions as any[]).map((q: any) => ({ id: q.id, title: q.title, marks: Number(q.marks), type: q.type, subjectId: q.subjectId })),
-    [pickerQuestions],
+    () => pickerQuestions.map((q) => ({ id: q.id, title: q.title, marks: Number(q.marks), type: q.type, subjectId })),
+    [pickerQuestions, subjectId],
   );
 
   const totalMarks = useMemo(

@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
-import { safeAction } from '@/lib/safe-action';
+import { safeAction, safeFetchAction } from '@/lib/safe-action';
 import { z } from 'zod/v4';
 
 // ── Schemas ──
@@ -152,11 +152,11 @@ export const unenrollStudentFromSubjectAction = safeAction(
 );
 
 /** Fetch enrollments for a class/subject/session (for UI) */
-export async function fetchEnrollmentsBySubjectAction(
+export const fetchEnrollmentsBySubjectAction = safeFetchAction(async (
   subjectId: string,
   classId: string,
   academicSessionId: string,
-) {
+) => {
   await requireRole('ADMIN', 'TEACHER');
 
   return prisma.studentSubjectEnrollment.findMany({
@@ -175,4 +175,4 @@ export async function fetchEnrollmentsBySubjectAction(
     },
     orderBy: { studentProfile: { rollNumber: 'asc' } },
   });
-}
+});

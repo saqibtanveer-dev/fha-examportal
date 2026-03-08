@@ -91,7 +91,7 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
 
       {/* School-wide overview cards */}
       {(() => {
-        const counts = parseSchoolOverviewCounts(schoolOverview as any);
+        const counts = parseSchoolOverviewCounts(schoolOverview);
         return counts ? (
           <AttendanceSummaryCard
             counts={counts}
@@ -160,7 +160,7 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
                     classId={selectedClassId}
                     sectionId={sectionId}
                     date={selectedDate}
-                    students={(students as any[]) ?? []}
+                    students={students ?? []}
                     existingRecords={existingRecordsForMarker}
                     classDisplayName={selectedClass?.name}
                     sectionName={sections.find((s) => s.id === sectionId)?.name}
@@ -176,12 +176,12 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {(students as any[])?.length ? (
+                {students?.length ? (
                   <DailyAttendanceMarker
                     classId={selectedClassId}
                     sectionId={sectionId}
                     date={selectedDate}
-                    students={(students as any[]) ?? []}
+                    students={students ?? []}
                     classDisplayName={selectedClass?.name}
                     sectionName={sections.find((s) => s.id === sectionId)?.name}
                   />
@@ -230,7 +230,7 @@ export function AdminAttendanceView({ classes, currentSessionId }: Props) {
               <Spinner size="lg" />
             </div>
           ) : studentWiseData && Array.isArray(studentWiseData) && studentWiseData.length > 0 ? (
-            <StudentWiseAttendanceTable data={studentWiseData as any[]} />
+            <StudentWiseAttendanceTable data={studentWiseData} />
           ) : (
             <EmptyState
               title="No report data"

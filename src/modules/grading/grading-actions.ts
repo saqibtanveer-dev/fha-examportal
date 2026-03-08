@@ -1,7 +1,8 @@
 'use server';
 
 import { prisma } from '@/lib/prisma';
-import { requireRole, canAccessSession } from '@/lib/auth-utils';
+import { requireRole } from '@/lib/auth-utils';
+import { assertGradingAccess } from '@/lib/authorization-guards';
 import { revalidatePath } from 'next/cache';
 import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from './grading-engine';
 import { createNotification } from '@/modules/notifications/notification-queries';
@@ -34,14 +35,11 @@ export const autoGradeSessionAction = safeAction(async function autoGradeSession
 
   const session = await prisma.examSession.findUnique({
     where: { id: sessionId },
-    include: { exam: { select: { createdById: true } } },
+    include: { exam: { select: { id: true, createdById: true } } },
   });
   if (!session) return { success: false, error: 'Session not found' };
 
-  // Verify teacher owns this exam
-  if (!canAccessSession(authSession.user.role, authSession.user.id, session.exam.createdById)) {
-    return { success: false, error: 'You can only grade exams you created' };
-  }
+  await assertGradingAccess(authSession.user.id, authSession.user.role, session.exam.id);
 
   if (!['SUBMITTED', 'GRADING'].includes(session.status)) {
     return { success: false, error: 'Session is not in a gradable state' };
@@ -83,17 +81,14 @@ export const gradeAnswerAction = safeAction(async function gradeAnswerAction(
     where: { id: answerId },
     include: {
       examQuestion: {
-        include: { exam: { select: { createdById: true } } },
+        include: { exam: { select: { id: true, createdById: true } } },
       },
     },
   });
 
   if (!answer) return { success: false, error: 'Answer not found' };
 
-  // Verify teacher owns this exam
-  if (!canAccessSession(authSession.user.role, graderId, answer.examQuestion.exam.createdById)) {
-    return { success: false, error: 'You can only grade exams you created' };
-  }
+  await assertGradingAccess(authSession.user.id, authSession.user.role, answer.examQuestion.exam.id);
 
   if (marksAwarded < 0) return { success: false, error: 'Marks cannot be negative' };
   if (marksAwarded > Number(answer.examQuestion.marks)) {
@@ -149,14 +144,11 @@ export const batchGradeAnswersAction = safeAction(async function batchGradeAnswe
   // Validate session exists and is in a gradable state
   const session = await prisma.examSession.findUnique({
     where: { id: sessionId },
-    include: { exam: { select: { createdById: true } } },
+    include: { exam: { select: { id: true, createdById: true } } },
   });
   if (!session) return { success: false, error: 'Session not found' };
 
-  // Verify teacher owns this exam
-  if (!canAccessSession(authSession.user.role, graderId, session.exam.createdById)) {
-    return { success: false, error: 'You can only grade exams you created' };
-  }
+  await assertGradingAccess(authSession.user.id, authSession.user.role, session.exam.id);
 
   if (!['SUBMITTED', 'GRADING'].includes(session.status)) {
     return { success: false, error: 'Session is not in a gradable state' };
@@ -252,6 +244,8 @@ export const batchGradeAnswersAction = safeAction(async function batchGradeAnswe
 
 export const batchAutoGradeAction = safeAction(async function batchAutoGradeAction(examId: string): Promise<ActionResult<{ totalSessions: number; fullyGraded: number }>> {
   const authSession = await requireRole('TEACHER', 'ADMIN');
+
+  await assertGradingAccess(authSession.user.id, authSession.user.role, examId);
 
   const sessions = await prisma.examSession.findMany({
     where: { examId, status: { in: ['SUBMITTED', 'GRADING'] } },

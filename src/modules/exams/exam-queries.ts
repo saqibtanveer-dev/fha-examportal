@@ -134,10 +134,7 @@ export async function getExamsForStudent(
       examClassAssignments: {
         some: {
           classId,
-          OR: [
-            { sectionId: null },
-            ...(sectionId ? [{ sectionId }] : []),
-          ],
+          ...(sectionId ? { sectionId } : {}),
         },
       },
     },

@@ -8,11 +8,12 @@ import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
 import type { FamilyProfileWithChildren, LinkedChild } from './family.types';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Fetch the current family user's profile with all linked children.
  */
-export async function fetchFamilyProfileAction(): Promise<ActionResult<FamilyProfileWithChildren>> {
+export const fetchFamilyProfileAction = safeFetchAction(async () : Promise<ActionResult<FamilyProfileWithChildren>> => {
   const session = await requireRole('FAMILY');
 
   const profile = await prisma.familyProfile.findUnique({
@@ -66,12 +67,12 @@ export async function fetchFamilyProfileAction(): Promise<ActionResult<FamilyPro
       children,
     },
   };
-}
+});
 
 /**
  * Fetch just the list of linked children (lightweight for selectors).
  */
-export async function fetchLinkedChildrenAction(): Promise<ActionResult<LinkedChild[]>> {
+export const fetchLinkedChildrenAction = safeFetchAction(async () : Promise<ActionResult<LinkedChild[]>> => {
   const session = await requireRole('FAMILY');
 
   const profile = await prisma.familyProfile.findUnique({
@@ -114,4 +115,4 @@ export async function fetchLinkedChildrenAction(): Promise<ActionResult<LinkedCh
   }));
 
   return { success: true, data: children };
-}
+});

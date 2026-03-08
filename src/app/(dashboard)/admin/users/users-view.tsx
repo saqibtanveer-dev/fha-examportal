@@ -11,10 +11,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import dynamic from 'next/dynamic';
 import { Plus, Search } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
-import { UserTable, CreateUserDialog } from '@/modules/users/components';
+import { UserTable } from '@/modules/users/components';
+
+const CreateUserDialog = dynamic(
+  () => import('@/modules/users/components/create-user-dialog').then(m => ({ default: m.CreateUserDialog })),
+  { ssr: false },
+);
 import { importUsersFromCsvAction } from '@/modules/users/import-actions';
 import type { PaginatedResult } from '@/utils/pagination';
 import type { UserWithProfile } from '@/modules/users/user-queries';
@@ -74,7 +80,7 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
               optionalColumns={['phone', 'password', 'classId', 'sectionId', 'rollNumber', 'registrationNo', 'employeeId', 'qualification', 'specialization', 'guardianName', 'guardianPhone']}
               sampleCsv={USER_CSV_SAMPLE}
               onImport={async (rows) => {
-                const res = await importUsersFromCsvAction(rows as any);
+                const res = await importUsersFromCsvAction(rows);
                 if (!res.success) throw new Error(res.error);
                 return res.data!;
               }}

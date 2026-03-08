@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import { assertTeacherSubjectSectionAccess, getTeacherProfileIdOrThrow } from '@/lib/authorization-guards';
 import { safeAction } from '@/lib/safe-action';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
@@ -20,15 +21,6 @@ import { isFutureDate, isToday } from './diary.utils';
 
 // ── Helpers ──
 
-async function getTeacherProfileId(userId: string): Promise<string> {
-  const profile = await prisma.teacherProfile.findUnique({
-    where: { userId },
-    select: { id: true },
-  });
-  if (!profile) throw new Error('Teacher profile not found');
-  return profile.id;
-}
-
 async function getCurrentSessionId(): Promise<string> {
   const session = await prisma.academicSession.findFirst({
     where: { isCurrent: true },
@@ -36,17 +28,6 @@ async function getCurrentSessionId(): Promise<string> {
   });
   if (!session) throw new Error('No active academic session');
   return session.id;
-}
-
-async function verifyTeacherAssignment(
-  teacherProfileId: string,
-  subjectId: string,
-  classId: string,
-): Promise<boolean> {
-  const assignment = await prisma.teacherSubject.findFirst({
-    where: { teacherId: teacherProfileId, subjectId, classId },
-  });
-  return !!assignment;
 }
 
 function revalidateDiaryPaths() {
@@ -67,12 +48,11 @@ export const createDiaryEntryAction = safeAction(
 
     if (isFutureDate(date)) return actionError('Cannot create diary entries for future dates');
 
-    const teacherProfileId = await getTeacherProfileId(session.user.id);
+    const teacherProfileId = await getTeacherProfileIdOrThrow(session.user.id);
     const isAdmin = session.user.role === 'ADMIN';
 
     if (!isAdmin) {
-      const hasAssignment = await verifyTeacherAssignment(teacherProfileId, subjectId, classId);
-      if (!hasAssignment) return actionError('You are not assigned to teach this subject in this class');
+      await assertTeacherSubjectSectionAccess(teacherProfileId, subjectId, classId, sectionId);
     }
 
     const academicSessionId = await getCurrentSessionId();
@@ -142,7 +122,7 @@ export const updateDiaryEntryAction = safeAction(
 
     const isAdmin = session.user.role === 'ADMIN';
     if (!isAdmin) {
-      const teacherProfileId = await getTeacherProfileId(session.user.id);
+      const teacherProfileId = await getTeacherProfileIdOrThrow(session.user.id);
       if (entry.teacherProfileId !== teacherProfileId) {
         return actionError('You can only edit your own diary entries');
       }
@@ -188,7 +168,7 @@ export const deleteDiaryEntryAction = safeAction(
 
     const isAdmin = session.user.role === 'ADMIN';
     if (!isAdmin) {
-      const teacherProfileId = await getTeacherProfileId(session.user.id);
+      const teacherProfileId = await getTeacherProfileIdOrThrow(session.user.id);
       if (entry.teacherProfileId !== teacherProfileId) {
         return actionError('You can only delete your own diary entries');
       }
@@ -224,7 +204,7 @@ export const publishDiaryEntryAction = safeAction(
 
     const isAdmin = session.user.role === 'ADMIN';
     if (!isAdmin) {
-      const teacherProfileId = await getTeacherProfileId(session.user.id);
+      const teacherProfileId = await getTeacherProfileIdOrThrow(session.user.id);
       if (entry.teacherProfileId !== teacherProfileId) {
         return actionError('You can only publish your own diary entries');
       }
@@ -241,72 +221,5 @@ export const publishDiaryEntryAction = safeAction(
   },
 );
 
-// ── Action 5: Copy Diary to Other Sections ──
-
-export const copyDiaryToSectionsAction = safeAction(
-  async function copyDiaryToSectionsAction(
-    input: unknown & { entryId: string },
-  ): Promise<ActionResult<{ count: number }>> {
-    const session = await requireRole('TEACHER', 'ADMIN');
-    const { entryId, ...rest } = input as { entryId: string; [key: string]: unknown };
-    const parsed = copyDiaryToSectionsSchema.safeParse(rest);
-    if (!parsed.success) return actionError('Invalid input');
-
-    const entry = await prisma.diaryEntry.findUnique({ where: { id: entryId } });
-    if (!entry || entry.deletedAt) return actionError('Diary entry not found');
-
-    const isAdmin = session.user.role === 'ADMIN';
-    if (!isAdmin) {
-      const teacherProfileId = await getTeacherProfileId(session.user.id);
-      if (entry.teacherProfileId !== teacherProfileId) {
-        return actionError('You can only copy your own diary entries');
-      }
-    }
-
-    const results = await prisma.$transaction(
-      parsed.data.targetSectionIds.map((sectionId) =>
-        prisma.diaryEntry.upsert({
-          where: {
-            teacherProfileId_classId_sectionId_subjectId_date_academicSessionId: {
-              teacherProfileId: entry.teacherProfileId,
-              classId: entry.classId,
-              sectionId,
-              subjectId: entry.subjectId,
-              date: entry.date,
-              academicSessionId: entry.academicSessionId,
-            },
-          },
-          create: {
-            teacherProfileId: entry.teacherProfileId,
-            classId: entry.classId,
-            sectionId,
-            subjectId: entry.subjectId,
-            date: entry.date,
-            title: entry.title,
-            content: entry.content,
-            status: entry.status,
-            academicSessionId: entry.academicSessionId,
-          },
-          update: {
-            title: entry.title,
-            content: entry.content,
-            status: entry.status,
-            isEdited: true,
-            editedAt: new Date(),
-          },
-        }),
-      ),
-    );
-
-    createAuditLog(
-      session.user.id,
-      'COPY_DIARY_ENTRY',
-      'DiaryEntry',
-      entryId,
-      { targetSectionIds: parsed.data.targetSectionIds, count: results.length },
-    ).catch(() => {});
-
-    revalidateDiaryPaths();
-    return actionSuccess({ count: results.length });
-  },
-);
+// Re-export copy action from split file
+export { copyDiaryToSectionsAction } from './diary-copy-actions';

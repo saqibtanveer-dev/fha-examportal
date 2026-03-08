@@ -49,7 +49,7 @@ export async function getStudentsList(params?: {
       : {}),
     ...(params?.classId ? { studentProfile: { classId: params.classId } } : {}),
     ...(params?.sectionId ? { studentProfile: { sectionId: params.sectionId } } : {}),
-    ...(params?.status ? { studentProfile: { status: params.status as any } } : {}),
+    ...(params?.status ? { studentProfile: { status: params.status as Prisma.StudentProfileWhereInput['status'] } } : {}),
   };
 
   const [users, total] = await Promise.all([

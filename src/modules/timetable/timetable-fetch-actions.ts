@@ -15,10 +15,11 @@ import {
   getTimetableEntryById,
 } from './timetable-queries';
 import type { DayOfWeek } from '@prisma/client';
+import { safeFetchAction } from '@/lib/safe-action';
 
 // ── Period Slot Reads ──
 
-export async function fetchPeriodSlotsAction(classId?: string) {
+export const fetchPeriodSlotsAction = safeFetchAction(async (classId?: string) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   if (classId) {
     const classSlots = await listPeriodSlotsByClass(classId);
@@ -26,66 +27,66 @@ export async function fetchPeriodSlotsAction(classId?: string) {
   }
   const slots = await listPeriodSlots();
   return serialize(slots);
-}
+});
 
-export async function fetchAllPeriodSlotsAction() {
+export const fetchAllPeriodSlotsAction = safeFetchAction(async () => {
   await requireRole('ADMIN');
   const slots = await listAllPeriodSlots();
   return serialize(slots);
-}
+});
 
-export async function fetchActivePeriodSlotsAction(classId?: string, sectionId?: string) {
+export const fetchActivePeriodSlotsAction = safeFetchAction(async (classId?: string, sectionId?: string) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const slots = await listActivePeriodSlots(classId, sectionId);
   return serialize(slots);
-}
+});
 
-export async function fetchPeriodSlotByIdAction(id: string) {
+export const fetchPeriodSlotByIdAction = safeFetchAction(async (id: string) => {
   await requireRole('ADMIN');
   const slot = await getPeriodSlotById(id);
   return serialize(slot);
-}
+});
 
 // ── Timetable Entry Reads ──
 
-export async function fetchTimetableByClassAction(
+export const fetchTimetableByClassAction = safeFetchAction(async (
   classId: string,
   sectionId: string,
   academicSessionId: string,
-) {
+) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const entries = await listTimetableEntriesByClass(classId, sectionId, academicSessionId);
   return serialize(entries);
-}
+});
 
-export async function fetchTimetableByTeacherAction(
+export const fetchTimetableByTeacherAction = safeFetchAction(async (
   teacherProfileId: string,
   academicSessionId: string,
-) {
+) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
   const entries = await listTimetableEntriesByTeacher(teacherProfileId, academicSessionId);
   return serialize(entries);
-}
+});
 
-export async function fetchTimetableByTeacherAndDayAction(
+export const fetchTimetableByTeacherAndDayAction = safeFetchAction(async (
   teacherProfileId: string,
   dayOfWeek: DayOfWeek,
   academicSessionId: string,
-) {
+) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
   const entries = await listTimetableEntriesByTeacherAndDay(teacherProfileId, dayOfWeek, academicSessionId);
   return serialize(entries);
-}
+});
 
-export async function fetchTimetableEntryByIdAction(id: string) {
+export const fetchTimetableEntryByIdAction = safeFetchAction(async (id: string) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
   const entry = await getTimetableEntryById(id);
   return serialize(entry);
-}
+});
 
 // ── Teacher list for timetable assignment ──
 
-export async function fetchTeacherProfilesAction() {
+export const fetchTeacherProfilesAction = safeFetchAction(async () => {
   await requireRole('ADMIN');
   const teachers = await prisma.teacherProfile.findMany({
     where: { user: { isActive: true } },
@@ -97,11 +98,11 @@ export async function fetchTeacherProfilesAction() {
     orderBy: { user: { firstName: 'asc' } },
   });
   return serialize(teachers);
-}
+});
 
 // ── Class teacher management ──
 
-export async function fetchSectionsWithClassTeachersAction() {
+export const fetchSectionsWithClassTeachersAction = safeFetchAction(async () => {
   await requireRole('ADMIN');
   const sections = await prisma.section.findMany({
     where: { isActive: true },
@@ -121,11 +122,11 @@ export async function fetchSectionsWithClassTeachersAction() {
     orderBy: [{ class: { grade: 'asc' } }, { name: 'asc' }],
   });
   return serialize(sections);
-}
+});
 
 // ── Sections assigned to a teacher (for attendance access control) ──
 
-export async function fetchTeacherAssignedSectionsAction() {
+export const fetchTeacherAssignedSectionsAction = safeFetchAction(async () => {
   const session = await requireRole('TEACHER');
   const userId = session.user.id;
 
@@ -139,4 +140,4 @@ export async function fetchTeacherAssignedSectionsAction() {
     orderBy: [{ class: { grade: 'asc' } }, { name: 'asc' }],
   });
   return serialize(sections);
-}
+});

@@ -13,12 +13,13 @@ import {
   getStudentAnalytics,
   getStudentResultDetail,
 } from '@/modules/results/result-queries';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Fetch child's results + analytics for family view.
  * Same data shape as student's own results — enables full component reuse.
  */
-export async function fetchChildResultsWithAnalyticsAction(studentProfileId: string) {
+export const fetchChildResultsWithAnalyticsAction = safeFetchAction(async (studentProfileId: string) => {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -34,16 +35,16 @@ export async function fetchChildResultsWithAnalyticsAction(studentProfileId: str
   ]);
 
   return serialize({ results, analytics });
-}
+});
 
 /**
  * Fetch detailed result for a child — same shape as student detail page.
  * AI metadata is stripped (uses student-view query).
  */
-export async function fetchChildResultDetailAction(
+export const fetchChildResultDetailAction = safeFetchAction(async (
   studentProfileId: string,
   resultId: string,
-) {
+) => {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -55,4 +56,4 @@ export async function fetchChildResultDetailAction(
 
   const result = await getStudentResultDetail(resultId, studentProfile.userId);
   return result ? serialize(result) : null;
-}
+});

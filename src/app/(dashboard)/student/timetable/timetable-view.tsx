@@ -29,7 +29,7 @@ export function StudentTimetableView({ studentProfile }: Props) {
 
   const { data: periodSlots, isLoading: slotsLoading } = useActivePeriodSlots(studentProfile.classId, studentProfile.sectionId);
 
-  const sessionId = (currentSession as any)?.id ?? '';
+  const sessionId = currentSession?.id ?? '';
 
   const { data: entries, isLoading: entriesLoading } = useTimetableByClass(
     studentProfile.classId,
@@ -39,7 +39,7 @@ export function StudentTimetableView({ studentProfile }: Props) {
   );
 
   const grid = useMemo(
-    () => buildTimetableGrid(entries as any, periodSlots ?? []),
+    () => buildTimetableGrid(entries, periodSlots ?? []),
     [entries, periodSlots],
   );
 
@@ -74,7 +74,7 @@ export function StudentTimetableView({ studentProfile }: Props) {
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
-              Weekly Schedule &mdash; {(currentSession as any)?.name}
+              Weekly Schedule &mdash; {currentSession?.name}
             </CardTitle>
           </CardHeader>
           <CardContent>

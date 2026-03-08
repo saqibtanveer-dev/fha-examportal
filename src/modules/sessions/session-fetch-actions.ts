@@ -3,6 +3,7 @@
 import { requireRole } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { serialize } from '@/utils/serialize';
+import { safeFetchAction } from '@/lib/safe-action';
 
 export type StudentDashboardStats = {
   newExams: number;
@@ -14,7 +15,7 @@ export type StudentDashboardStats = {
 /**
  * Server action to fetch student dashboard statistics.
  */
-export async function fetchStudentDashboardStatsAction(): Promise<StudentDashboardStats> {
+export const fetchStudentDashboardStatsAction = safeFetchAction(async () : Promise<StudentDashboardStats> => {
   const session = await requireRole('STUDENT');
   const userId = session.user.id;
 
@@ -70,4 +71,4 @@ export async function fetchStudentDashboardStatsAction(): Promise<StudentDashboa
     completed,
     avgScore: Number(avgScore._avg.percentage ?? 0),
   });
-}
+});

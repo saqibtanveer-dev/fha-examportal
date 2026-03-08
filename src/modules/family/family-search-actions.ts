@@ -7,6 +7,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
+import { safeFetchAction } from '@/lib/safe-action';
 
 export type SearchableStudent = {
   studentProfileId: string;
@@ -20,9 +21,9 @@ export type SearchableStudent = {
 /**
  * Search active students by name/roll/reg for linking. Admin-only.
  */
-export async function searchStudentsForLinkingAction(
+export const searchStudentsForLinkingAction = safeFetchAction(async (
   query: string,
-): Promise<ActionResult<SearchableStudent[]>> {
+) : Promise<ActionResult<SearchableStudent[]>> => {
   await requireRole('ADMIN');
 
   if (!query || query.trim().length < 2) {
@@ -88,4 +89,4 @@ export async function searchStudentsForLinkingAction(
       registrationNo: s.registrationNo,
     })),
   };
-}
+});

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -46,10 +46,10 @@ export function SpreadsheetView({ examId, questions, sessions, isFinalized }: Pr
   const [dirtySessionIds, setDirtySessionIds] = useState<Set<string>>(new Set());
 
   const dataKey = useMemo(() => sessions.map((s) => s.id).join(','), [sessions]);
-  useMemo(() => {
+  useEffect(() => {
     setGrid(buildInitialGrid(sessions, questions));
     setDirtySessionIds(new Set());
-  }, [dataKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [dataKey, sessions, questions]);
 
   const handleCellChange = useCallback(
     (sessionId: string, examQuestionId: string, value: CellValue) => {

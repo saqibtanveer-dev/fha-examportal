@@ -92,23 +92,26 @@ export function useTestSession(accessToken: string) {
     return () => { cancelled = true; };
   }, [accessToken]);
 
+  // Ref for submit handler — avoids stale closure in timer
+  const handleSubmitRef = useRef<() => void>(() => {});
+
   // ── Countdown timer ──
+  const isTimerActive = remainingSeconds !== null && remainingSeconds > 0 && !isSubmitted;
   useEffect(() => {
-    if (remainingSeconds === null || remainingSeconds <= 0 || isSubmitted) return;
+    if (!isTimerActive) return;
     const interval = setInterval(() => {
       setRemainingSeconds((prev) => {
         if (prev === null) return null;
         if (prev <= 1) {
           clearInterval(interval);
-          handleSubmitTest();
+          handleSubmitRef.current();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(interval);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remainingSeconds !== null, isSubmitted]);
+  }, [isTimerActive]);
 
   // ── Heartbeat ──
   useEffect(() => {
@@ -252,6 +255,7 @@ export function useTestSession(accessToken: string) {
       }
     });
   }
+  handleSubmitRef.current = handleSubmitTest;
 
   const formatTime = useCallback((s: number) => {
     const m = Math.floor(s / 60);

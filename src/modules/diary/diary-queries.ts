@@ -232,6 +232,7 @@ export async function getExpectedDiaryTeachers(academicSessionId: string) {
       teacherId: true,
       subjectId: true,
       classId: true,
+      sectionId: true,
       teacher: {
         select: {
           id: true,
@@ -241,6 +242,7 @@ export async function getExpectedDiaryTeachers(academicSessionId: string) {
       },
       subject: { select: { name: true } },
       class: { select: { name: true } },
+      section: { select: { name: true } },
     },
   });
 }
@@ -258,26 +260,37 @@ export async function getTeacherSubjectClasses(teacherProfileId: string) {
     where: { teacherId: teacherProfileId },
     include: {
       subject: { select: { id: true, name: true, code: true } },
-      class: {
-        select: {
-          id: true,
-          name: true,
-          sections: {
-            where: { isActive: true },
-            select: { id: true, name: true },
-            orderBy: { name: 'asc' },
-          },
-        },
-      },
+      class: { select: { id: true, name: true } },
+      section: { select: { id: true, name: true } },
     },
   });
 
-  return assignments.map((a) => ({
-    subjectId: a.subject.id,
-    subjectName: a.subject.name,
-    subjectCode: a.subject.code,
-    classId: a.class.id,
-    className: a.class.name,
-    sections: a.class.sections,
-  }));
+  // Group by subject+class, collecting assigned sections
+  const grouped = new Map<string, {
+    subjectId: string;
+    subjectName: string;
+    subjectCode: string | null;
+    classId: string;
+    className: string;
+    sections: Array<{ id: string; name: string }>;
+  }>();
+
+  for (const a of assignments) {
+    const key = `${a.subject.id}:${a.class.id}`;
+    const existing = grouped.get(key);
+    if (existing) {
+      existing.sections.push({ id: a.section.id, name: a.section.name });
+    } else {
+      grouped.set(key, {
+        subjectId: a.subject.id,
+        subjectName: a.subject.name,
+        subjectCode: a.subject.code,
+        classId: a.class.id,
+        className: a.class.name,
+        sections: [{ id: a.section.id, name: a.section.name }],
+      });
+    }
+  }
+
+  return Array.from(grouped.values());
 }

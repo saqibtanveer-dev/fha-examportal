@@ -12,8 +12,15 @@ import {
   Users, CheckCircle2, Clock, UserX, AlertCircle,
   RefreshCcw, ClipboardList, Table2, Lock,
 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+import type { ComponentProps } from 'react';
 import { PerStudentView } from './per-student-view';
-import { SpreadsheetView } from './spreadsheet-view';
+import type { SpreadsheetView as _SV } from './spreadsheet-view';
+
+const SpreadsheetView = dynamic<ComponentProps<typeof _SV>>(
+  () => import('./spreadsheet-view').then(m => ({ default: m.SpreadsheetView })),
+  { ssr: false },
+);
 import { FinalizeDialog } from './finalize-dialog';
 import { ExcelActions } from './excel-actions';
 
@@ -21,15 +28,14 @@ type Props = { examId: string };
 
 export function MarksEntryPageClient({ examId }: Props) {
   const { data, isLoading, error, refetch } = useWrittenExamMarkEntry(examId);
-  const initializeMutation = useInitializeWrittenSessions(examId);
+  const { mutate: initializeSessions, isPending: isInitializing } = useInitializeWrittenSessions(examId);
   const [activeView, setActiveView] = useState<'student' | 'spreadsheet'>('student');
   const [showFinalize, setShowFinalize] = useState(false);
 
+  const needsInit = !!data && data.sessions.length === 0 && !isInitializing;
   useEffect(() => {
-    if (data && data.sessions.length === 0 && !initializeMutation.isPending) {
-      initializeMutation.mutate();
-    }
-  }, [data?.sessions.length]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (needsInit) initializeSessions();
+  }, [needsInit, initializeSessions]);
 
   if (isLoading) {
     return (
@@ -127,11 +133,11 @@ export function MarksEntryPageClient({ examId }: Props) {
           {sessions.length === 0 && (
             <Button
               size="sm"
-              onClick={() => initializeMutation.mutate()}
-              disabled={initializeMutation.isPending}
+              onClick={() => initializeSessions()}
+              disabled={isInitializing}
               className="flex-1 sm:flex-initial"
             >
-              {initializeMutation.isPending && <Spinner size="sm" className="mr-2" />}
+              {isInitializing && <Spinner size="sm" className="mr-2" />}
               Initialize Sessions
             </Button>
           )}
@@ -158,7 +164,7 @@ export function MarksEntryPageClient({ examId }: Props) {
       {sessions.length === 0 ? (
         <Card>
           <CardContent className="flex min-h-40 flex-col items-center justify-center gap-3 py-12 text-center">
-            {initializeMutation.isPending ? (
+            {isInitializing ? (
               <>
                 <Spinner size="lg" />
                 <p className="text-sm text-muted-foreground">Creating student sessions...</p>

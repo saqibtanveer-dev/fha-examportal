@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
+import { safeFetchAction } from '@/lib/safe-action';
 
 export type ReferenceDataPayload = {
   subjects: { id: string; name: string; code: string }[];
@@ -17,7 +18,7 @@ export type ReferenceDataPayload = {
  * Fetches all reference data for the teacher dashboard in a single call.
  * Used for Zustand store hydration at layout level.
  */
-export async function fetchTeacherReferenceData(): Promise<ActionResult<ReferenceDataPayload>> {
+export const fetchTeacherReferenceData = safeFetchAction(async () : Promise<ActionResult<ReferenceDataPayload>> => {
   const session = await requireRole('TEACHER', 'ADMIN');
 
   const [allSubjects, classes, academicSessions, tags] = await Promise.all([
@@ -88,12 +89,12 @@ export async function fetchTeacherReferenceData(): Promise<ActionResult<Referenc
       teacherProfileId,
     },
   };
-}
+});
 
 /**
  * Fetches reference data for admin pages.
  */
-export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions' | 'subjectClassLinks'>>> {
+export const fetchAdminReferenceData = safeFetchAction(async () : Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions' | 'subjectClassLinks'>>> => {
   await requireRole('ADMIN');
 
   const [subjects, classes, academicSessions, links] = await Promise.all([
@@ -132,12 +133,12 @@ export async function fetchAdminReferenceData(): Promise<ActionResult<Pick<Refer
       })),
     },
   };
-}
+});
 
 /**
  * Fetches reference data for principal pages (same shape as admin).
  */
-export async function fetchPrincipalReferenceData(): Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions'>>> {
+export const fetchPrincipalReferenceData = safeFetchAction(async () : Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions'>>> => {
   await requireRole('PRINCIPAL');
 
   const [subjects, classes, academicSessions] = await Promise.all([
@@ -165,12 +166,12 @@ export async function fetchPrincipalReferenceData(): Promise<ActionResult<Pick<R
       academicSessions,
     },
   };
-}
+});
 
 /**
  * Fetches reference data for family pages (same shape as admin/principal).
  */
-export async function fetchFamilyReferenceData(): Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions'>>> {
+export const fetchFamilyReferenceData = safeFetchAction(async () : Promise<ActionResult<Pick<ReferenceDataPayload, 'subjects' | 'classes' | 'academicSessions'>>> => {
   await requireRole('FAMILY');
 
   const [subjects, classes, academicSessions] = await Promise.all([
@@ -198,4 +199,4 @@ export async function fetchFamilyReferenceData(): Promise<ActionResult<Pick<Refe
       academicSessions,
     },
   };
-}
+});

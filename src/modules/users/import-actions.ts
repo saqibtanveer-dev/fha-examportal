@@ -49,7 +49,7 @@ function generateTempPassword(): string {
  * For TEACHER: employeeId (required)
  */
 export async function importUsersFromCsvAction(
-  csvRows: CsvUser[],
+  csvRows: Record<string, string>[],
 ): Promise<ActionResult<ImportResult>> {
   const session = await requireRole('ADMIN');
 
@@ -62,7 +62,7 @@ export async function importUsersFromCsvAction(
   };
 
   for (let i = 0; i < csvRows.length; i++) {
-    const row = csvRows[i]!;
+    const row = csvRows[i] as CsvUser;
     const rowNum = i + 1;
 
     // Validate required fields

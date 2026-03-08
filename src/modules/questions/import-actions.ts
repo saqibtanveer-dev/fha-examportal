@@ -28,7 +28,7 @@ const VALID_TYPES = ['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER'];
 const VALID_DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD'];
 
 export async function importQuestionsFromCsvAction(
-  csvRows: CsvQuestion[],
+  csvRows: Record<string, string>[],
 ): Promise<ActionResult<ImportResult>> {
   const session = await requireRole('TEACHER', 'ADMIN');
 
@@ -39,7 +39,7 @@ export async function importQuestionsFromCsvAction(
   };
 
   for (let i = 0; i < csvRows.length; i++) {
-    const row = csvRows[i]!;
+    const row = csvRows[i] as CsvQuestion;
     const rowNum = i + 1;
 
     const validation = validateRow(row, rowNum);

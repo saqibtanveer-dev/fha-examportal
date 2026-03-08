@@ -36,9 +36,9 @@ export async function getExamsList(params?: {
     ...(params?.search
       ? { title: { contains: params.search, mode: 'insensitive' } }
       : {}),
-    ...(params?.status ? { status: params.status as any } : {}),
+    ...(params?.status ? { status: params.status as Prisma.ExamWhereInput['status'] } : {}),
     ...(params?.subjectId ? { subjectId: params.subjectId } : {}),
-    ...(params?.type ? { type: params.type as any } : {}),
+    ...(params?.type ? { type: params.type as Prisma.ExamWhereInput['type'] } : {}),
   };
 
   const [exams, total] = await Promise.all([

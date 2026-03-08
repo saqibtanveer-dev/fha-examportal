@@ -102,7 +102,7 @@ export function OverviewTab({
                     cx="50%"
                     cy="50%"
                     outerRadius={100}
-                    label={((entry: any) => `${entry.grade}: ${entry.count}`) as any}
+                    label={({ name, value }: { name?: string; value?: number }) => `${name}: ${value}`}
                   >
                     {gradeDistribution.map((_, i) => (
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />

@@ -8,13 +8,14 @@ import { prisma } from '@/lib/prisma';
 import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
 import type { ChildDashboardStats, AllChildrenOverview } from './family.types';
+import { safeFetchAction } from '@/lib/safe-action';
 
 /**
  * Fetch dashboard stats for a single child.
  */
-export async function fetchChildDashboardStatsAction(
+export const fetchChildDashboardStatsAction = safeFetchAction(async (
   studentProfileId: string,
-): Promise<ActionResult<ChildDashboardStats>> {
+) : Promise<ActionResult<ChildDashboardStats>> => {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -57,12 +58,12 @@ export async function fetchChildDashboardStatsAction(
       diary: diaryData,
     },
   };
-}
+});
 
 /**
  * Fetch overview stats for all children (home dashboard).
  */
-export async function fetchAllChildrenOverviewAction(): Promise<ActionResult<AllChildrenOverview>> {
+export const fetchAllChildrenOverviewAction = safeFetchAction(async () : Promise<ActionResult<AllChildrenOverview>> => {
   const session = await requireRole('FAMILY');
 
   const profile = await prisma.familyProfile.findUnique({
@@ -119,7 +120,7 @@ export async function fetchAllChildrenOverviewAction(): Promise<ActionResult<All
     success: true,
     data: { children: childrenStats, totalChildren: childrenStats.length },
   };
-}
+});
 
 // ── Private Helpers ──
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -66,9 +66,9 @@ export function StudentMarksForm({
   const [localMarks, setLocalMarks] = useState(initialMarks);
 
   const sessionIdRef = useMemo(() => session.id, [session.id]);
-  useMemo(() => {
+  useEffect(() => {
     setLocalMarks(initialMarks);
-  }, [sessionIdRef]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessionIdRef, initialMarks]);
 
   const totalMarks = questions.reduce((s, q) => s + q.marks, 0);
   const totalObtained = Object.values(localMarks).reduce(

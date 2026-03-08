@@ -11,9 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import dynamic from 'next/dynamic';
 import { Plus, Search } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/shared';
-import { ExamGrid, CreateExamDialog } from '@/modules/exams/components';
+import { ExamGrid } from '@/modules/exams/components';
+
+const CreateExamDialog = dynamic(
+  () => import('@/modules/exams/components/create-exam-dialog').then(m => ({ default: m.CreateExamDialog })),
+  { ssr: false },
+);
 import { useExamsQuery } from '@/modules/exams/hooks/use-exams-query';
 import { useReferenceStore } from '@/stores';
 import { ExamsSkeleton } from './exams-skeleton';

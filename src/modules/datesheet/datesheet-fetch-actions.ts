@@ -15,47 +15,48 @@ import {
   getTeacherDutyRoster,
 } from './datesheet-queries';
 import type { DatesheetStatus } from '@prisma/client';
+import { safeFetchAction } from '@/lib/safe-action';
 
 // ── Admin / Principal reads ──
 
-export async function fetchDatesheetListAction(academicSessionId: string, status?: DatesheetStatus) {
+export const fetchDatesheetListAction = safeFetchAction(async (academicSessionId: string, status?: DatesheetStatus) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   const data = await listDatesheets(academicSessionId, status);
   return serialize(data);
-}
+});
 
-export async function fetchDatesheetDetailAction(id: string) {
+export const fetchDatesheetDetailAction = safeFetchAction(async (id: string) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   const data = await getDatesheetById(id);
   return serialize(data);
-}
+});
 
-export async function fetchDatesheetWithEntriesAction(id: string) {
+export const fetchDatesheetWithEntriesAction = safeFetchAction(async (id: string) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   const data = await getDatesheetWithEntries(id);
   return serialize(data);
-}
+});
 
-export async function fetchDatesheetEntriesAction(datesheetId: string) {
+export const fetchDatesheetEntriesAction = safeFetchAction(async (datesheetId: string) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   const data = await listEntriesByDatesheet(datesheetId);
   return serialize(data);
-}
+});
 
-export async function fetchDatesheetEntryDutiesAction(entryId: string) {
+export const fetchDatesheetEntryDutiesAction = safeFetchAction(async (entryId: string) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   const data = await listDutiesByEntry(entryId);
   return serialize(data);
-}
+});
 
-export async function fetchDatesheetStatsAction(datesheetId: string) {
+export const fetchDatesheetStatsAction = safeFetchAction(async (datesheetId: string) => {
   await requireRole('ADMIN', 'PRINCIPAL');
   return getDatesheetStats(datesheetId);
-}
+});
 
 // ── Teacher reads ──
 
-export async function fetchTeacherDutyRosterAction(datesheetId: string) {
+export const fetchTeacherDutyRosterAction = safeFetchAction(async (datesheetId: string) => {
   const session = await requireRole('TEACHER');
   const { prisma } = await import('@/lib/prisma');
   const teacher = await prisma.teacherProfile.findUnique({
@@ -65,9 +66,9 @@ export async function fetchTeacherDutyRosterAction(datesheetId: string) {
   if (!teacher) return serialize([]);
   const data = await listDutiesByTeacher(teacher.id, datesheetId);
   return serialize(data);
-}
+});
 
-export async function fetchMyDutyRosterAction(academicSessionId: string) {
+export const fetchMyDutyRosterAction = safeFetchAction(async (academicSessionId: string) => {
   const session = await requireRole('TEACHER');
   const { prisma } = await import('@/lib/prisma');
   const teacher = await prisma.teacherProfile.findUnique({
@@ -77,11 +78,11 @@ export async function fetchMyDutyRosterAction(academicSessionId: string) {
   if (!teacher) return serialize([]);
   const data = await getTeacherDutyRoster(teacher.id, academicSessionId);
   return serialize(data);
-}
+});
 
 // ── Student reads ──
 
-export async function fetchPublishedDatesheetForStudentAction(academicSessionId: string) {
+export const fetchPublishedDatesheetForStudentAction = safeFetchAction(async (academicSessionId: string) => {
   const session = await requireRole('STUDENT');
   const { prisma } = await import('@/lib/prisma');
   const student = await prisma.studentProfile.findUnique({
@@ -105,22 +106,22 @@ export async function fetchPublishedDatesheetForStudentAction(academicSessionId:
   }
 
   return serialize(data);
-}
+});
 
 // ── Published datesheet list (all stakeholders) ──
 
-export async function fetchPublishedDatesheetListAction(academicSessionId: string) {
+export const fetchPublishedDatesheetListAction = safeFetchAction(async (academicSessionId: string) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const data = await listDatesheets(academicSessionId, 'PUBLISHED');
   return serialize(data);
-}
+});
 
 // ── Family reads ──
 
-export async function fetchPublishedDatesheetForChildAction(
+export const fetchPublishedDatesheetForChildAction = safeFetchAction(async (
   childStudentProfileId: string,
   academicSessionId: string,
-) {
+) => {
   await requireRole('FAMILY');
   const { prisma } = await import('@/lib/prisma');
   const student = await prisma.studentProfile.findUnique({
@@ -143,16 +144,16 @@ export async function fetchPublishedDatesheetForChildAction(
   }
 
   return serialize(data);
-}
+});
 
 // ── Class entries read for specific datesheet ──
 
-export async function fetchDatesheetEntriesByClassAction(
+export const fetchDatesheetEntriesByClassAction = safeFetchAction(async (
   datesheetId: string,
   classId: string,
   sectionId?: string,
-) {
+) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const data = await listEntriesByClass(datesheetId, classId, sectionId);
   return serialize(data);
-}
+});

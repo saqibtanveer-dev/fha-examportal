@@ -10,10 +10,8 @@ export function CampaignDetailClient({ campaignId }: { campaignId: string }) {
 
   if (isLoading || !campaignResult) return <CampaignDetailSkeleton />;
 
-  const campaignData = campaignResult as any;
-  const campaign = campaignData.success ? campaignData.data : null;
-  const statsData = statsResult as any;
-  const stats = statsData?.success ? statsData.data : null;
+  const campaign = campaignResult.success ? campaignResult.data : null;
+  const stats = statsResult?.success ? statsResult.data : null;
 
   if (!campaign) return <div>Campaign not found</div>;
 

@@ -5,17 +5,23 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ORDERED_DAYS, DAY_SHORT_LABELS } from '../timetable.constants';
 import { formatTimeRange } from '../timetable.utils';
-import type { PeriodSlotListItem, TimetableEntryWithRelations } from '../timetable.types';
+import type { PeriodSlotListItem } from '../timetable.types';
 
-type Props = {
+/** Minimal entry shape that the grid needs to render */
+type GridEntry = {
+  subject: { name: string; code: string };
+  teacherProfile: { user: { firstName: string; lastName: string } };
+};
+
+type Props<T extends GridEntry = GridEntry> = {
   periodSlots: PeriodSlotListItem[];
   /** grid[dayOfWeek][periodSlotId] → entry | null */
-  grid: Record<string, Record<string, TimetableEntryWithRelations | null>>;
-  onCellClick?: (dayOfWeek: DayOfWeek, periodSlotId: string, entry: TimetableEntryWithRelations | null) => void;
+  grid: Record<string, Record<string, T | null>>;
+  onCellClick?: (dayOfWeek: DayOfWeek, periodSlotId: string, entry: T | null) => void;
   compact?: boolean;
 };
 
-export function TimetableGrid({ periodSlots, grid, onCellClick, compact = false }: Props) {
+export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellClick, compact = false }: Props<T>) {
   const activePeriods = periodSlots.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (

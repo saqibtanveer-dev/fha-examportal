@@ -171,7 +171,7 @@ export const assignTeacherToSubjectAction = safeAction(async function assignTeac
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   const existing = await prisma.teacherSubject.findUnique({
-    where: { teacherId_subjectId_classId: { teacherId: parsed.data.teacherId, subjectId: parsed.data.subjectId, classId: parsed.data.classId } },
+    where: { teacherId_subjectId_classId_sectionId: { teacherId: parsed.data.teacherId, subjectId: parsed.data.subjectId, classId: parsed.data.classId, sectionId: parsed.data.sectionId } },
   });
   if (existing) return { success: true };
 
@@ -190,21 +190,21 @@ export const bulkAssignTeacherSubjectsAction = safeAction(async function bulkAss
   const { teacherId, assignments } = parsed.data;
 
   const existing = await prisma.teacherSubject.findMany({ where: { teacherId } });
-  const existingKeys = new Set(existing.map((e) => `${e.subjectId}:${e.classId}`));
-  const newKeys = new Set(assignments.map((a) => `${a.subjectId}:${a.classId}`));
+  const existingKeys = new Set(existing.map((e) => `${e.subjectId}:${e.classId}:${e.sectionId}`));
+  const newKeys = new Set(assignments.map((a) => `${a.subjectId}:${a.classId}:${a.sectionId}`));
 
   await prisma.$transaction(async (tx) => {
     // Remove deselected assignments
-    const toRemove = existing.filter((e) => !newKeys.has(`${e.subjectId}:${e.classId}`));
+    const toRemove = existing.filter((e) => !newKeys.has(`${e.subjectId}:${e.classId}:${e.sectionId}`));
     if (toRemove.length > 0) {
       await tx.teacherSubject.deleteMany({ where: { id: { in: toRemove.map((e) => e.id) } } });
     }
 
     // Add new assignments
-    const toAdd = assignments.filter((a) => !existingKeys.has(`${a.subjectId}:${a.classId}`));
+    const toAdd = assignments.filter((a) => !existingKeys.has(`${a.subjectId}:${a.classId}:${a.sectionId}`));
     if (toAdd.length > 0) {
       await tx.teacherSubject.createMany({
-        data: toAdd.map((a) => ({ teacherId, subjectId: a.subjectId, classId: a.classId })),
+        data: toAdd.map((a) => ({ teacherId, subjectId: a.subjectId, classId: a.classId, sectionId: a.sectionId })),
       });
     }
   });

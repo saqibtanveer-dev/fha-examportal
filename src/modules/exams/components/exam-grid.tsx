@@ -119,7 +119,7 @@ export function ExamGrid({ exams }: Props) {
                 <CardTitle className="line-clamp-2 break-words text-base leading-snug">{exam.title}</CardTitle>
                 <div className="flex flex-wrap gap-1">
                   <Badge variant="outline">{exam.subject.code}</Badge>
-                  {(exam as any).deliveryMode === 'WRITTEN' && (
+                  {exam.deliveryMode === 'WRITTEN' && (
                     <Badge variant="secondary" className="bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                       Written
                     </Badge>
@@ -137,7 +137,7 @@ export function ExamGrid({ exams }: Props) {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    {(exam as any).deliveryMode === 'WRITTEN' && exam.status !== 'DRAFT' && (
+                    {exam.deliveryMode === 'WRITTEN' && exam.status !== 'DRAFT' && (
                       <DropdownMenuItem onClick={() => router.push(`/teacher/exams/${exam.id}/marks`)}>
                         <ClipboardEdit className="mr-2 h-4 w-4" />Enter Marks
                       </DropdownMenuItem>

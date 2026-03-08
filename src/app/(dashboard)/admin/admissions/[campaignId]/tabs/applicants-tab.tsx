@@ -3,9 +3,16 @@
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { useApplicantsQuery } from '@/modules/admissions/hooks/use-admissions-query';
+import dynamic from 'next/dynamic';
+import type { ComponentProps } from 'react';
 import { ApplicantTable } from '@/modules/admissions/components/applicant-table';
 import { AddCandidateDialog } from '@/modules/admissions/components/add-candidate-dialog';
-import { ApplicantDetailSheet } from '@/modules/admissions/components/applicant-detail-sheet';
+import type { ApplicantDetailSheet as _ADS } from '@/modules/admissions/components/applicant-detail-sheet';
+
+const ApplicantDetailSheet = dynamic<ComponentProps<typeof _ADS>>(
+  () => import('@/modules/admissions/components/applicant-detail-sheet').then(m => ({ default: m.ApplicantDetailSheet })),
+  { ssr: false },
+);
 import { EmptyState, Spinner } from '@/components/shared';
 import { Button } from '@/components/ui/button';
 import { bulkDecisionAction } from '@/modules/admissions/admission-actions';
@@ -28,10 +35,10 @@ export function ApplicantsTabContent({ campaignId }: Props) {
 
   if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
 
-  const result = data as any;
+  const result = data;
   const applicants = result?.success ? (result.data?.data ?? []) : [];
   const selectedApplicant = selectedApplicantId
-    ? applicants.find((a: any) => a.id === selectedApplicantId) ?? null
+    ? applicants.find((a) => a.id === selectedApplicantId) ?? null
     : null;
 
   function handleBulkAction(ids: string[], decision: string) {
@@ -41,7 +48,7 @@ export function ApplicantsTabContent({ campaignId }: Props) {
         decision: decision as 'ACCEPTED' | 'REJECTED' | 'WAITLISTED',
       });
       if (result.success) {
-        toast.success(`${(result.data as any)?.processed ?? ids.length} applicants updated`);
+        toast.success(`${result.data?.processed ?? ids.length} applicants updated`);
         invalidate.afterDecision(campaignId);
       } else {
         toast.error(result.error);

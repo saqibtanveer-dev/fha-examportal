@@ -91,6 +91,7 @@ export const assignTeacherToSubjectSchema = z.object({
   teacherId: z.string().uuid('Invalid teacher'),
   subjectId: z.string().uuid('Invalid subject'),
   classId: z.string().uuid('Invalid class'),
+  sectionId: z.string().uuid('Invalid section'),
 });
 
 export type AssignTeacherToSubjectInput = z.infer<typeof assignTeacherToSubjectSchema>;
@@ -100,6 +101,7 @@ export const bulkAssignTeacherSubjectsSchema = z.object({
   assignments: z.array(z.object({
     subjectId: z.string().uuid('Invalid subject'),
     classId: z.string().uuid('Invalid class'),
+    sectionId: z.string().uuid('Invalid section'),
   })).min(0),
 });
 

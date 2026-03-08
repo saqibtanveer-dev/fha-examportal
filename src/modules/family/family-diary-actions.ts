@@ -15,6 +15,7 @@ import {
 } from '@/modules/diary/diary-queries';
 import { getTodayDateString } from '@/modules/diary/diary.utils';
 import type { ActionResult } from '@/types/action-result';
+import { safeFetchAction } from '@/lib/safe-action';
 
 async function getCurrentAcademicSessionId(): Promise<string> {
   const session = await prisma.academicSession.findFirst({
@@ -28,12 +29,12 @@ async function getCurrentAcademicSessionId(): Promise<string> {
 /**
  * Fetch diary entries for a child — same shape as student diary (DiaryEntryForStudent).
  */
-export async function fetchChildDiaryForFamilyAction(
+export const fetchChildDiaryForFamilyAction = safeFetchAction(async (
   studentProfileId: string,
   startDate: string,
   endDate: string,
   subjectId?: string,
-) {
+) => {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -53,14 +54,14 @@ export async function fetchChildDiaryForFamilyAction(
     subjectId,
   );
   return serialize(entries);
-}
+});
 
 /**
  * Fetch today's diary entries for a child — same shape as student today diary.
  */
-export async function fetchChildTodayDiaryForFamilyAction(
+export const fetchChildTodayDiaryForFamilyAction = safeFetchAction(async (
   studentProfileId: string,
-) {
+) => {
   const session = await requireRole('FAMILY');
   await assertFamilyStudentAccess(session.user.id, studentProfileId);
 
@@ -79,7 +80,7 @@ export async function fetchChildTodayDiaryForFamilyAction(
     today,
   );
   return serialize(entries);
-}
+});
 
 /**
  * Mark a diary entry as read by the family (creates receipt on behalf of student).

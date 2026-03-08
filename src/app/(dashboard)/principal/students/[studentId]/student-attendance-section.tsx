@@ -52,10 +52,10 @@ export function StudentAttendanceSection({ studentProfileId }: Props) {
     const dates = getMonthDates(selectedYear, selectedMonth);
     const recordMap = new Map<string, AttendanceStatus>();
     if (dailyRecords) {
-      for (const r of dailyRecords as any[]) {
+      for (const r of dailyRecords) {
         const dateStr = typeof r.date === 'string'
-          ? r.date.split('T')[0]
-          : new Date(r.date).toISOString().split('T')[0];
+          ? r.date.split('T')[0]!
+          : new Date(r.date).toISOString().split('T')[0]!;
         recordMap.set(dateStr, r.status);
       }
     }
@@ -72,7 +72,7 @@ export function StudentAttendanceSection({ studentProfileId }: Props) {
       return { present: 0, absent: 0, late: 0, excused: 0 };
     }
     let present = 0, absent = 0, late = 0, excused = 0;
-    for (const r of attendanceCounts as any[]) {
+    for (const r of attendanceCounts) {
       const count = Number(r._count?.id ?? 0);
       switch (r.status as string) {
         case 'PRESENT': present = count; break;
@@ -131,13 +131,13 @@ export function StudentAttendanceSection({ studentProfileId }: Props) {
         </CardContent>
       </Card>
 
-      {(dailyRecords as any[])?.length > 0 && (
+      {(dailyRecords?.length ?? 0) > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{monthLabel} — Daily Records</CardTitle>
           </CardHeader>
           <CardContent>
-            <DailyAttendanceTable records={dailyRecords as any} showStudent={false} />
+            <DailyAttendanceTable records={dailyRecords ?? []} showStudent={false} />
           </CardContent>
         </Card>
       )}

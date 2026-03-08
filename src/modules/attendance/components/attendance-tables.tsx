@@ -18,7 +18,7 @@ type DailyRecord = {
   date: string | Date;
   status: AttendanceStatus;
   remarks: string | null;
-  studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } };
+  studentProfile?: { rollNumber: string; user: { firstName: string; lastName: string } };
   markedBy: { firstName: string; lastName: string };
 };
 
@@ -66,7 +66,7 @@ export function DailyAttendanceTable({
                   {formatAttendanceDate(r.date)}
                 </TableCell>
               )}
-              {showStudent && (
+              {showStudent && r.studentProfile && (
                 <>
                   <TableCell className="font-mono text-sm">
                     {r.studentProfile.rollNumber}
@@ -100,7 +100,7 @@ type SubjectRecord = {
   date: string | Date;
   status: AttendanceStatus;
   remarks: string | null;
-  studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } };
+  studentProfile?: { rollNumber: string; user: { firstName: string; lastName: string } };
   subject: { name: string };
   periodSlot: { shortName: string };
 };
@@ -152,7 +152,7 @@ export function SubjectAttendanceTable({
                   {formatAttendanceDate(r.date)}
                 </TableCell>
               )}
-              {showStudent && (
+              {showStudent && r.studentProfile && (
                 <>
                   <TableCell className="font-mono text-sm">
                     {r.studentProfile.rollNumber}
