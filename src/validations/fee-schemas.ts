@@ -1,0 +1,161 @@
+import { z } from 'zod/v4';
+
+// ============================================
+// ENUMS
+// ============================================
+
+const feeFrequencyEnum = z.enum(['MONTHLY', 'TERM', 'ANNUAL', 'ONE_TIME']);
+const paymentMethodEnum = z.enum(['CASH', 'BANK_TRANSFER', 'ONLINE', 'CHEQUE']);
+const allocationStrategyEnum = z.enum([
+  'OLDEST_FIRST', 'CHILD_PRIORITY', 'EQUAL_SPLIT', 'MANUAL',
+]);
+
+// ============================================
+// FEE CATEGORY
+// ============================================
+
+export const createFeeCategorySchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters').max(100),
+  description: z.string().max(500).optional(),
+  frequency: feeFrequencyEnum,
+  isMandatory: z.boolean().default(true),
+  isRefundable: z.boolean().default(false),
+  sortOrder: z.number().int().min(0).default(0),
+});
+
+export type CreateFeeCategoryInput = z.infer<typeof createFeeCategorySchema>;
+
+export const updateFeeCategorySchema = createFeeCategorySchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateFeeCategoryInput = z.infer<typeof updateFeeCategorySchema>;
+
+// ============================================
+// FEE STRUCTURE
+// ============================================
+
+export const createFeeStructureSchema = z.object({
+  categoryId: z.string().uuid('Invalid category'),
+  classId: z.string().uuid('Invalid class'),
+  academicSessionId: z.string().uuid('Invalid session'),
+  amount: z.number().positive('Amount must be positive').max(9999999999, 'Amount too large'),
+});
+
+export type CreateFeeStructureInput = z.infer<typeof createFeeStructureSchema>;
+
+export const updateFeeStructureSchema = z.object({
+  amount: z.number().positive('Amount must be positive').max(9999999999).optional(),
+  isActive: z.boolean().optional(),
+});
+
+export type UpdateFeeStructureInput = z.infer<typeof updateFeeStructureSchema>;
+
+export const bulkCreateStructuresSchema = z.object({
+  categoryId: z.string().uuid('Invalid category'),
+  academicSessionId: z.string().uuid('Invalid session'),
+  classAmounts: z.array(z.object({
+    classId: z.string().uuid('Invalid class'),
+    amount: z.number().positive('Amount must be positive'),
+  })).min(1, 'At least one class required'),
+});
+
+export type BulkCreateStructuresInput = z.infer<typeof bulkCreateStructuresSchema>;
+
+// ============================================
+// FEE GENERATION
+// ============================================
+
+export const generateFeesSchema = z.object({
+  generatedForMonth: z.string().regex(
+    /^\d{4}-(0[1-9]|1[0-2])$/,
+    'Month must be YYYY-MM format',
+  ),
+  classId: z.string().uuid('Invalid class').optional(),
+  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be YYYY-MM-DD'),
+});
+
+export type GenerateFeesInput = z.infer<typeof generateFeesSchema>;
+
+// ============================================
+// INDIVIDUAL PAYMENT (student mode)
+// ============================================
+
+export const recordPaymentSchema = z.object({
+  feeAssignmentId: z.string().uuid('Invalid assignment'),
+  amount: z.number().positive('Amount must be positive'),
+  paymentMethod: paymentMethodEnum,
+  referenceNumber: z.string().max(100).optional(),
+});
+
+export type RecordPaymentInput = z.infer<typeof recordPaymentSchema>;
+
+// ============================================
+// FAMILY PAYMENT
+// ============================================
+
+const manualAllocationItem = z.object({
+  childId: z.string().uuid(),
+  amount: z.number().min(0),
+});
+
+export const recordFamilyPaymentSchema = z.object({
+  familyProfileId: z.string().uuid('Invalid family'),
+  totalAmount: z.number().positive('Amount must be positive'),
+  paymentMethod: paymentMethodEnum,
+  referenceNumber: z.string().max(100).optional(),
+  allocationStrategy: allocationStrategyEnum,
+  manualAllocations: z.array(manualAllocationItem).optional(),
+  childPriorityOrder: z.array(z.string().uuid()).optional(),
+});
+
+export type RecordFamilyPaymentInput = z.infer<typeof recordFamilyPaymentSchema>;
+
+// ============================================
+// DISCOUNT
+// ============================================
+
+export const applyDiscountSchema = z.object({
+  feeAssignmentId: z.string().uuid('Invalid assignment'),
+  amount: z.number().positive('Discount must be positive'),
+  reason: z.string().min(3, 'Reason required').max(500),
+});
+
+export type ApplyDiscountInput = z.infer<typeof applyDiscountSchema>;
+
+// ============================================
+// REVERSAL
+// ============================================
+
+export const reversePaymentSchema = z.object({
+  paymentId: z.string().uuid('Invalid payment'),
+  reason: z.string().min(3, 'Reason required').max(500),
+});
+
+export type ReversePaymentInput = z.infer<typeof reversePaymentSchema>;
+
+// ============================================
+// FEE SETTINGS
+// ============================================
+
+export const updateFeeSettingsSchema = z.object({
+  dueDayOfMonth: z.number().int().min(1).max(28).optional(),
+  lateFeePerDay: z.number().min(0).optional(),
+  maxLateFee: z.number().min(0).optional(),
+  receiptPrefix: z.string().min(1).max(10).optional(),
+  familyReceiptPrefix: z.string().min(1).max(10).optional(),
+  gracePeriodDays: z.number().int().min(0).max(30).optional(),
+});
+
+export type UpdateFeeSettingsInput = z.infer<typeof updateFeeSettingsSchema>;
+
+// ============================================
+// CANCEL ASSIGNMENT
+// ============================================
+
+export const cancelAssignmentSchema = z.object({
+  feeAssignmentId: z.string().uuid('Invalid assignment'),
+  reason: z.string().min(3, 'Reason required').max(500),
+});
+
+export type CancelAssignmentInput = z.infer<typeof cancelAssignmentSchema>;

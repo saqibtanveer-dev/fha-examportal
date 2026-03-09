@@ -20,6 +20,7 @@ import {
   BookOpenText,
   Heart,
   CalendarRange,
+  Wallet,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -53,6 +54,7 @@ export const adminNavigation: NavGroup[] = [
       { label: 'Timetable', href: ROUTES.ADMIN.TIMETABLE, icon: Clock },
       { label: 'Datesheet', href: ROUTES.ADMIN.DATESHEET, icon: CalendarRange },
       { label: 'Attendance', href: ROUTES.ADMIN.ATTENDANCE, icon: CalendarCheck },
+      { label: 'Fees', href: ROUTES.ADMIN.FEES, icon: Wallet },
       { label: 'Admissions', href: ROUTES.ADMIN_ADMISSIONS.ROOT, icon: UserPlus },
       {
         label: 'Year Transition',
@@ -90,6 +92,7 @@ export const principalNavigation: NavGroup[] = [
       { label: 'Datesheet', href: ROUTES.PRINCIPAL.DATESHEET, icon: CalendarRange },
       { label: 'Attendance', href: ROUTES.PRINCIPAL.ATTENDANCE, icon: CalendarCheck },
       { label: 'Diary', href: ROUTES.PRINCIPAL.DIARY, icon: BookOpenText },
+      { label: 'Fees', href: ROUTES.PRINCIPAL.FEES, icon: Wallet },
     ],
   },
   {
@@ -153,6 +156,7 @@ export const studentNavigation: NavGroup[] = [
     items: [
       { label: 'My Attendance', href: ROUTES.STUDENT.ATTENDANCE, icon: CalendarCheck },
       { label: 'Diary', href: ROUTES.STUDENT.DIARY, icon: BookOpenText },
+      { label: 'My Fees', href: ROUTES.STUDENT.FEES, icon: Wallet },
       { label: 'My Timetable', href: ROUTES.STUDENT.TIMETABLE, icon: Clock },
       { label: 'Datesheet', href: ROUTES.STUDENT.DATESHEET, icon: CalendarRange },
     ],
@@ -180,6 +184,7 @@ export const familyNavigation: NavGroup[] = [
       { label: 'Timetable', href: ROUTES.FAMILY.TIMETABLE, icon: Clock },
       { label: 'Datesheet', href: ROUTES.FAMILY.DATESHEET, icon: CalendarRange },
       { label: 'Diary', href: ROUTES.FAMILY.DIARY, icon: BookOpenText },
+      { label: 'Fees', href: ROUTES.FAMILY.FEES, icon: Wallet },
     ],
   },
   {

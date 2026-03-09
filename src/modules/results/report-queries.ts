@@ -185,7 +185,7 @@ export async function getGradeDistribution(): Promise<GradeDistribution[]> {
   const results = await prisma.examResult.groupBy({
     by: ['grade'],
     _count: { _all: true },
-    where: { grade: { not: null } },
+    where: { NOT: { grade: null } },
     orderBy: { grade: 'asc' },
   });
 

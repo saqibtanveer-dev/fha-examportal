@@ -261,6 +261,20 @@ export const queryKeys = {
       [...queryKeys.family.all, 'profile'] as const,
   },
 
+  // ── Fees ──
+  fees: {
+    all: ['fees'] as const,
+    categories: () => [...queryKeys.fees.all, 'categories'] as const,
+    structures: () => [...queryKeys.fees.all, 'structures'] as const,
+    assignments: () => [...queryKeys.fees.all, 'assignments'] as const,
+    payments: () => [...queryKeys.fees.all, 'payments'] as const,
+    familyPayments: () => [...queryKeys.fees.all, 'family-payments'] as const,
+    settings: () => [...queryKeys.fees.all, 'settings'] as const,
+    overview: () => [...queryKeys.fees.all, 'overview'] as const,
+    reports: () => [...queryKeys.fees.all, 'reports'] as const,
+    detail: (id: string) => [...queryKeys.fees.all, 'detail', id] as const,
+  },
+
 } as const;
 
 // Alias for sessions to match import pattern

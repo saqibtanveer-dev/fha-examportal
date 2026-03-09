@@ -14,6 +14,7 @@ import type { StudentData } from './student-detail.types';
 import { StudentPerformanceCharts } from './student-performance-charts';
 import { StudentExamDetails } from './student-exam-details';
 import { StudentAttendanceSection } from './student-attendance-section';
+import { StudentFeeSection } from './student-fee-section';
 
 type Props = { student: StudentData };
 
@@ -92,6 +93,7 @@ export function StudentDetailClient({ student }: Props) {
         <TabsList>
           <TabsTrigger value="academic">Academic Performance</TabsTrigger>
           <TabsTrigger value="attendance">Attendance</TabsTrigger>
+          <TabsTrigger value="fees">Fees</TabsTrigger>
         </TabsList>
 
         <TabsContent value="academic" className="space-y-4">
@@ -108,6 +110,10 @@ export function StudentDetailClient({ student }: Props) {
 
         <TabsContent value="attendance">
           <StudentAttendanceSection studentProfileId={student.studentProfile.id} />
+        </TabsContent>
+
+        <TabsContent value="fees">
+          <StudentFeeSection studentProfileId={student.studentProfile.id} />
         </TabsContent>
       </Tabs>
     </div>

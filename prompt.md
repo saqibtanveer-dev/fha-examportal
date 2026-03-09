@@ -1,12 +1,19 @@
-is whole project ko brutally deeply analyze kro
-----
-is project me na bohat si jghaon pr class level distribution to hy lakin section level nhi 
-mee aap ko issue btata hon aap in issues ko brutally deeply analyze kro aur is sy realted iss tra k baki jghaon pr jhan jhan issues hain unain b brutally deeply analyze kro 
-issue ya hy k ik grade/class k different section ko same subject different teachers prha sakty hain like grade 09 k section a ko chemistry ma'am laiba jab k grade 09 k section b ko chemistry ma'am zainab prha sakti hain
-ik aur issue jo me ny note kia 
-k diary me kon sa teacher kon sy section k diary dy ga aur different sections ki diary b different ho gi 
+is whole system ko brutally deeply analyze kro
 -----
-ik bat brutally follow krni hy k ya jo above issues me ny btay hain ya sirf kuch issues hain is sy related aur b issues hain jin ko tum ny khuc brutally deeply find kr k analyze krna hy 
+iss me aisa hy k jab student wise payment collect ki jay tab to discount kr sakty hain apply lakin jab family wise krain to discount ka option nhi 
+-----
+isi tra sy ik family ki whole fee let say 5000 pending thi lakin us ny 7500 jma krwaya to iss k system proper way me handle nhi kr rha
+-----
+isi tra ya system long term me kysy behave kry ga koi potential issue to nhi ay ga brutally deeply analyze kro 
+-----
+isi tra jab session year change ho ga to system kysy behave kry ga brutally deeply analyze kro 
+-----
+acha isi tra sy admin jab fee collect kr rha ho family mode me us k pass custom split ka option b available ho
+-----
+-----
+isi tra iss system me ya issues ko brutally deeply analyze kro aur baki sary potential issue b find kro aur brutally deeply analyze kro 
+-----
+advance payment system both student aur family wise shi sy kam krna chahiya 
 ----
 ik senior developer, senior architect, senior designer, senior nextjs expert ki tra kam kro 
 ----
@@ -23,3 +30,7 @@ horizontal scalling
 
 stability above 9 out of 10 
 reliability above 9 out of 10
+
+-----
+khyal rakhna brutally deeply is project ko expesically brutally deeply fee module ko full production grade aur full reliable bnana hy future me chal kr iss system ko use krny sy koi issue na generate ho aur payments k msail pyda na hon
+full reliability chahiya fee module ki 

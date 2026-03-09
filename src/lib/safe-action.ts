@@ -83,6 +83,9 @@ function handlePrismaError(error: { code: string; meta?: Record<string, unknown>
       return actionError('Cannot perform this action because related records exist');
     case 'P2014':
       return actionError('This change would violate a required relation');
+    case 'P2028':
+      logger.warn({ prismaCode: error.code }, 'Transaction timeout (P2028) — likely Neon serverless latency');
+      return actionError('Request timed out. Please try again.');
     default:
       logger.error({ prismaCode: error.code, meta: error.meta }, 'Unhandled Prisma error in server action');
       return actionError('A database error occurred. Please try again.');

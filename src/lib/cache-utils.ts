@@ -158,6 +158,29 @@ export function useInvalidateCache() {
     dailyAttendance: () => invalidateQueries(queryKeys.attendance.daily()),
     subjectAttendance: () => invalidateQueries(queryKeys.attendance.subject()),
     attendanceStats: () => invalidateQueries(queryKeys.attendance.stats()),
+
+    // ── Fee Module Invalidation ──
+    fees: () => invalidateQueries(queryKeys.fees.all),
+    feeCategories: () => invalidateQueries(queryKeys.fees.categories()),
+    feeStructures: () => invalidateQueries(queryKeys.fees.structures()),
+    feeAssignments: () => invalidateQueries(queryKeys.fees.assignments()),
+    feePayments: () => invalidateQueries(queryKeys.fees.payments()),
+    feeSettings: () => invalidateQueries(queryKeys.fees.settings()),
+    feeOverview: () => invalidateQueries(queryKeys.fees.overview()),
+    feeReports: () => invalidateQueries(queryKeys.fees.reports()),
+    afterFeeMutation: async () => {
+      await Promise.all([
+        invalidateQueries(queryKeys.fees.all),
+      ]);
+    },
+    afterFeePayment: async () => {
+      await Promise.all([
+        invalidateQueries(queryKeys.fees.assignments()),
+        invalidateQueries(queryKeys.fees.payments()),
+        invalidateQueries(queryKeys.fees.overview()),
+        invalidateQueries(queryKeys.fees.reports()),
+      ]);
+    },
     afterAttendanceMark: async (classId: string, sectionId: string, date: string) => {
       await Promise.all([
         invalidateQueries(queryKeys.attendance.dailyByClassDate(classId, sectionId, date)),
