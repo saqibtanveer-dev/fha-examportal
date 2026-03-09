@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 type ExportRow = {
@@ -25,7 +26,7 @@ type ExportResult = {
 /**
  * Export all results for a given exam as CSV-ready data
  */
-export async function exportExamResultsAction(
+export const exportExamResultsAction = safeAction(async function exportExamResultsAction(
   examId: string,
 ): Promise<ActionResult<ExportResult>> {
   const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
@@ -82,12 +83,12 @@ export async function exportExamResultsAction(
   const csvString = buildCsv(headers, rows);
 
   return { success: true, data: { headers, rows, csvString } };
-}
+});
 
 /**
  * Export all results for a specific student
  */
-export async function exportStudentResultsAction(
+export const exportStudentResultsAction = safeAction(async function exportStudentResultsAction(
   studentId: string,
 ): Promise<ActionResult<ExportResult>> {
   const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
@@ -147,7 +148,7 @@ export async function exportStudentResultsAction(
   const csvString = buildCsv(headers, rows);
 
   return { success: true, data: { headers, rows, csvString } };
-}
+});
 
 /* ─── CSV Builder ─── */
 

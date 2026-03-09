@@ -6,6 +6,7 @@ import { assertGradingAccess } from '@/lib/authorization-guards';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { aiGradeAnswer } from './ai-grading-engine';
 import { revalidatePath } from 'next/cache';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 export type AiGradeStats = {
@@ -18,7 +19,7 @@ export type AiGradeStats = {
 /**
  * AI grade all non-MCQ, ungraded answers in a session.
  */
-export async function aiGradeSessionAction(
+export const aiGradeSessionAction = safeAction(async function aiGradeSessionAction(
   sessionId: string,
 ): Promise<ActionResult<AiGradeStats>> {
   const session = await requireRole('TEACHER', 'ADMIN');
@@ -94,12 +95,12 @@ export async function aiGradeSessionAction(
   createAuditLog(session.user.id, 'AI_GRADE_SESSION', 'EXAM_SESSION', sessionId, { stats }).catch(() => {});
   revalidatePath('/teacher/grading');
   return { success: true, data: stats };
-}
+});
 
 /**
  * AI grade a single answer.
  */
-export async function aiGradeSingleAnswerAction(
+export const aiGradeSingleAnswerAction = safeAction(async function aiGradeSingleAnswerAction(
   studentAnswerId: string,
 ): Promise<ActionResult> {
   const session = await requireRole('TEACHER', 'ADMIN');
@@ -139,5 +140,5 @@ export async function aiGradeSingleAnswerAction(
 
   revalidatePath('/teacher/grading');
   return { success: true };
-}
+});
 

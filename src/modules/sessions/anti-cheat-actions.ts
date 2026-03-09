@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 const TAB_SWITCH_FLAG_THRESHOLD = 5;
@@ -12,7 +13,7 @@ type ViolationType = 'TAB_SWITCH' | 'FULLSCREEN_EXIT' | 'COPY_PASTE';
  * Log an anti-cheat violation and increment the counter.
  * Auto-flags the session if tab switches exceed threshold.
  */
-export async function logAntiCheatViolationAction(
+export const logAntiCheatViolationAction = safeAction(async function logAntiCheatViolationAction(
   sessionId: string,
   type: ViolationType,
 ): Promise<ActionResult> {
@@ -61,4 +62,4 @@ export async function logAntiCheatViolationAction(
   }
 
   return { success: true };
-}
+});

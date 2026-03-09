@@ -22,6 +22,7 @@ import {
 import { Spinner } from '@/components/shared';
 import { createUserAction } from '@/modules/users/user-actions';
 import { toast } from 'sonner';
+import { StudentFormFields, TeacherFormFields, FamilyFormFields } from './user-role-form-fields';
 
 type ClassInfo = {
   id: string;
@@ -43,10 +44,6 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
   const [selectedSectionId, setSelectedSectionId] = useState<string>('');
   const [gender, setGender] = useState<string>('');
   const invalidate = useInvalidateCache();
-
-  // Get sections for the selected class
-  const selectedClass = classes.find((c) => c.id === selectedClassId);
-  const availableSections = selectedClass?.sections ?? [];
 
   // Reset section when class changes
   useEffect(() => {
@@ -158,133 +155,23 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
 
           {/* ── Student Profile Fields ── */}
           {role === 'STUDENT' && (
-            <div className="space-y-4 rounded-lg border p-4">
-              <h4 className="text-sm font-semibold text-foreground">Student Profile</h4>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Class <span className="text-destructive">*</span></Label>
-                  <Select value={selectedClassId} onValueChange={setSelectedClassId} disabled={isPending}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select class" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {classes.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name} (Grade {c.grade})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Section <span className="text-destructive">*</span></Label>
-                  <Select
-                    value={selectedSectionId}
-                    onValueChange={setSelectedSectionId}
-                    disabled={isPending || !selectedClassId}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={selectedClassId ? 'Select section' : 'Select class first'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {availableSections.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rollNumber">Roll Number <span className="text-destructive">*</span></Label>
-                  <Input id="rollNumber" name="rollNumber" required disabled={isPending} placeholder="e.g. 101" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="registrationNo">Registration No <span className="text-destructive">*</span></Label>
-                  <Input id="registrationNo" name="registrationNo" required disabled={isPending} placeholder="e.g. STU-2026-001" />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="guardianName">Guardian Name</Label>
-                  <Input id="guardianName" name="guardianName" disabled={isPending} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="guardianPhone">Guardian Phone</Label>
-                  <Input id="guardianPhone" name="guardianPhone" disabled={isPending} />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                  <Input id="dateOfBirth" name="dateOfBirth" type="date" disabled={isPending} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Gender</Label>
-                  <Select value={gender} onValueChange={setGender} disabled={isPending}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="MALE">Male</SelectItem>
-                      <SelectItem value="FEMALE">Female</SelectItem>
-                      <SelectItem value="OTHER">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
+            <StudentFormFields
+              classes={classes}
+              selectedClassId={selectedClassId}
+              onClassChange={setSelectedClassId}
+              selectedSectionId={selectedSectionId}
+              onSectionChange={setSelectedSectionId}
+              gender={gender}
+              onGenderChange={setGender}
+              disabled={isPending}
+            />
           )}
 
           {/* ── Family Profile Fields ── */}
-          {role === 'FAMILY' && (
-            <div className="space-y-4 rounded-lg border p-4">
-              <h4 className="text-sm font-semibold text-foreground">Family Profile</h4>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="relationship">Relationship <span className="text-destructive">*</span></Label>
-                  <Input id="relationship" name="relationship" required disabled={isPending} placeholder="e.g. Father, Mother" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="occupation">Occupation</Label>
-                  <Input id="occupation" name="occupation" disabled={isPending} placeholder="e.g. Engineer" />
-                </div>
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address</Label>
-                  <Input id="address" name="address" disabled={isPending} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="emergencyPhone">Emergency Phone</Label>
-                  <Input id="emergencyPhone" name="emergencyPhone" disabled={isPending} />
-                </div>
-              </div>
-            </div>
-          )}
+          {role === 'FAMILY' && <FamilyFormFields disabled={isPending} />}
 
           {/* ── Teacher Profile Fields ── */}
-          {role === 'TEACHER' && (
-            <div className="space-y-4 rounded-lg border p-4">
-              <h4 className="text-sm font-semibold text-foreground">Teacher Profile</h4>
-              <div className="space-y-2">
-                <Label htmlFor="employeeId">Employee ID <span className="text-destructive">*</span></Label>
-                <Input id="employeeId" name="employeeId" required disabled={isPending} placeholder="e.g. EMP-001" />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="qualification">Qualification</Label>
-                  <Input id="qualification" name="qualification" disabled={isPending} placeholder="e.g. M.Sc Physics" />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="specialization">Specialization</Label>
-                  <Input id="specialization" name="specialization" disabled={isPending} placeholder="e.g. Quantum Mechanics" />
-                </div>
-              </div>
-            </div>
-          )}
+          {role === 'TEACHER' && <TeacherFormFields disabled={isPending} />}
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>

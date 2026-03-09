@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth-utils';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 type CsvUser = {
@@ -48,7 +49,7 @@ function generateTempPassword(): string {
  * For STUDENT: classId, sectionId, rollNumber, registrationNo (required)
  * For TEACHER: employeeId (required)
  */
-export async function importUsersFromCsvAction(
+export const importUsersFromCsvAction = safeAction(async function importUsersFromCsvAction(
   csvRows: Record<string, string>[],
 ): Promise<ActionResult<ImportResult>> {
   const session = await requireRole('ADMIN');
@@ -207,4 +208,4 @@ export async function importUsersFromCsvAction(
   }).catch(() => {});
 
   return { success: true, data: result };
-}
+});

@@ -13,6 +13,7 @@ import { TimetableGrid } from '@/modules/timetable/components';
 import { useActivePeriodSlots, useTimetableByClass } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import { fetchCurrentAcademicSessionAction } from '@/modules/attendance/attendance-fetch-actions';
+import { queryKeys } from '@/lib/query-keys';
 import { useSelectedChild } from '@/modules/family/hooks';
 import { ChildSelector } from './child-selector';
 import type { TimetableEntryWithRelations } from '@/modules/timetable/timetable.types';
@@ -21,7 +22,7 @@ export function FamilyTimetableClient() {
   const { children, selectedChild, selectedChildId, isLoading: childrenLoading } = useSelectedChild();
 
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
-    queryKey: ['current-academic-session'],
+    queryKey: queryKeys.academicSessions.current(),
     queryFn: () => fetchCurrentAcademicSessionAction(),
   });
 

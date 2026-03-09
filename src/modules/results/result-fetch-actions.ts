@@ -30,6 +30,7 @@ export const fetchTeacherExamsAction = safeFetchAction(async () => {
   const exams = await prisma.exam.findMany({
     where: { deletedAt: null },
     orderBy: { createdAt: 'desc' },
+    take: 200,
     select: {
       id: true,
       title: true,

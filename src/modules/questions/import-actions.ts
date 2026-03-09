@@ -3,6 +3,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import { createAuditLog } from '@/modules/audit/audit-queries';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 type CsvQuestion = {
@@ -27,7 +28,7 @@ type ImportResult = {
 const VALID_TYPES = ['MCQ', 'SHORT_ANSWER', 'LONG_ANSWER'];
 const VALID_DIFFICULTIES = ['EASY', 'MEDIUM', 'HARD'];
 
-export async function importQuestionsFromCsvAction(
+export const importQuestionsFromCsvAction = safeAction(async function importQuestionsFromCsvAction(
   csvRows: Record<string, string>[],
 ): Promise<ActionResult<ImportResult>> {
   const session = await requireRole('TEACHER', 'ADMIN');
@@ -70,7 +71,7 @@ export async function importQuestionsFromCsvAction(
   }).catch(() => {});
 
   return { success: true, data: result };
-}
+});
 
 // ---- helpers ----
 

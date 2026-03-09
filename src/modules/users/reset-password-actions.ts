@@ -7,6 +7,7 @@ import { logger } from '@/lib/logger';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
@@ -18,7 +19,7 @@ function hashToken(token: string): string {
 
 /* ─── Request Password Reset ─── */
 
-export async function forgotPasswordAction(
+export const forgotPasswordAction = safeAction(async function forgotPasswordAction(
   formData: { email: string },
 ): Promise<ActionResult> {
   const parsed = forgotPasswordSchema.safeParse(formData);
@@ -68,11 +69,11 @@ export async function forgotPasswordAction(
   }
 
   return { success: true };
-}
+});
 
 /* ─── Execute Password Reset ─── */
 
-export async function resetPasswordAction(
+export const resetPasswordAction = safeAction(async function resetPasswordAction(
   formData: { token: string; newPassword: string; confirmPassword: string },
 ): Promise<ActionResult> {
   const parsed = resetPasswordSchema.safeParse(formData);
@@ -116,4 +117,4 @@ export async function resetPasswordAction(
   ]);
 
   return { success: true };
-}
+});

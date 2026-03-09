@@ -8,6 +8,7 @@ import { TimetableGrid } from '@/modules/timetable/components';
 import { useActivePeriodSlots, useTimetableByClass } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import { fetchCurrentAcademicSessionAction } from '@/modules/attendance/attendance-fetch-actions';
+import { queryKeys } from '@/lib/query-keys';
 
 type StudentProfile = {
   id: string;
@@ -23,7 +24,7 @@ type Props = {
 
 export function StudentTimetableView({ studentProfile }: Props) {
   const { data: currentSession, isLoading: sessionLoading } = useQuery({
-    queryKey: ['current-academic-session'],
+    queryKey: queryKeys.academicSessions.current(),
     queryFn: () => fetchCurrentAcademicSessionAction(),
   });
 

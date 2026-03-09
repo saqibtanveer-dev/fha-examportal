@@ -5,13 +5,14 @@ import { requireRole } from '@/lib/auth-utils';
 import { assertGradingAccess } from '@/lib/authorization-guards';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { revalidatePath } from 'next/cache';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 /**
  * Teacher approves AI grade (marks as reviewed).
  * Optionally allows modifying marks and feedback.
  */
-export async function approveAiGradeAction(
+export const approveAiGradeAction = safeAction(async function approveAiGradeAction(
   gradeId: string,
   overrides?: { marksAwarded?: number; feedback?: string },
 ): Promise<ActionResult> {
@@ -49,13 +50,13 @@ export async function approveAiGradeAction(
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true };
-}
+});
 
 /**
  * Teacher explicitly finalizes a session after reviewing AI grades.
  * Calculates the final result and publishes it.
  */
-export async function finalizeSessionAction(sessionId: string): Promise<ActionResult> {
+export const finalizeSessionAction = safeAction(async function finalizeSessionAction(sessionId: string): Promise<ActionResult> {
   const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const examSession = await prisma.examSession.findUnique({
@@ -101,12 +102,12 @@ export async function finalizeSessionAction(sessionId: string): Promise<ActionRe
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true };
-}
+});
 
 /**
  * Reopen an already graded session for re-grading/editing.
  */
-export async function reopenSessionAction(sessionId: string): Promise<ActionResult> {
+export const reopenSessionAction = safeAction(async function reopenSessionAction(sessionId: string): Promise<ActionResult> {
   const authSession = await requireRole('TEACHER', 'ADMIN');
 
   const examSession = await prisma.examSession.findUnique({
@@ -132,4 +133,4 @@ export async function reopenSessionAction(sessionId: string): Promise<ActionResu
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true };
-}
+});

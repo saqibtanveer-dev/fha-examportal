@@ -16,6 +16,7 @@ import {
 import { getTodayDateString } from '@/modules/diary/diary.utils';
 import type { ActionResult } from '@/types/action-result';
 import { safeFetchAction } from '@/lib/safe-action';
+import { safeAction } from '@/lib/safe-action';
 
 async function getCurrentAcademicSessionId(): Promise<string> {
   const session = await prisma.academicSession.findFirst({
@@ -85,7 +86,7 @@ export const fetchChildTodayDiaryForFamilyAction = safeFetchAction(async (
 /**
  * Mark a diary entry as read by the family (creates receipt on behalf of student).
  */
-export async function markChildDiaryAsReadAction(
+export const markChildDiaryAsReadAction = safeAction(async function markChildDiaryAsReadAction(
   studentProfileId: string,
   diaryEntryId: string,
 ): Promise<ActionResult> {
@@ -101,4 +102,4 @@ export async function markChildDiaryAsReadAction(
   });
 
   return { success: true };
-}
+});

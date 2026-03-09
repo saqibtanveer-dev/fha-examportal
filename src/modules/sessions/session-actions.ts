@@ -5,13 +5,14 @@ import { requireRole, getAuthSession } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { autoGradeMcqAnswers, isSessionFullyGraded, calculateResult } from '@/modules/grading/grading-engine';
 import { isSubjectElective, hasEnrollmentsForClass, getStudentEnrolledSubjectIds } from '@/modules/subjects/enrollment-queries';
+import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
 // ============================================
 // Start Exam Session
 // ============================================
 
-export async function startSessionAction(examId: string): Promise<ActionResult<{ sessionId: string }>> {
+export const startSessionAction = safeAction(async function startSessionAction(examId: string): Promise<ActionResult<{ sessionId: string }>> {
   const session = await requireRole('STUDENT');
   const userId = session.user.id;
 
@@ -94,13 +95,13 @@ export async function startSessionAction(examId: string): Promise<ActionResult<{
     }
     throw err;
   }
-}
+});
 
 // ============================================
 // Submit Answer
 // ============================================
 
-export async function submitAnswerAction(
+export const submitAnswerAction = safeAction(async function submitAnswerAction(
   sessionId: string,
   questionId: string,
   answer: string,
@@ -148,13 +149,13 @@ export async function submitAnswerAction(
   });
 
   return { success: true };
-}
+});
 
 // ============================================
 // Submit Session (finish exam)
 // ============================================
 
-export async function submitSessionAction(sessionId: string): Promise<ActionResult> {
+export const submitSessionAction = safeAction(async function submitSessionAction(sessionId: string): Promise<ActionResult> {
   const authSession = await requireRole('STUDENT');
 
   const session = await prisma.examSession.findUnique({ where: { id: sessionId } });
@@ -185,4 +186,4 @@ export async function submitSessionAction(sessionId: string): Promise<ActionResu
   revalidatePath('/student/results');
   revalidatePath('/teacher/grading');
   return { success: true };
-}
+});

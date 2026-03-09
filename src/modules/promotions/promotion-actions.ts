@@ -2,6 +2,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
+import type { Prisma } from '@prisma/client';
 import {
   yearTransitionSchema,
   type YearTransitionInput,
@@ -51,121 +52,138 @@ export const executeYearTransitionAction = safeAction(async function executeYear
 
   // Execute all promotions in a single transaction
   await prisma.$transaction(async (tx) => {
+    // ── PRE-FETCH PHASE: batch-load all entities (eliminates N+1) ──
+    const allStudentIds = promotions.flatMap((cp) => cp.entries.map((e) => e.studentProfileId));
+    const allStudentProfiles = await tx.studentProfile.findMany({
+      where: { id: { in: allStudentIds } },
+      select: { id: true, classId: true, sectionId: true, userId: true },
+    });
+    const profileMap = new Map(allStudentProfiles.map((p) => [p.id, p]));
+
+    const allSectionIds = [
+      ...new Set(
+        promotions.flatMap((cp) =>
+          [cp.defaultSectionId, ...cp.entries.map((e) => e.toSectionId)].filter(Boolean),
+        ),
+      ),
+    ] as string[];
+    const allSections = await tx.section.findMany({
+      where: { id: { in: allSectionIds } },
+      select: { id: true, classId: true },
+    });
+    const sectionMap = new Map(allSections.map((s) => [s.id, s]));
+
+    const allClassIds = promotions.map((cp) => cp.fromClassId);
+    const allClasses = await tx.class.findMany({
+      where: { id: { in: allClassIds } },
+      select: { id: true, grade: true, name: true },
+    });
+    const classMap = new Map(allClasses.map((c) => [c.id, c]));
+
+    // ── PROCESSING PHASE: collect all write operations ──
+    const promotionRecords: Prisma.StudentPromotionCreateManyInput[] = [];
+    const profileUpdates: { id: string; data: Record<string, unknown> }[] = [];
+    const graduatedUserIds: string[] = [];
+
     for (const classPromotion of promotions) {
       const { fromClassId, toClassId, defaultSectionId, entries } = classPromotion;
-
-      // Get "from" class info for audit
-      const fromClass = await tx.class.findUnique({
-        where: { id: fromClassId },
-        select: { grade: true, name: true },
-      });
+      const fromClass = classMap.get(fromClassId);
 
       for (const entry of entries) {
         const { studentProfileId, action, toSectionId } = entry;
-
-        // Get current student profile
-        const studentProfile = await tx.studentProfile.findUnique({
-          where: { id: studentProfileId },
-          select: { classId: true, sectionId: true, userId: true },
-        });
+        const studentProfile = profileMap.get(studentProfileId);
         if (!studentProfile || studentProfile.classId !== fromClassId) continue;
 
         if (action === 'PROMOTE' && toClassId) {
-          // Determine target section
           const targetSectionId = toSectionId || defaultSectionId;
           if (!targetSectionId) continue;
 
-          // Verify target section belongs to target class
-          const targetSection = await tx.section.findFirst({
-            where: { id: targetSectionId, classId: toClassId },
-          });
-          if (!targetSection) continue;
+          const targetSection = sectionMap.get(targetSectionId);
+          if (!targetSection || targetSection.classId !== toClassId) continue;
 
-          // Create promotion record
-          await tx.studentPromotion.create({
-            data: {
-              studentProfileId,
-              academicSessionId,
-              fromClassId,
-              fromSectionId: studentProfile.sectionId,
-              toClassId,
-              toSectionId: targetSectionId,
-              status: 'PROMOTED',
-              promotedById: session.user.id,
-            },
+          promotionRecords.push({
+            studentProfileId,
+            academicSessionId,
+            fromClassId,
+            fromSectionId: studentProfile.sectionId,
+            toClassId,
+            toSectionId: targetSectionId,
+            status: 'PROMOTED',
+            promotedById: session.user.id,
           });
 
-          // Update student profile to new class/section
-          await tx.studentProfile.update({
-            where: { id: studentProfileId },
-            data: {
-              classId: toClassId,
-              sectionId: targetSectionId,
-              status: 'ACTIVE', // Reset to ACTIVE in new class
-            },
+          profileUpdates.push({
+            id: studentProfileId,
+            data: { classId: toClassId, sectionId: targetSectionId, status: 'ACTIVE' },
           });
 
           totalPromoted++;
         } else if (action === 'GRADUATE') {
-          // Create graduation record
-          await tx.studentPromotion.create({
-            data: {
-              studentProfileId,
-              academicSessionId,
-              fromClassId,
-              fromSectionId: studentProfile.sectionId,
-              toClassId: null,
-              toSectionId: null,
-              status: 'GRADUATED',
-              remarks: `Graduated from ${fromClass?.name ?? 'Unknown'} (${academicSession.name})`,
-              promotedById: session.user.id,
-            },
+          promotionRecords.push({
+            studentProfileId,
+            academicSessionId,
+            fromClassId,
+            fromSectionId: studentProfile.sectionId,
+            toClassId: null,
+            toSectionId: null,
+            status: 'GRADUATED',
+            remarks: `Graduated from ${fromClass?.name ?? 'Unknown'} (${academicSession.name})`,
+            promotedById: session.user.id,
           });
 
-          // Mark student as graduated & inactive
-          await tx.studentProfile.update({
-            where: { id: studentProfileId },
+          profileUpdates.push({
+            id: studentProfileId,
             data: { status: 'GRADUATED' },
           });
 
-          await tx.user.update({
-            where: { id: studentProfile.userId },
-            data: { isActive: false },
-          });
-
+          graduatedUserIds.push(studentProfile.userId);
           totalGraduated++;
         } else if (action === 'HOLD_BACK') {
-          // Create hold-back record — student stays in same class
-          await tx.studentPromotion.create({
-            data: {
-              studentProfileId,
-              academicSessionId,
-              fromClassId,
-              fromSectionId: studentProfile.sectionId,
-              toClassId: fromClassId,
-              toSectionId: toSectionId || studentProfile.sectionId,
-              status: 'HELD_BACK',
-              remarks: 'Held back to repeat the same class',
-              promotedById: session.user.id,
-            },
+          promotionRecords.push({
+            studentProfileId,
+            academicSessionId,
+            fromClassId,
+            fromSectionId: studentProfile.sectionId,
+            toClassId: fromClassId,
+            toSectionId: toSectionId || studentProfile.sectionId,
+            status: 'HELD_BACK',
+            remarks: 'Held back to repeat the same class',
+            promotedById: session.user.id,
           });
 
-          // Update section if changed, keep status ACTIVE
-          if (toSectionId && toSectionId !== studentProfile.sectionId) {
-            await tx.studentProfile.update({
-              where: { id: studentProfileId },
-              data: { sectionId: toSectionId, status: 'ACTIVE' },
-            });
-          } else {
-            await tx.studentProfile.update({
-              where: { id: studentProfileId },
-              data: { status: 'ACTIVE' },
-            });
-          }
+          profileUpdates.push({
+            id: studentProfileId,
+            data: {
+              sectionId: toSectionId && toSectionId !== studentProfile.sectionId
+                ? toSectionId
+                : studentProfile.sectionId,
+              status: 'ACTIVE',
+            },
+          });
 
           totalHeldBack++;
         }
       }
+    }
+
+    // ── WRITE PHASE: batch creates, targeted updates ──
+    if (promotionRecords.length > 0) {
+      await tx.studentPromotion.createMany({ data: promotionRecords });
+    }
+
+    // Profile updates must be individual (different values per student)
+    await Promise.all(
+      profileUpdates.map((u) =>
+        tx.studentProfile.update({ where: { id: u.id }, data: u.data }),
+      ),
+    );
+
+    // Batch deactivate graduated users
+    if (graduatedUserIds.length > 0) {
+      await tx.user.updateMany({
+        where: { id: { in: graduatedUserIds } },
+        data: { isActive: false },
+      });
     }
 
     // Send notifications to all promoted/graduated students
@@ -235,24 +253,30 @@ export const undoYearTransitionAction = safeAction(async function undoYearTransi
   }
 
   await prisma.$transaction(async (tx) => {
-    for (const promo of promotions) {
-      // Revert student to original class/section
-      await tx.studentProfile.update({
-        where: { id: promo.studentProfileId },
-        data: {
-          classId: promo.fromClassId,
-          sectionId: promo.fromSectionId,
-          status: 'ACTIVE',
-        },
-      });
+    // Batch revert all student profiles (individual updates — different values per student)
+    await Promise.all(
+      promotions.map((promo) =>
+        tx.studentProfile.update({
+          where: { id: promo.studentProfileId },
+          data: {
+            classId: promo.fromClassId,
+            sectionId: promo.fromSectionId,
+            status: 'ACTIVE',
+          },
+        }),
+      ),
+    );
 
-      // Re-activate graduated students
-      if (promo.status === 'GRADUATED') {
-        await tx.user.update({
-          where: { id: promo.studentProfile.userId },
-          data: { isActive: true },
-        });
-      }
+    // Batch re-activate graduated users
+    const graduatedUserIds = promotions
+      .filter((p) => p.status === 'GRADUATED')
+      .map((p) => p.studentProfile.userId);
+
+    if (graduatedUserIds.length > 0) {
+      await tx.user.updateMany({
+        where: { id: { in: graduatedUserIds } },
+        data: { isActive: true },
+      });
     }
 
     // Delete all promotion records for this session

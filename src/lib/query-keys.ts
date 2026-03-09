@@ -71,6 +71,7 @@ export const queryKeys = {
   academicSessions: {
     all: ['academic-sessions'] as const,
     list: () => [...queryKeys.academicSessions.all, 'list'] as const,
+    current: () => [...queryKeys.academicSessions.all, 'current'] as const,
   },
 
   // ── Users/Students ──
