@@ -40,16 +40,16 @@ export const recordPaymentAction = safeAction(
     if (!assignment) return actionError('Fee assignment not found');
     if (assignment.status === 'CANCELLED') return actionError('Cannot pay a cancelled assignment');
     if (assignment.status === 'WAIVED') return actionError('This fee has been waived');
+    if (assignment.status === 'PAID') return actionError('This fee is already fully paid');
 
     const balance = Number(assignment.balanceAmount);
-    if (amount > balance + 0.01) {
-      return actionError(`Payment amount (${amount}) exceeds balance (${balance})`);
-    }
-    // Clamp to actual balance to prevent negative balance from float imprecision
+    // Clamp to actual balance — excess becomes advance credit
     const effectiveAmount = Math.min(amount, balance);
+    const excessAmount = Math.round(Math.max(0, amount - balance) * 100) / 100;
 
     const academicSessionId = await getCurrentAcademicSessionId();
-    const settings = await findFeeSettings(academicSessionId ?? '');
+    if (!academicSessionId) return actionError('No active academic session');
+    const settings = await findFeeSettings(academicSessionId);
     const receiptNumber = await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP');
 
     const newPaid = Number(assignment.paidAmount) + effectiveAmount;
@@ -77,9 +77,25 @@ export const recordPaymentAction = safeAction(
       }),
     ]);
 
+    // Create advance credit for excess payment
+    if (excessAmount > 0) {
+      await prisma.feeCredit.create({
+        data: {
+          studentProfileId: assignment.studentProfileId,
+          academicSessionId,
+          amount: excessAmount,
+          remainingAmount: excessAmount,
+          reason: `Overpayment credit from receipt ${receiptNumber}`,
+          referenceNumber: receiptNumber,
+          createdById: session.user.id,
+        },
+      }).catch((err) => logger.error({ err }, 'Failed to create advance credit'));
+    }
+
     createAuditLog(session.user.id, 'RECORD_FEE_PAYMENT', 'FEE_PAYMENT', receiptNumber, {
       feeAssignmentId,
       amount: effectiveAmount,
+      excessCredit: excessAmount > 0 ? excessAmount : undefined,
       paymentMethod,
     }).catch((err) => logger.error({ err }, 'Audit log failed for payment'));
 

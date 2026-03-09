@@ -7,7 +7,7 @@ import { z } from 'zod/v4';
 const feeFrequencyEnum = z.enum(['MONTHLY', 'TERM', 'ANNUAL', 'ONE_TIME']);
 const paymentMethodEnum = z.enum(['CASH', 'BANK_TRANSFER', 'ONLINE', 'CHEQUE']);
 const allocationStrategyEnum = z.enum([
-  'OLDEST_FIRST', 'CHILD_PRIORITY', 'EQUAL_SPLIT', 'MANUAL',
+  'OLDEST_FIRST', 'CHILD_PRIORITY', 'EQUAL_SPLIT', 'MANUAL', 'CUSTOM',
 ]);
 
 // ============================================
@@ -107,6 +107,10 @@ export const recordFamilyPaymentSchema = z.object({
   allocationStrategy: allocationStrategyEnum,
   manualAllocations: z.array(manualAllocationItem).optional(),
   childPriorityOrder: z.array(z.string().uuid()).optional(),
+  customAllocations: z.array(z.object({
+    feeAssignmentId: z.string().uuid(),
+    amount: z.number().min(0),
+  })).optional(),
 });
 
 export type RecordFamilyPaymentInput = z.infer<typeof recordFamilyPaymentSchema>;
@@ -159,3 +163,39 @@ export const cancelAssignmentSchema = z.object({
 });
 
 export type CancelAssignmentInput = z.infer<typeof cancelAssignmentSchema>;
+
+// ============================================
+// FAMILY DISCOUNT
+// ============================================
+
+const familyDiscountItem = z.object({
+  feeAssignmentId: z.string().uuid(),
+  amount: z.number().positive('Discount must be positive'),
+});
+
+export const applyFamilyDiscountSchema = z.object({
+  familyProfileId: z.string().uuid('Invalid family'),
+  discounts: z.array(familyDiscountItem).min(1, 'At least one discount required'),
+  reason: z.string().min(3, 'Reason required').max(500),
+});
+
+export type ApplyFamilyDiscountInput = z.infer<typeof applyFamilyDiscountSchema>;
+
+// ============================================
+// CUSTOM ALLOCATION (per-assignment amounts)
+// ============================================
+
+const customAllocationItem = z.object({
+  feeAssignmentId: z.string().uuid(),
+  amount: z.number().min(0),
+});
+
+export const recordCustomFamilyPaymentSchema = z.object({
+  familyProfileId: z.string().uuid('Invalid family'),
+  totalAmount: z.number().positive('Amount must be positive'),
+  paymentMethod: paymentMethodEnum,
+  referenceNumber: z.string().max(100).optional(),
+  customAllocations: z.array(customAllocationItem).min(1, 'At least one allocation required'),
+});
+
+export type RecordCustomFamilyPaymentInput = z.infer<typeof recordCustomFamilyPaymentSchema>;

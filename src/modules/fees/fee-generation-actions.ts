@@ -15,6 +15,7 @@ import {
   type CancelAssignmentInput,
 } from '@/validations/fee-schemas';
 import { getCurrentAcademicSessionId, findFeeSettings } from './fee-queries';
+import { applyCreditsToAssignment } from './advance-payment-actions';
 
 const FEE_PATHS = ['/admin/fees', '/admin/fees/generate'];
 const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
@@ -138,6 +139,12 @@ export const generateFeesAction = safeAction(
               generatedById: data.generatedById,
               lineItems: { create: data.lineItems },
             },
+          }).then(async (assignment) => {
+            // Auto-apply any existing credits to this new assignment
+            await applyCreditsToAssignment(
+              data.studentProfileId, assignment.id, data.totalAmount, data.academicSessionId,
+            ).catch((err) => logger.error({ err }, 'Credit auto-apply failed'));
+            return assignment;
           }),
         ),
       );

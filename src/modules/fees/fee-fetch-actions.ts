@@ -34,11 +34,28 @@ export const fetchFeeCategoriesAction = safeFetchAction(
   },
 );
 
+// ── Helper: resolve session ID (explicit or current) ──
+async function resolveSessionId(explicit?: string | null): Promise<string | null> {
+  if (explicit) return explicit;
+  return getCurrentAcademicSessionId();
+}
+
+// ── Academic Sessions (for session selector) ──
+export const fetchAcademicSessionsAction = safeFetchAction(async () => {
+  await requireRole('ADMIN', 'PRINCIPAL');
+  return serialize(
+    await prisma.academicSession.findMany({
+      orderBy: { startDate: 'desc' },
+      select: { id: true, name: true, isCurrent: true, startDate: true, endDate: true },
+    }),
+  );
+});
+
 // ── Structures ──
 export const fetchFeeStructuresAction = safeFetchAction(
-  async (classId?: string) => {
+  async (classId?: string, academicSessionId?: string) => {
     await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
+    const sessionId = await resolveSessionId(academicSessionId);
     if (!sessionId) return [];
     return serialize(await findFeeStructures(sessionId, classId));
   },
@@ -139,51 +156,55 @@ export const fetchFeeSettingsAction = safeFetchAction(async () => {
 });
 
 // ── Reports ──
-export const fetchFeeOverviewAction = safeFetchAction(async () => {
-  await requireRole('ADMIN', 'PRINCIPAL');
-  const sessionId = await getCurrentAcademicSessionId();
-  if (!sessionId) return null;
-  return await getFeeOverview(sessionId);
-});
+export const fetchFeeOverviewAction = safeFetchAction(
+  async (academicSessionId?: string) => {
+    await requireRole('ADMIN', 'PRINCIPAL');
+    const sessionId = await resolveSessionId(academicSessionId);
+    if (!sessionId) return null;
+    return await getFeeOverview(sessionId);
+  },
+);
 
-export const fetchClassWiseSummaryAction = safeFetchAction(async () => {
-  await requireRole('ADMIN', 'PRINCIPAL');
-  const sessionId = await getCurrentAcademicSessionId();
-  if (!sessionId) return [];
-  return await getClassWiseSummary(sessionId);
-});
+export const fetchClassWiseSummaryAction = safeFetchAction(
+  async (academicSessionId?: string) => {
+    await requireRole('ADMIN', 'PRINCIPAL');
+    const sessionId = await resolveSessionId(academicSessionId);
+    if (!sessionId) return [];
+    return await getClassWiseSummary(sessionId);
+  },
+);
 
 export const fetchSectionWiseSummaryAction = safeFetchAction(
-  async (classId: string) => {
+  async (classId: string, academicSessionId?: string) => {
     await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
+    const sessionId = await resolveSessionId(academicSessionId);
     if (!sessionId) return [];
     return await getSectionWiseSummary(sessionId, classId);
   },
 );
 
 export const fetchStudentWiseSummaryAction = safeFetchAction(
-  async (classId: string, sectionId?: string) => {
+  async (classId: string, sectionId?: string, academicSessionId?: string) => {
     await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
+    const sessionId = await resolveSessionId(academicSessionId);
     if (!sessionId) return [];
     return await getStudentWiseSummary(sessionId, classId, sectionId);
   },
 );
 
 export const fetchDefaulterListAction = safeFetchAction(
-  async (classId?: string) => {
+  async (classId?: string, academicSessionId?: string) => {
     await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
+    const sessionId = await resolveSessionId(academicSessionId);
     if (!sessionId) return [];
     return serialize(await getDefaulterList(sessionId, classId));
   },
 );
 
 export const fetchCollectionReportAction = safeFetchAction(
-  async (startDate: string, endDate: string) => {
+  async (startDate: string, endDate: string, academicSessionId?: string) => {
     await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
+    const sessionId = await resolveSessionId(academicSessionId);
     if (!sessionId) return [];
     return serialize(
       await getCollectionByDateRange(

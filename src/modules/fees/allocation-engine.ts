@@ -28,22 +28,16 @@ export function computeAllocation(input: AllocationInput): AllocationResult {
       return allocateEqualSplit(input);
     case 'MANUAL':
       return allocateManual(input);
+    case 'CUSTOM':
+      return allocateCustom(input);
     default:
       return allocateOldestFirst(input);
   }
 }
 
-// ============================================
-// OLDEST_FIRST
-// ============================================
-
 function allocateOldestFirst(input: AllocationInput): AllocationResult {
   let remaining = input.totalAmount;
-
-  // Flatten all assignments across children, sorted by dueDate
   const allAssignments = flattenAndSort(input.children);
-
-  // Track per-child allocated amounts
   const childAmounts = new Map<string, number>();
   const assignmentResults = new Map<string, AssignmentAllocation>();
 
@@ -51,82 +45,42 @@ function allocateOldestFirst(input: AllocationInput): AllocationResult {
     if (remaining <= 0) break;
     const toAllocate = Math.min(remaining, item.balanceAmount);
     remaining = round(remaining - toAllocate);
-
-    const newBalance = round(item.balanceAmount - toAllocate);
-    assignmentResults.set(item.assignmentId, {
-      assignmentId: item.assignmentId,
-      periodLabel: item.periodLabel,
-      categoryName: item.categoryName,
-      allocatedAmount: toAllocate,
-      previousBalance: item.balanceAmount,
-      newBalance,
-      status: newBalance === 0 ? 'CLEARED' : toAllocate > 0 ? 'PARTIAL' : 'UNTOUCHED',
-    });
-
-    childAmounts.set(
-      item.childId,
-      round((childAmounts.get(item.childId) ?? 0) + toAllocate),
-    );
+    assignmentResults.set(item.assignmentId, makeAllocation(item, toAllocate));
+    childAmounts.set(item.childId, round((childAmounts.get(item.childId) ?? 0) + toAllocate));
   }
 
   return buildResult(input, childAmounts, assignmentResults, remaining);
 }
-
-// ============================================
-// CHILD_PRIORITY
-// ============================================
 
 function allocateChildPriority(input: AllocationInput): AllocationResult {
   let remaining = input.totalAmount;
   const childAmounts = new Map<string, number>();
   const assignmentResults = new Map<string, AssignmentAllocation>();
 
-  // Use priority order if given, else original order
   const orderedChildren = input.childPriorityOrder
     ? orderByPriority(input.children, input.childPriorityOrder)
     : input.children;
 
   for (const child of orderedChildren) {
     if (remaining <= 0) break;
-
-    const sorted = [...child.assignments].sort(
-      (a, b) => a.dueDate.localeCompare(b.dueDate),
-    );
-
+    const sorted = [...child.assignments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     let childTotal = 0;
     for (const a of sorted) {
       if (remaining <= 0) break;
       const toAllocate = Math.min(remaining, a.balanceAmount);
       remaining = round(remaining - toAllocate);
       childTotal = round(childTotal + toAllocate);
-
-      const newBalance = round(a.balanceAmount - toAllocate);
-      assignmentResults.set(a.assignmentId, {
-        assignmentId: a.assignmentId,
-        periodLabel: a.periodLabel,
-        categoryName: a.categoryName,
-        allocatedAmount: toAllocate,
-        previousBalance: a.balanceAmount,
-        newBalance,
-        status: newBalance === 0 ? 'CLEARED' : toAllocate > 0 ? 'PARTIAL' : 'UNTOUCHED',
-      });
+      assignmentResults.set(a.assignmentId, makeAllocation(a, toAllocate));
     }
-
     childAmounts.set(child.childId, childTotal);
   }
 
   return buildResult(input, childAmounts, assignmentResults, remaining);
 }
 
-// ============================================
-// EQUAL_SPLIT
-// ============================================
-
 function allocateEqualSplit(input: AllocationInput): AllocationResult {
   const childCount = input.children.length;
-  if (childCount === 0) {
-    return { allocations: [], totalAllocated: 0, unallocated: input.totalAmount };
-  }
+  if (childCount === 0) return { allocations: [], totalAllocated: 0, unallocated: input.totalAmount };
 
   const perChild = Math.floor((input.totalAmount / childCount) * 100) / 100;
   let remaining = input.totalAmount;
@@ -135,33 +89,17 @@ function allocateEqualSplit(input: AllocationInput): AllocationResult {
 
   for (let i = 0; i < input.children.length; i++) {
     const child = input.children[i]!;
-    // Last child gets remainder to avoid rounding loss
     const budget = i === childCount - 1 ? remaining : Math.min(perChild, remaining);
     let childRemaining = budget;
-
-    const sorted = [...child.assignments].sort(
-      (a, b) => a.dueDate.localeCompare(b.dueDate),
-    );
-
+    const sorted = [...child.assignments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     let childTotal = 0;
     for (const a of sorted) {
       if (childRemaining <= 0) break;
       const toAllocate = Math.min(childRemaining, a.balanceAmount);
       childRemaining = round(childRemaining - toAllocate);
       childTotal = round(childTotal + toAllocate);
-
-      const newBalance = round(a.balanceAmount - toAllocate);
-      assignmentResults.set(a.assignmentId, {
-        assignmentId: a.assignmentId,
-        periodLabel: a.periodLabel,
-        categoryName: a.categoryName,
-        allocatedAmount: toAllocate,
-        previousBalance: a.balanceAmount,
-        newBalance,
-        status: newBalance === 0 ? 'CLEARED' : toAllocate > 0 ? 'PARTIAL' : 'UNTOUCHED',
-      });
+      assignmentResults.set(a.assignmentId, makeAllocation(a, toAllocate));
     }
-
     childAmounts.set(child.childId, childTotal);
     remaining = round(remaining - childTotal);
   }
@@ -169,55 +107,67 @@ function allocateEqualSplit(input: AllocationInput): AllocationResult {
   return buildResult(input, childAmounts, assignmentResults, remaining);
 }
 
-// ============================================
-// MANUAL
-// ============================================
-
 function allocateManual(input: AllocationInput): AllocationResult {
-  const manualMap = new Map(
-    (input.manualAllocations ?? []).map((m) => [m.childId, m.amount]),
-  );
-
+  const manualMap = new Map((input.manualAllocations ?? []).map((m) => [m.childId, m.amount]));
   let totalUsed = 0;
   const childAmounts = new Map<string, number>();
   const assignmentResults = new Map<string, AssignmentAllocation>();
 
   for (const child of input.children) {
     let budget = manualMap.get(child.childId) ?? 0;
-    const sorted = [...child.assignments].sort(
-      (a, b) => a.dueDate.localeCompare(b.dueDate),
-    );
-
+    const sorted = [...child.assignments].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
     let childTotal = 0;
     for (const a of sorted) {
       if (budget <= 0) break;
       const toAllocate = Math.min(budget, a.balanceAmount);
       budget = round(budget - toAllocate);
       childTotal = round(childTotal + toAllocate);
-
-      const newBalance = round(a.balanceAmount - toAllocate);
-      assignmentResults.set(a.assignmentId, {
-        assignmentId: a.assignmentId,
-        periodLabel: a.periodLabel,
-        categoryName: a.categoryName,
-        allocatedAmount: toAllocate,
-        previousBalance: a.balanceAmount,
-        newBalance,
-        status: newBalance === 0 ? 'CLEARED' : toAllocate > 0 ? 'PARTIAL' : 'UNTOUCHED',
-      });
+      assignmentResults.set(a.assignmentId, makeAllocation(a, toAllocate));
     }
-
     childAmounts.set(child.childId, childTotal);
     totalUsed = round(totalUsed + childTotal);
   }
 
-  const unallocated = round(input.totalAmount - totalUsed);
-  return buildResult(input, childAmounts, assignmentResults, unallocated);
+  return buildResult(input, childAmounts, assignmentResults, round(input.totalAmount - totalUsed));
 }
 
-// ============================================
-// HELPERS
-// ============================================
+function allocateCustom(input: AllocationInput): AllocationResult {
+  const customMap = new Map((input.customAllocations ?? []).map((c) => [c.feeAssignmentId, c.amount]));
+  let totalUsed = 0;
+  const childAmounts = new Map<string, number>();
+  const assignmentResults = new Map<string, AssignmentAllocation>();
+
+  for (const child of input.children) {
+    let childTotal = 0;
+    for (const a of child.assignments) {
+      const requested = customMap.get(a.assignmentId) ?? 0;
+      if (requested <= 0) continue;
+      const toAllocate = Math.min(requested, a.balanceAmount);
+      childTotal = round(childTotal + toAllocate);
+      assignmentResults.set(a.assignmentId, makeAllocation(a, toAllocate));
+    }
+    childAmounts.set(child.childId, childTotal);
+    totalUsed = round(totalUsed + childTotal);
+  }
+
+  return buildResult(input, childAmounts, assignmentResults, round(input.totalAmount - totalUsed));
+}
+
+function makeAllocation(
+  a: { assignmentId: string; periodLabel: string; categoryName: string; balanceAmount: number },
+  toAllocate: number,
+): AssignmentAllocation {
+  const newBalance = round(a.balanceAmount - toAllocate);
+  return {
+    assignmentId: a.assignmentId,
+    periodLabel: a.periodLabel,
+    categoryName: a.categoryName,
+    allocatedAmount: toAllocate,
+    previousBalance: a.balanceAmount,
+    newBalance,
+    status: newBalance === 0 ? 'CLEARED' : toAllocate > 0 ? 'PARTIAL' : 'UNTOUCHED',
+  };
+}
 
 function flattenAndSort(
   children: ChildWithAssignments[],

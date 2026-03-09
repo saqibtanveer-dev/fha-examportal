@@ -15,6 +15,7 @@ vi.mock('@/lib/prisma', () => ({
       count: vi.fn().mockResolvedValue(0),
     },
     feeDiscount: { create: vi.fn().mockResolvedValue({}) },
+    feeCredit: { create: vi.fn().mockResolvedValue({}) },
     $transaction: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -109,18 +110,18 @@ describe('recordPaymentAction', () => {
     expect(result.error).toContain('waived');
   });
 
-  it('rejects amount exceeding balance', async () => {
+  it('accepts overpayment and clamps to balance', async () => {
     mockPrisma.feeAssignment.findUnique.mockResolvedValueOnce({
       id: 'fa-001',
       status: 'PENDING',
       balanceAmount: 2000,
       paidAmount: 1000,
       totalAmount: 3000,
+      studentProfileId: 'sp-001',
     });
 
     const result = await recordPaymentAction(validInput);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('exceeds balance');
+    expect(result.success).toBe(true);
   });
 
   it('records payment and returns receipt number', async () => {

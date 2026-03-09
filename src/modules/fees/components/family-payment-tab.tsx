@@ -9,48 +9,31 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
-import { formatCurrency, formatMonth } from './fee-status-badge';
+import { formatCurrency } from './fee-status-badge';
 import { FamilySearchCombobox } from './family-search-combobox';
+import { AllocationPreview } from './allocation-preview';
+import { FamilyChildrenSummary } from './family-children-summary';
 import { fetchFamilyChildrenWithFeesAction } from '@/modules/fees/fee-self-service-actions';
 import { recordFamilyPaymentAction } from '@/modules/fees/family-payment-actions';
+import { applyFamilyDiscountAction } from '@/modules/fees/family-discount-actions';
 import { computeAllocation } from '@/modules/fees/allocation-engine';
 import { toast } from 'sonner';
-import { Users } from 'lucide-react';
+import { Users, CreditCard, Percent } from 'lucide-react';
 import type { ChildWithAssignments, PendingAssignment, AllocationResult } from '@/modules/fees/fee.types';
 
 const PAYMENT_METHODS = [
-  { value: 'CASH', label: 'Cash' },
-  { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
-  { value: 'ONLINE', label: 'Online' },
-  { value: 'CHEQUE', label: 'Cheque' },
+  { value: 'CASH', label: 'Cash' }, { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
+  { value: 'ONLINE', label: 'Online' }, { value: 'CHEQUE', label: 'Cheque' },
 ];
-
 const STRATEGIES = [
-  { value: 'OLDEST_FIRST', label: 'Oldest First' },
-  { value: 'CHILD_PRIORITY', label: 'Child Priority' },
-  { value: 'EQUAL_SPLIT', label: 'Equal Split' },
+  { value: 'OLDEST_FIRST', label: 'Oldest First' }, { value: 'CHILD_PRIORITY', label: 'Child Priority' },
+  { value: 'EQUAL_SPLIT', label: 'Equal Split' }, { value: 'CUSTOM', label: 'Custom Split' },
 ];
 
 type FamilyChild = {
-  child: {
-    id: string;
-    rollNumber: string;
-    user: { firstName: string; lastName: string };
-    class: { name: string } | null;
-  };
-  assignments: {
-    id: string;
-    generatedForMonth: string;
-    balanceAmount: number;
-    dueDate: string;
-    lineItems: { categoryName: string; amount: number }[];
-    status: string;
-  }[];
+  child: { id: string; rollNumber: string; user: { firstName: string; lastName: string }; class: { name: string } | null };
+  assignments: { id: string; generatedForMonth: string; balanceAmount: number; dueDate: string; lineItems: { categoryName: string; amount: number }[]; status: string }[];
 };
 
 export function FamilyPaymentTab() {
@@ -61,8 +44,11 @@ export function FamilyPaymentTab() {
   const [totalAmount, setTotalAmount] = useState('');
   const [method, setMethod] = useState('CASH');
   const [reference, setReference] = useState('');
-  const [strategy, setStrategy] = useState<'OLDEST_FIRST' | 'CHILD_PRIORITY' | 'EQUAL_SPLIT'>('OLDEST_FIRST');
+  const [strategy, setStrategy] = useState<'OLDEST_FIRST' | 'CHILD_PRIORITY' | 'EQUAL_SPLIT' | 'CUSTOM'>('OLDEST_FIRST');
   const [preview, setPreview] = useState<AllocationResult | null>(null);
+  const [mode, setMode] = useState<'pay' | 'discount'>('pay');
+  const [discountReason, setDiscountReason] = useState('');
+  const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const invalidate = useInvalidateCache();
 
   function loadFamilyFees(profileId: string) {
@@ -105,39 +91,73 @@ export function FamilyPaymentTab() {
     [children],
   );
 
+  function buildCustomAllocations() {
+    return Object.entries(customAmounts).filter(([, v]) => Number(v) > 0).map(([id, v]) => ({ feeAssignmentId: id, amount: Number(v) }));
+  }
+
   function handlePreview() {
-    if (!totalAmount || Number(totalAmount) <= 0) {
-      toast.error('Enter a valid amount');
-      return;
+    if (strategy === 'CUSTOM') {
+      const customAllocations = buildCustomAllocations();
+      const total = customAllocations.reduce((s, a) => s + a.amount, 0);
+      if (total <= 0) { toast.error('Enter amounts for at least one assignment'); return; }
+      setTotalAmount(String(total));
+      setPreview(computeAllocation({ totalAmount: total, strategy: 'CUSTOM', children, customAllocations }));
+    } else {
+      if (!totalAmount || Number(totalAmount) <= 0) { toast.error('Enter a valid amount'); return; }
+      setPreview(computeAllocation({ totalAmount: Number(totalAmount), strategy, children }));
     }
-    const result = computeAllocation({
-      totalAmount: Number(totalAmount),
-      strategy,
-      children,
-    });
-    setPreview(result);
   }
 
   function handleConfirm() {
     if (!preview) return;
     startTransition(async () => {
+      const customAllocations = strategy === 'CUSTOM' ? buildCustomAllocations() : undefined;
+
       const result = await recordFamilyPaymentAction({
         familyProfileId: familyId,
         totalAmount: Number(totalAmount),
         paymentMethod: method as 'CASH' | 'BANK_TRANSFER' | 'ONLINE' | 'CHEQUE',
         referenceNumber: reference || undefined,
         allocationStrategy: strategy,
+        customAllocations,
       });
 
       if (result.success) {
-        toast.success(`Family payment recorded. Receipt: ${result.data?.masterReceiptNumber}`);
+        const msg = result.data?.unallocated && result.data.unallocated > 0.01
+          ? `Payment recorded (${formatCurrency(result.data.totalAllocated)}). ${formatCurrency(result.data.unallocated)} was not allocated. Receipt: ${result.data.masterReceiptNumber}`
+          : `Family payment recorded. Receipt: ${result.data?.masterReceiptNumber}`;
+        toast.success(msg);
         setPreview(null);
         setTotalAmount('');
         setReference('');
+        setCustomAmounts({});
         await invalidate.afterFeePayment();
         loadFamilyFees(familyId);
       } else {
         toast.error(result.error ?? 'Payment failed');
+      }
+    });
+  }
+
+  function handleDiscount() {
+    if (!discountReason) { toast.error('Enter a reason for the discount'); return; }
+    const discounts = buildCustomAllocations();
+    if (discounts.length === 0) { toast.error('Enter discount amounts'); return; }
+
+    startTransition(async () => {
+      const result = await applyFamilyDiscountAction({
+        familyProfileId: familyId,
+        discounts,
+        reason: discountReason,
+      });
+      if (result.success) {
+        toast.success(`Discount applied: ${formatCurrency(result.data?.totalDiscount ?? 0)} across ${result.data?.appliedCount} assignment(s)`);
+        setCustomAmounts({});
+        setDiscountReason('');
+        await invalidate.afterFeePayment();
+        loadFamilyFees(familyId);
+      } else {
+        toast.error(result.error ?? 'Discount failed');
       }
     });
   }
@@ -181,128 +201,98 @@ export function FamilyPaymentTab() {
                 Total outstanding: <span className="font-semibold">{formatCurrency(totalPending)}</span>
               </div>
 
-              {/* Per-child summary */}
-              {children.map((child) => (
-                <div key={child.childId} className="rounded border p-3 space-y-2">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span>{child.childName} ({child.className})</span>
-                    <span className="font-mono">
-                      {formatCurrency(child.assignments.reduce((s, a) => s + a.balanceAmount, 0))}
-                    </span>
-                  </div>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    {child.assignments.map((a) => (
-                      <div key={a.assignmentId} className="flex justify-between">
-                        <span>{formatMonth(a.periodLabel)}</span>
-                        <span className="font-mono">{formatCurrency(a.balanceAmount)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              {/* Payment form */}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label>Total Amount</Label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={totalAmount}
-                    onChange={(e) => { setTotalAmount(e.target.value); setPreview(null); }}
-                    disabled={isPending}
-                    className="font-mono"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label>Strategy</Label>
-                  <Select value={strategy} onValueChange={(v) => { setStrategy(v as typeof strategy); setPreview(null); }} disabled={isPending}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {STRATEGIES.map((s) => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Method</Label>
-                  <Select value={method} onValueChange={setMethod} disabled={isPending}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {PAYMENT_METHODS.map((m) => (
-                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label>Reference # (optional)</Label>
-                  <Input value={reference} onChange={(e) => setReference(e.target.value)} disabled={isPending} />
-                </div>
+              {/* Mode Toggle */}
+              <div className="flex gap-2">
+                <Button size="sm" variant={mode === 'pay' ? 'default' : 'outline'} onClick={() => { setMode('pay'); setPreview(null); }}>
+                  <CreditCard className="mr-1 h-3 w-3" />Payment
+                </Button>
+                <Button size="sm" variant={mode === 'discount' ? 'default' : 'outline'} onClick={() => { setMode('discount'); setPreview(null); }}>
+                  <Percent className="mr-1 h-3 w-3" />Discount
+                </Button>
               </div>
 
-              <Button onClick={handlePreview} disabled={isPending || !totalAmount} className="w-full" variant="outline">
-                Preview Allocation
-              </Button>
+              <FamilyChildrenSummary
+                children={children}
+                showAmountInputs={strategy === 'CUSTOM' || mode === 'discount'}
+                customAmounts={customAmounts}
+                onCustomAmountChange={(id, val) => setCustomAmounts((prev) => ({ ...prev, [id]: val }))}
+                disabled={isPending}
+              />
+
+              {mode === 'pay' ? (
+                <>
+                  {/* Payment form */}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {strategy !== 'CUSTOM' && (
+                      <div className="space-y-1">
+                        <Label>Total Amount</Label>
+                        <Input
+                          type="number" min={1} value={totalAmount}
+                          onChange={(e) => { setTotalAmount(e.target.value); setPreview(null); }}
+                          disabled={isPending} className="font-mono"
+                        />
+                      </div>
+                    )}
+                    <div className="space-y-1">
+                      <Label>Strategy</Label>
+                      <Select value={strategy} onValueChange={(v) => { setStrategy(v as typeof strategy); setPreview(null); }} disabled={isPending}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {STRATEGIES.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Method</Label>
+                      <Select value={method} onValueChange={setMethod} disabled={isPending}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {PAYMENT_METHODS.map((m) => (
+                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Reference # (optional)</Label>
+                      <Input value={reference} onChange={(e) => setReference(e.target.value)} disabled={isPending} />
+                    </div>
+                  </div>
+                  <Button onClick={handlePreview} disabled={isPending || (strategy !== 'CUSTOM' && !totalAmount)} className="w-full" variant="outline">
+                    Preview Allocation
+                  </Button>
+                </>
+              ) : (
+                <>
+                  {/* Discount form */}
+                  <div className="space-y-1">
+                    <Label>Reason for Discount</Label>
+                    <Input
+                      placeholder="e.g. Scholarship, Staff child, Sibling discount"
+                      value={discountReason}
+                      onChange={(e) => setDiscountReason(e.target.value)}
+                      disabled={isPending}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Enter discount amounts for each assignment above, then apply.
+                  </p>
+                  <Button onClick={handleDiscount} disabled={isPending || !discountReason} className="w-full">
+                    {isPending && <Spinner size="sm" className="mr-2" />}
+                    Apply Family Discount
+                  </Button>
+                </>
+              )}
             </>
           )}
         </CardContent>
       </Card>
 
       {/* Allocation Preview */}
-      {preview && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Allocation Preview</CardTitle>
-            <CardDescription>
-              Allocated: {formatCurrency(preview.totalAllocated)} |
-              Unallocated: {formatCurrency(preview.unallocated)}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {preview.allocations.map((child) => (
-              <div key={child.childId}>
-                <h4 className="mb-2 text-sm font-semibold">
-                  {child.childName} ({child.className}) — {formatCurrency(child.allocatedAmount)}
-                </h4>
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Month</TableHead>
-                        <TableHead className="text-right">Previous</TableHead>
-                        <TableHead className="text-right">Allocated</TableHead>
-                        <TableHead className="text-right">New Balance</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {child.assignmentAllocations.map((aa) => (
-                        <TableRow key={aa.assignmentId}>
-                          <TableCell>{formatMonth(aa.periodLabel)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(aa.previousBalance)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(aa.allocatedAmount)}</TableCell>
-                          <TableCell className="text-right font-mono">{formatCurrency(aa.newBalance)}</TableCell>
-                          <TableCell>
-                            <Badge variant={aa.status === 'CLEARED' ? 'default' : aa.status === 'PARTIAL' ? 'secondary' : 'outline'}>
-                              {aa.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            ))}
-
-            <Button onClick={handleConfirm} disabled={isPending} className="w-full">
-              {isPending && <Spinner size="sm" className="mr-2" />}
-              Confirm & Record Payment
-            </Button>
-          </CardContent>
-        </Card>
+      {preview && mode === 'pay' && (
+        <AllocationPreview preview={preview} isPending={isPending} onConfirm={handleConfirm} />
       )}
     </div>
   );

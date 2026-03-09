@@ -28,7 +28,7 @@ const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
 export const recordFamilyPaymentAction = safeAction(
   async function recordFamilyPaymentAction(
     input: RecordFamilyPaymentInput,
-  ): Promise<ActionResult<{ masterReceiptNumber: string }>> {
+  ): Promise<ActionResult<{ masterReceiptNumber: string; totalAllocated: number; unallocated: number }>> {
     const session = await requireRole('ADMIN');
     const parsed = recordFamilyPaymentSchema.safeParse(input);
     if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
@@ -41,6 +41,7 @@ export const recordFamilyPaymentAction = safeAction(
       allocationStrategy,
       manualAllocations,
       childPriorityOrder,
+      customAllocations,
     } = parsed.data;
 
     // Verify family profile and gather all children + pending assignments in one query
@@ -126,6 +127,7 @@ export const recordFamilyPaymentAction = safeAction(
       children,
       manualAllocations,
       childPriorityOrder,
+      customAllocations,
     });
 
     if (allocation.totalAllocated <= 0) {
@@ -206,7 +208,31 @@ export const recordFamilyPaymentAction = safeAction(
       childCount: allocation.allocations.length,
     }).catch((err) => logger.error({ err }, 'Audit log failed for family payment'));
 
+    // If overpayment, create advance credit for each child proportionally
+    if (allocation.unallocated > 0.01) {
+      const excessPerChild = Math.round((allocation.unallocated / childIds.length) * 100) / 100;
+      for (const childId of childIds) {
+        if (excessPerChild <= 0) continue;
+        await prisma.feeCredit.create({
+          data: {
+            studentProfileId: childId,
+            familyProfileId,
+            academicSessionId,
+            amount: excessPerChild,
+            remainingAmount: excessPerChild,
+            reason: `Overpayment credit from family payment ${masterReceiptNumber}`,
+            referenceNumber: masterReceiptNumber,
+            createdById: session.user.id,
+          },
+        }).catch((err) => logger.error({ err }, 'Failed to create advance credit'));
+      }
+    }
+
     revalidateFeePaths();
-    return actionSuccess({ masterReceiptNumber });
+    return actionSuccess({
+      masterReceiptNumber,
+      totalAllocated: allocation.totalAllocated,
+      unallocated: allocation.unallocated,
+    });
   },
 );

@@ -270,6 +270,7 @@ model User {
   discountsApplied         FeeDiscount[]    @relation("DiscountAppliedBy")
   paymentsRecorded         FeePayment[]     @relation("PaymentRecordedBy")
   familyPaymentsRecorded   FamilyPayment[]  @relation("FamilyPaymentRecordedBy")
+  creditsCreated           FeeCredit[]      @relation("CreditCreatedBy")
 
   @@index([role])
   @@index([isActive])
@@ -312,6 +313,7 @@ model StudentProfile {
 
   // Fee relations
   feeAssignments     FeeAssignment[]
+  feeCredits         FeeCredit[]
 
   @@index([classId])
   @@index([sectionId])
@@ -355,6 +357,7 @@ model FamilyProfile {
   user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   studentLinks   FamilyStudentLink[]
   familyPayments FamilyPayment[]
+  feeCredits     FeeCredit[]
 }
 
 model FamilyStudentLink {
@@ -828,6 +831,7 @@ model AcademicSession {
   feeStructures     FeeStructure[]
   feeAssignments    FeeAssignment[]
   feeSettings       FeeSettings?
+  feeCredits        FeeCredit[]
 
   @@index([isCurrent])
 }
@@ -1654,6 +1658,7 @@ enum AllocationStrategy {
   CHILD_PRIORITY
   EQUAL_SPLIT
   MANUAL
+  CUSTOM
 }
 
 // ============================================
@@ -1829,6 +1834,37 @@ model FeeSettings {
   updatedAt          DateTime @updatedAt
 
   academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+}
+
+// Advance credit: stores excess payments for auto-apply on next fee generation
+model FeeCredit {
+  id                String        @id @default(uuid())
+  studentProfileId  String
+  familyProfileId   String?
+  academicSessionId String
+  amount            Decimal       @db.Decimal(12, 2)
+  remainingAmount   Decimal       @db.Decimal(12, 2)
+  reason            String        // e.g. "Advance payment", "Overpayment refund credit"
+  referenceNumber   String?       // links to receipt or family receipt
+  status            CreditStatus  @default(ACTIVE)
+  createdById       String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  studentProfile  StudentProfile   @relation(fields: [studentProfileId], references: [id])
+  familyProfile   FamilyProfile?   @relation(fields: [familyProfileId], references: [id])
+  academicSession AcademicSession  @relation(fields: [academicSessionId], references: [id])
+  createdBy       User             @relation("CreditCreatedBy", fields: [createdById], references: [id])
+
+  @@index([studentProfileId, status])
+  @@index([familyProfileId, status])
+  @@index([academicSessionId])
+}
+
+enum CreditStatus {
+  ACTIVE
+  EXHAUSTED
+  REFUNDED
 }
 
 // ============================================

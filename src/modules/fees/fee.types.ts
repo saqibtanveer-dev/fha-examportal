@@ -136,6 +136,7 @@ export type AllocationInput = {
   children: ChildWithAssignments[];
   manualAllocations?: { childId: string; amount: number }[];
   childPriorityOrder?: string[];
+  customAllocations?: { feeAssignmentId: string; amount: number }[];
 };
 
 export type AllocationResult = {
