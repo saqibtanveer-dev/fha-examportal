@@ -182,6 +182,35 @@ export const applyFamilyDiscountSchema = z.object({
 export type ApplyFamilyDiscountInput = z.infer<typeof applyFamilyDiscountSchema>;
 
 // ============================================
+// COMBINED FEE COLLECTION (payment + discount in one operation)
+// ============================================
+
+export const collectStudentFeeSchema = z.object({
+  feeAssignmentId: z.string().uuid('Invalid assignment'),
+  paymentAmount: z.number().min(0).default(0),
+  discountAmount: z.number().min(0).default(0),
+  paymentMethod: paymentMethodEnum,
+  referenceNumber: z.string().max(100).optional(),
+  discountReason: z.string().min(3).max(500).optional(),
+});
+
+export type CollectStudentFeeInput = z.infer<typeof collectStudentFeeSchema>;
+
+export const collectFamilyFeeSchema = z.object({
+  familyProfileId: z.string().uuid('Invalid family'),
+  items: z.array(z.object({
+    feeAssignmentId: z.string().uuid(),
+    paymentAmount: z.number().min(0).default(0),
+    discountAmount: z.number().min(0).default(0),
+  })).min(1, 'At least one assignment required'),
+  paymentMethod: paymentMethodEnum,
+  referenceNumber: z.string().max(100).optional(),
+  discountReason: z.string().min(3).max(500).optional(),
+});
+
+export type CollectFamilyFeeInput = z.infer<typeof collectFamilyFeeSchema>;
+
+// ============================================
 // CUSTOM ALLOCATION (per-assignment amounts)
 // ============================================
 

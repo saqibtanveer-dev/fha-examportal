@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -26,25 +26,25 @@ export function StudentSearchCombobox({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchableStudent[]>([]);
   const [searching, setSearching] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
 
-  const doSearch = useCallback(async (term: string) => {
-    if (term.length < 2) { setResults([]); return; }
+  const doSearch = useCallback(async () => {
+    if (query.length < 2) { setResults([]); return; }
     setSearching(true);
     try {
-      const result = await searchStudentsForLinkingAction(term);
+      const result = await searchStudentsForLinkingAction(query);
       setResults(('data' in result && result.data) ? result.data : []);
     } catch {
       setResults([]);
     } finally {
       setSearching(false);
     }
-  }, []);
+  }, [query]);
 
-  function handleQueryChange(q: string) {
-    setQuery(q);
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => doSearch(q), 300);
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      doSearch();
+    }
   }
 
   function handleSelect(student: SearchableStudent) {
@@ -86,9 +86,19 @@ export function StudentSearchCombobox({
           <Input
             placeholder="Type name or roll number..."
             value={query}
-            onChange={(e) => handleQueryChange(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             className="border-0 shadow-none focus-visible:ring-0"
           />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={doSearch}
+            disabled={query.length < 2 || searching}
+          >
+            <Search className="h-3.5 w-3.5" />
+          </Button>
         </div>
         <div className="max-h-60 overflow-y-auto">
           {searching && (
@@ -103,7 +113,7 @@ export function StudentSearchCombobox({
           )}
           {!searching && query.length < 2 && (
             <p className="py-4 text-center text-sm text-muted-foreground">
-              Type at least 2 characters
+              Type at least 2 characters and press Search
             </p>
           )}
           {results.map((s) => (

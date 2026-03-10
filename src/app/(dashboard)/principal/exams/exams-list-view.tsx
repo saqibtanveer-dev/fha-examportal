@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useRef, useTransition } from 'react';
+import { useCallback, useState, useTransition } from 'react';
 import {
   Card,
   CardContent,
@@ -26,7 +26,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { PaginationControls } from '@/components/shared';
 import { ROUTES } from '@/lib/constants';
 import { ExamMobileCard, ExamTableRow } from './exam-list-item';
 import type { Exam, Subject } from './exam-list-item';
@@ -55,7 +56,7 @@ export function ExamsListView({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isPending, startTransition] = useTransition();
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [searchValue, setSearchValue] = useState(search);
   const pageSize = 20;
   const totalPages = Math.ceil(total / pageSize);
 
@@ -78,19 +79,18 @@ export function ExamsListView({
       <Card>
         <CardContent className="pt-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
-              <Input
-                placeholder="Search exams..."
-                defaultValue={search}
-                className="pl-10"
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (debounceRef.current) clearTimeout(debounceRef.current);
-                  debounceRef.current = setTimeout(() => updateFilters({ search: value }), 400);
-                }}
-              />
-            </div>
+            <form onSubmit={(e) => { e.preventDefault(); updateFilters({ search: searchValue }); }} className="flex gap-2 flex-1">
+              <div className="relative flex-1">
+                <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+                <Input
+                  placeholder="Search exams..."
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button type="submit" size="sm">Search</Button>
+            </form>
             <Select value={status || 'all'} onValueChange={(v) => updateFilters({ status: v === 'all' ? '' : v })}>
               <SelectTrigger className="w-full sm:w-35"><SelectValue placeholder="Status" /></SelectTrigger>
               <SelectContent>
@@ -180,27 +180,13 @@ export function ExamsListView({
       </Card>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage <= 1}
-            onClick={() => updateFilters({ page: String(currentPage - 1) })}
-          >
-            <ChevronLeft className="mr-1 h-4 w-4" />Previous
-          </Button>
-          <span className="text-muted-foreground text-sm">Page {currentPage} of {totalPages}</span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={currentPage >= totalPages}
-            onClick={() => updateFilters({ page: String(currentPage + 1) })}
-          >
-            Next<ChevronRight className="ml-1 h-4 w-4" />
-          </Button>
-        </div>
-      )}
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalCount={total}
+        pageSize={pageSize}
+        onPageChange={(page) => updateFilters({ page: String(page) })}
+      />
     </div>
   );
 }

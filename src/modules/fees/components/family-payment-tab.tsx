@@ -14,12 +14,13 @@ import { formatCurrency } from './fee-status-badge';
 import { FamilySearchCombobox } from './family-search-combobox';
 import { AllocationPreview } from './allocation-preview';
 import { FamilyChildrenSummary } from './family-children-summary';
+import { FamilyCollectionForm } from './family-collection-form';
+import { PaymentHistoryDialog } from './payment-history-dialog';
 import { fetchFamilyChildrenWithFeesAction } from '@/modules/fees/fee-self-service-actions';
 import { recordFamilyPaymentAction } from '@/modules/fees/family-payment-actions';
-import { applyFamilyDiscountAction } from '@/modules/fees/family-discount-actions';
 import { computeAllocation } from '@/modules/fees/allocation-engine';
 import { toast } from 'sonner';
-import { Users, CreditCard, Percent } from 'lucide-react';
+import { Users, Zap, ClipboardList } from 'lucide-react';
 import type { ChildWithAssignments, PendingAssignment, AllocationResult } from '@/modules/fees/fee.types';
 
 const PAYMENT_METHODS = [
@@ -46,9 +47,9 @@ export function FamilyPaymentTab() {
   const [reference, setReference] = useState('');
   const [strategy, setStrategy] = useState<'OLDEST_FIRST' | 'CHILD_PRIORITY' | 'EQUAL_SPLIT' | 'CUSTOM'>('OLDEST_FIRST');
   const [preview, setPreview] = useState<AllocationResult | null>(null);
-  const [mode, setMode] = useState<'pay' | 'discount'>('pay');
-  const [discountReason, setDiscountReason] = useState('');
+  const [view, setView] = useState<'quick' | 'detailed'>('detailed');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
+  const [historyAssignmentId, setHistoryAssignmentId] = useState<string | null>(null);
   const invalidate = useInvalidateCache();
 
   function loadFamilyFees(profileId: string) {
@@ -57,12 +58,8 @@ export function FamilyPaymentTab() {
         const result = await fetchFamilyChildrenWithFeesAction(profileId);
         setChildrenData((result as FamilyChild[]) ?? []);
         setPreview(null);
-        if (!result || result.length === 0) {
-          toast.info('No pending fees found for this family');
-        }
-      } catch {
-        toast.error('Family not found or no access');
-      }
+        if (!result || result.length === 0) toast.info('No pending fees found for this family');
+      } catch { toast.error('Family not found or no access'); }
     });
   }
 
@@ -86,10 +83,10 @@ export function FamilyPaymentTab() {
   }, [childrenData]);
 
   const totalPending = useMemo(() =>
-    children.reduce((sum, c) =>
-      sum + c.assignments.reduce((s, a) => s + a.balanceAmount, 0), 0),
-    [children],
-  );
+    children.reduce((sum, c) => sum + c.assignments.reduce((s, a) => s + a.balanceAmount, 0), 0),
+  [children]);
+
+  // ── Quick Pay helpers ──
 
   function buildCustomAllocations() {
     return Object.entries(customAmounts).filter(([, v]) => Number(v) > 0).map(([id, v]) => ({ feeAssignmentId: id, amount: Number(v) }));
@@ -97,11 +94,11 @@ export function FamilyPaymentTab() {
 
   function handlePreview() {
     if (strategy === 'CUSTOM') {
-      const customAllocations = buildCustomAllocations();
-      const total = customAllocations.reduce((s, a) => s + a.amount, 0);
+      const allocs = buildCustomAllocations();
+      const total = allocs.reduce((s, a) => s + a.amount, 0);
       if (total <= 0) { toast.error('Enter amounts for at least one assignment'); return; }
       setTotalAmount(String(total));
-      setPreview(computeAllocation({ totalAmount: total, strategy: 'CUSTOM', children, customAllocations }));
+      setPreview(computeAllocation({ totalAmount: total, strategy: 'CUSTOM', children, customAllocations: allocs }));
     } else {
       if (!totalAmount || Number(totalAmount) <= 0) { toast.error('Enter a valid amount'); return; }
       setPreview(computeAllocation({ totalAmount: Number(totalAmount), strategy, children }));
@@ -111,87 +108,44 @@ export function FamilyPaymentTab() {
   function handleConfirm() {
     if (!preview) return;
     startTransition(async () => {
-      const customAllocations = strategy === 'CUSTOM' ? buildCustomAllocations() : undefined;
-
       const result = await recordFamilyPaymentAction({
         familyProfileId: familyId,
         totalAmount: Number(totalAmount),
         paymentMethod: method as 'CASH' | 'BANK_TRANSFER' | 'ONLINE' | 'CHEQUE',
         referenceNumber: reference || undefined,
         allocationStrategy: strategy,
-        customAllocations,
+        customAllocations: strategy === 'CUSTOM' ? buildCustomAllocations() : undefined,
       });
-
       if (result.success) {
         const msg = result.data?.unallocated && result.data.unallocated > 0.01
-          ? `Payment recorded (${formatCurrency(result.data.totalAllocated)}). ${formatCurrency(result.data.unallocated)} was not allocated. Receipt: ${result.data.masterReceiptNumber}`
+          ? `Payment: ${formatCurrency(result.data.totalAllocated)}. Unallocated: ${formatCurrency(result.data.unallocated)}. Receipt: ${result.data.masterReceiptNumber}`
           : `Family payment recorded. Receipt: ${result.data?.masterReceiptNumber}`;
         toast.success(msg);
-        setPreview(null);
-        setTotalAmount('');
-        setReference('');
-        setCustomAmounts({});
+        setPreview(null); setTotalAmount(''); setReference(''); setCustomAmounts({});
         await invalidate.afterFeePayment();
         loadFamilyFees(familyId);
-      } else {
-        toast.error(result.error ?? 'Payment failed');
-      }
-    });
-  }
-
-  function handleDiscount() {
-    if (!discountReason) { toast.error('Enter a reason for the discount'); return; }
-    const discounts = buildCustomAllocations();
-    if (discounts.length === 0) { toast.error('Enter discount amounts'); return; }
-
-    startTransition(async () => {
-      const result = await applyFamilyDiscountAction({
-        familyProfileId: familyId,
-        discounts,
-        reason: discountReason,
-      });
-      if (result.success) {
-        toast.success(`Discount applied: ${formatCurrency(result.data?.totalDiscount ?? 0)} across ${result.data?.appliedCount} assignment(s)`);
-        setCustomAmounts({});
-        setDiscountReason('');
-        await invalidate.afterFeePayment();
-        loadFamilyFees(familyId);
-      } else {
-        toast.error(result.error ?? 'Discount failed');
-      }
+      } else { toast.error(result.error ?? 'Payment failed'); }
     });
   }
 
   return (
     <div className="space-y-6">
-      {/* Search */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
-            <Users className="h-4 w-4" />Family Bulk Payment
+            <Users className="h-4 w-4" />Family Fee Collection
           </CardTitle>
-          <CardDescription>
-            Record a single payment that covers fees for multiple children in a family.
-          </CardDescription>
+          <CardDescription>Collect payments and apply discounts for all children in a family.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <FamilySearchCombobox
-            value={familyId}
-            selectedLabel={familyLabel}
-            disabled={isPending}
-            onSelect={(family) => {
-              setFamilyId(family.familyProfileId);
-              setFamilyLabel(`${family.parentName} (${family.relationship}) — ${family.childrenCount} child(ren)`);
-              setChildrenData([]);
-              setPreview(null);
-              loadFamilyFees(family.familyProfileId);
+          <FamilySearchCombobox value={familyId} selectedLabel={familyLabel} disabled={isPending}
+            onSelect={(f) => {
+              setFamilyId(f.familyProfileId);
+              setFamilyLabel(`${f.parentName} (${f.relationship}) — ${f.childrenCount} child(ren)`);
+              setChildrenData([]); setPreview(null);
+              loadFamilyFees(f.familyProfileId);
             }}
-            onClear={() => {
-              setFamilyId('');
-              setFamilyLabel('');
-              setChildrenData([]);
-              setPreview(null);
-            }}
+            onClear={() => { setFamilyId(''); setFamilyLabel(''); setChildrenData([]); setPreview(null); }}
           />
 
           {children.length > 0 && (
@@ -201,58 +155,50 @@ export function FamilyPaymentTab() {
                 Total outstanding: <span className="font-semibold">{formatCurrency(totalPending)}</span>
               </div>
 
-              {/* Mode Toggle */}
+              {/* View Toggle: Detailed (per-assignment) vs Quick Pay (allocation strategy) */}
               <div className="flex gap-2">
-                <Button size="sm" variant={mode === 'pay' ? 'default' : 'outline'} onClick={() => { setMode('pay'); setPreview(null); }}>
-                  <CreditCard className="mr-1 h-3 w-3" />Payment
+                <Button size="sm" variant={view === 'detailed' ? 'default' : 'outline'} onClick={() => { setView('detailed'); setPreview(null); }}>
+                  <ClipboardList className="mr-1 h-3 w-3" />Detailed Collection
                 </Button>
-                <Button size="sm" variant={mode === 'discount' ? 'default' : 'outline'} onClick={() => { setMode('discount'); setPreview(null); }}>
-                  <Percent className="mr-1 h-3 w-3" />Discount
+                <Button size="sm" variant={view === 'quick' ? 'default' : 'outline'} onClick={() => { setView('quick'); setPreview(null); }}>
+                  <Zap className="mr-1 h-3 w-3" />Quick Pay
                 </Button>
               </div>
 
-              <FamilyChildrenSummary
-                children={children}
-                showAmountInputs={strategy === 'CUSTOM' || mode === 'discount'}
-                customAmounts={customAmounts}
-                onCustomAmountChange={(id, val) => setCustomAmounts((prev) => ({ ...prev, [id]: val }))}
-                disabled={isPending}
-              />
-
-              {mode === 'pay' ? (
+              {view === 'detailed' ? (
+                <FamilyCollectionForm familyId={familyId} children={children} disabled={isPending} onSuccess={() => loadFamilyFees(familyId)} />
+              ) : (
                 <>
-                  {/* Payment form */}
+                  {strategy === 'CUSTOM' ? (
+                    <FamilyChildrenSummary mode="single" children={children}
+                      customAmounts={customAmounts}
+                      onCustomAmountChange={(id, val) => setCustomAmounts((p) => ({ ...p, [id]: val }))}
+                      disabled={isPending} />
+                  ) : (
+                    <FamilyChildrenSummary mode="readonly" children={children} />
+                  )}
+
                   <div className="grid gap-3 sm:grid-cols-2">
                     {strategy !== 'CUSTOM' && (
                       <div className="space-y-1">
                         <Label>Total Amount</Label>
-                        <Input
-                          type="number" min={1} value={totalAmount}
+                        <Input type="number" min={1} value={totalAmount}
                           onChange={(e) => { setTotalAmount(e.target.value); setPreview(null); }}
-                          disabled={isPending} className="font-mono"
-                        />
+                          disabled={isPending} className="font-mono" />
                       </div>
                     )}
                     <div className="space-y-1">
                       <Label>Strategy</Label>
                       <Select value={strategy} onValueChange={(v) => { setStrategy(v as typeof strategy); setPreview(null); }} disabled={isPending}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {STRATEGIES.map((s) => (
-                            <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectContent>{STRATEGIES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1">
                       <Label>Method</Label>
                       <Select value={method} onValueChange={setMethod} disabled={isPending}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {PAYMENT_METHODS.map((m) => (
-                            <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                          ))}
-                        </SelectContent>
+                        <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-1">
@@ -264,36 +210,17 @@ export function FamilyPaymentTab() {
                     Preview Allocation
                   </Button>
                 </>
-              ) : (
-                <>
-                  {/* Discount form */}
-                  <div className="space-y-1">
-                    <Label>Reason for Discount</Label>
-                    <Input
-                      placeholder="e.g. Scholarship, Staff child, Sibling discount"
-                      value={discountReason}
-                      onChange={(e) => setDiscountReason(e.target.value)}
-                      disabled={isPending}
-                    />
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter discount amounts for each assignment above, then apply.
-                  </p>
-                  <Button onClick={handleDiscount} disabled={isPending || !discountReason} className="w-full">
-                    {isPending && <Spinner size="sm" className="mr-2" />}
-                    Apply Family Discount
-                  </Button>
-                </>
               )}
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Allocation Preview */}
-      {preview && mode === 'pay' && (
+      {preview && view === 'quick' && (
         <AllocationPreview preview={preview} isPending={isPending} onConfirm={handleConfirm} />
       )}
+
+      <PaymentHistoryDialog assignmentId={historyAssignmentId} onClose={() => setHistoryAssignmentId(null)} />
     </div>
   );
 }

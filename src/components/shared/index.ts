@@ -8,6 +8,7 @@ export { ConfirmDialog } from './confirm-dialog';
 export { RouteError } from './route-error';
 export { CsvImportDialog } from './csv-import-dialog';
 export { ExportCsvButton } from './export-csv-button';
+export { PaginationControls } from './pagination-controls';
 export {
   SkeletonCardGrid,
   SkeletonTable,

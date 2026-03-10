@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Table,
@@ -11,8 +11,9 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { PageHeader, EmptyState } from '@/components/shared';
+import { PageHeader, EmptyState, PaginationControls } from '@/components/shared';
 import { formatDateTime } from '@/utils/format';
 import { Search, Shield } from 'lucide-react';
 import type { PaginatedResult } from '@/utils/pagination';
@@ -32,13 +33,24 @@ type Props = { result: PaginatedResult<AuditEntry> };
 export function AuditLogClient({ result }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const [filterValue, setFilterValue] = useState(searchParams.get('action') ?? '');
 
   function updateFilter(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
     if (value) params.set(key, value);
     else params.delete(key);
     params.delete('page');
+    router.push(`/admin/audit-log?${params.toString()}`);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    updateFilter('action', filterValue);
+  }
+
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page));
     router.push(`/admin/audit-log?${params.toString()}`);
   }
 
@@ -50,18 +62,20 @@ export function AuditLogClient({ result }: Props) {
         breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Audit Log' }]}
       />
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Filter by action..."
-          defaultValue={searchParams.get('action') ?? ''}
-          onChange={(e) => {
-            if (debounceRef.current) clearTimeout(debounceRef.current);
-            debounceRef.current = setTimeout(() => updateFilter('action', e.target.value), 400);
-          }}
-          className="pl-9"
-        />
-      </div>
+      <form onSubmit={handleSearch} className="flex gap-2 max-w-sm">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Filter by action..."
+            value={filterValue}
+            onChange={(e) => setFilterValue(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Button type="submit" size="sm">
+          Search
+        </Button>
+      </form>
 
       {result.data.length === 0 ? (
         <EmptyState icon={<Shield className="h-12 w-12 text-muted-foreground" />} title="No logs" description="No audit entries found." />
@@ -101,6 +115,15 @@ export function AuditLogClient({ result }: Props) {
           </Table>
         </div>
       )}
+
+      {/* Pagination */}
+      <PaginationControls
+        currentPage={result.pagination.page}
+        totalPages={result.pagination.totalPages}
+        totalCount={result.pagination.totalCount}
+        pageSize={result.pagination.pageSize}
+        onPageChange={goToPage}
+      />
     </div>
   );
 }

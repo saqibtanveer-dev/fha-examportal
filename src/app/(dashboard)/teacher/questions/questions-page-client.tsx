@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Plus, Search } from 'lucide-react';
-import { PageHeader, EmptyState } from '@/components/shared';
+import { PageHeader, EmptyState, PaginationControls } from '@/components/shared';
 import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
 import { QuestionTable, CreateQuestionDialog } from '@/modules/questions/components';
 import { importQuestionsFromCsvAction } from '@/modules/questions/import-actions';
@@ -34,9 +34,9 @@ type Props = {
 
 export function QuestionsPageClient({ filters, pagination }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
   const invalidate = useInvalidateCache();
 
   // Reference data from Zustand (hydrated at layout level)
@@ -52,6 +52,17 @@ export function QuestionsPageClient({ filters, pagination }: Props) {
     if (value && value !== 'ALL') params.set(key, value);
     else params.delete(key);
     params.delete('page');
+    router.push(`/teacher/questions?${params.toString()}`);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    updateFilter('search', searchValue);
+  }
+
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page));
     router.push(`/teacher/questions?${params.toString()}`);
   }
 
@@ -89,18 +100,20 @@ export function QuestionsPageClient({ filters, pagination }: Props) {
       />
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search questions..."
-            defaultValue={searchParams.get('search') ?? ''}
-            onChange={(e) => {
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => updateFilter('search', e.target.value), 400);
-            }}
-            className="pl-9"
-          />
-        </div>
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search questions..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button type="submit" size="sm">
+            Search
+          </Button>
+        </form>
         <Select
           value={searchParams.get('subjectId') ?? 'ALL'}
           onValueChange={(val) => updateFilter('subjectId', val)}
@@ -171,9 +184,13 @@ export function QuestionsPageClient({ filters, pagination }: Props) {
       )}
 
       {result.pagination.totalCount > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {result.data.length} of {result.pagination.totalCount} (page {result.pagination.page}/{result.pagination.totalPages})
-        </p>
+        <PaginationControls
+          currentPage={result.pagination.page}
+          totalPages={result.pagination.totalPages}
+          totalCount={result.pagination.totalCount}
+          pageSize={result.pagination.pageSize}
+          onPageChange={goToPage}
+        />
       )}
 
       <CreateQuestionDialog open={dialogOpen} onOpenChange={setDialogOpen} subjects={subjects} subjectClassLinks={subjectClassLinks} />

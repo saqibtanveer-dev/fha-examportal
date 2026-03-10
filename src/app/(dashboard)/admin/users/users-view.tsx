@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import dynamic from 'next/dynamic';
 import { Plus, Search } from 'lucide-react';
-import { PageHeader, EmptyState } from '@/components/shared';
+import { PageHeader, EmptyState, PaginationControls } from '@/components/shared';
 import { CsvImportDialog } from '@/components/shared/csv-import-dialog';
 import { UserTable } from '@/modules/users/components';
 
@@ -48,11 +48,11 @@ type Props = {
 
 export function UsersView({ result, allSubjects = [], allClasses = [], subjectClassLinks = [] }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.get('search') ?? '';
   const currentRole = searchParams.get('role') ?? '';
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   function updateFilters(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -62,6 +62,17 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
       params.delete(key);
     }
     params.delete('page');
+    router.push(`/admin/users?${params.toString()}`);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    updateFilters('search', searchValue);
+  }
+
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page));
     router.push(`/admin/users?${params.toString()}`);
   }
 
@@ -95,18 +106,21 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search by name or email..."
-            defaultValue={currentSearch}
-            onChange={(e) => {
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => updateFilters('search', e.target.value), 400);
-            }}
-            className="pl-9"
-          />
-        </div>
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by name or email..."
+              defaultValue={currentSearch}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button type="submit" size="sm">
+            Search
+          </Button>
+        </form>
         <Select
           value={currentRole}
           onValueChange={(val) => updateFilters('role', val === 'ALL' ? '' : val)}
@@ -141,13 +155,14 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
         <UserTable users={result.data} allSubjects={allSubjects} allClasses={allClasses} subjectClassLinks={subjectClassLinks} />
       )}
 
-      {/* Pagination info */}
-      {result.pagination.totalCount > 0 && (
-        <p className="text-sm text-muted-foreground">
-          Showing {result.data.length} of {result.pagination.totalCount} users
-          (page {result.pagination.page} of {result.pagination.totalPages})
-        </p>
-      )}
+      {/* Pagination */}
+      <PaginationControls
+        currentPage={result.pagination.page}
+        totalPages={result.pagination.totalPages}
+        totalCount={result.pagination.totalCount}
+        pageSize={result.pagination.pageSize}
+        onPageChange={goToPage}
+      />
 
       <CreateUserDialog open={dialogOpen} onOpenChange={setDialogOpen} classes={allClasses} />
     </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/select';
 import dynamic from 'next/dynamic';
 import { Plus, Search } from 'lucide-react';
-import { PageHeader, EmptyState } from '@/components/shared';
+import { PageHeader, EmptyState, PaginationControls } from '@/components/shared';
 import { ExamGrid } from '@/modules/exams/components';
 
 const CreateExamDialog = dynamic(
@@ -33,9 +33,9 @@ type Props = {
 
 export function ExamsPageClient({ filters, pagination }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
-  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // Reference data from Zustand
   const subjects = useReferenceStore((s) => s.subjects);
@@ -50,6 +50,17 @@ export function ExamsPageClient({ filters, pagination }: Props) {
     if (value && value !== 'ALL') params.set(key, value);
     else params.delete(key);
     params.delete('page');
+    router.push(`/teacher/exams?${params.toString()}`);
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    updateFilter('search', searchValue);
+  }
+
+  function goToPage(page: number) {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('page', String(page));
     router.push(`/teacher/exams?${params.toString()}`);
   }
 
@@ -71,18 +82,20 @@ export function ExamsPageClient({ filters, pagination }: Props) {
       />
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search exams..."
-            defaultValue={searchParams.get('search') ?? ''}
-            onChange={(e) => {
-              if (debounceRef.current) clearTimeout(debounceRef.current);
-              debounceRef.current = setTimeout(() => updateFilter('search', e.target.value), 400);
-            }}
-            className="pl-9"
-          />
-        </div>
+        <form onSubmit={handleSearch} className="flex gap-2 flex-1">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search exams..."
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Button type="submit" size="sm">
+            Search
+          </Button>
+        </form>
         <Select
           value={searchParams.get('status') ?? 'ALL'}
           onValueChange={(val) => updateFilter('status', val)}
@@ -109,9 +122,13 @@ export function ExamsPageClient({ filters, pagination }: Props) {
       )}
 
       {result.pagination.totalCount > 0 && (
-        <p className="text-sm text-muted-foreground">
-          {result.data.length} of {result.pagination.totalCount} (page {result.pagination.page}/{result.pagination.totalPages})
-        </p>
+        <PaginationControls
+          currentPage={result.pagination.page}
+          totalPages={result.pagination.totalPages}
+          totalCount={result.pagination.totalCount}
+          pageSize={result.pagination.pageSize}
+          onPageChange={goToPage}
+        />
       )}
 
       <CreateExamDialog
