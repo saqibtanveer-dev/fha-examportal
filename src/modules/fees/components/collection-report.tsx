@@ -55,22 +55,43 @@ export function CollectionReport() {
         <CardTitle className="text-base">Collection by Payment Method</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex items-end gap-3">
-          <div className="space-y-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <div className="space-y-1 flex-1">
             <Label>Start Date</Label>
             <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1 flex-1">
             <Label>End Date</Label>
             <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
           </div>
-          <Button onClick={handleFetch} disabled={isPending}>
+          <Button onClick={handleFetch} disabled={isPending} className="w-full sm:w-auto">
             {isPending ? <Spinner size="sm" /> : 'Fetch'}
           </Button>
         </div>
 
         {data.length > 0 && (
-          <div className="overflow-x-auto rounded-md border">
+          <>
+            {/* ── Mobile Card View ── */}
+            <div className="space-y-2 md:hidden">
+              {data.map((row) => (
+                <div key={row.paymentMethod} className="rounded-lg border bg-card p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{METHOD_LABELS[row.paymentMethod] ?? row.paymentMethod}</p>
+                    <p className="font-mono text-sm font-medium">{formatCurrency(Number(row._sum?.amount) || 0)}</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{row._count?.id ?? 0} transactions</p>
+                </div>
+              ))}
+              <div className="rounded-lg border bg-muted/50 p-3 font-semibold">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Total ({totalTxns} txns)</span>
+                  <span className="font-mono">{formatCurrency(grandTotal)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Desktop Table View ── */}
+            <div className="hidden md:block overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -98,7 +119,8 @@ export function CollectionReport() {
                 </TableRow>
               </TableBody>
             </Table>
-          </div>
+            </div>
+          </>
         )}
 
         {data.length === 0 && !isPending && (

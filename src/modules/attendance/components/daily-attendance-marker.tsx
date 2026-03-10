@@ -8,9 +8,7 @@ import { Input } from '@/components/ui/input';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select';
+import { AttendanceStatusSelect } from './attendance-status-select';
 import { Spinner } from '@/components/shared';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { toast } from 'sonner';
@@ -147,20 +145,20 @@ export function DailyAttendanceMarker({
   return (
     <div className="space-y-4">
       {/* Header with quick stats */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
+      <div className="space-y-3">
+        <div className="flex flex-wrap gap-1.5">
           {ATTENDANCE_STATUSES.map((status) => (
-            <Badge key={status} variant="outline" className="gap-1.5">
+            <Badge key={status} variant="outline" className="gap-1 text-[10px] sm:gap-1.5 sm:text-xs">
               <AttendanceStatusBadge status={status} size="sm" showLabel={false} />
-              <span className="text-xs">
-                {ATTENDANCE_STATUS_CONFIG[status].label}: {statusCounts[status]}
+              <span>
+                {ATTENDANCE_STATUS_CONFIG[status].shortLabel}: {statusCounts[status]}
               </span>
             </Badge>
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-muted-foreground">Mark all:</span>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="text-xs text-muted-foreground sm:text-sm">Mark all:</span>
           {ATTENDANCE_STATUSES.map((status) => (
             <Button
               key={status}
@@ -180,8 +178,42 @@ export function DailyAttendanceMarker({
         </div>
       </div>
 
-      {/* Student table */}
-      <div className="rounded-md border">
+      {/* Student list */}
+      {/* ── Mobile Card View ──────────────────────────────────── */}
+      <div className="space-y-2 md:hidden">
+        {students.map((student, idx) => {
+          const record = records.find((r) => r.studentProfileId === student.id);
+          if (!record) return null;
+          return (
+            <div key={student.id} className="rounded-lg border bg-card p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">
+                    {idx + 1}. {student.user.firstName} {student.user.lastName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Roll: {student.rollNumber}</p>
+                </div>
+                <AttendanceStatusSelect
+                  value={record.status}
+                  onValueChange={(s) => updateStatus(student.id, s)}
+                  disabled={isPending}
+                  className="h-9 w-28 shrink-0"
+                />
+              </div>
+              <Input
+                value={record.remarks}
+                onChange={(e) => updateRemarks(student.id, e.target.value)}
+                placeholder="Remarks (optional)..."
+                disabled={isPending}
+                className="h-8 text-xs"
+              />
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop Table View ────────────────────────────────── */}
+      <div className="hidden md:block rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -205,25 +237,11 @@ export function DailyAttendanceMarker({
                     {student.user.firstName} {student.user.lastName}
                   </TableCell>
                   <TableCell>
-                    <Select
+                    <AttendanceStatusSelect
                       value={record.status}
-                      onValueChange={(v) => updateStatus(student.id, v as AttendanceStatus)}
+                      onValueChange={(s) => updateStatus(student.id, s)}
                       disabled={isPending}
-                    >
-                      <SelectTrigger className="h-8 w-28">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {ATTENDANCE_STATUSES.map((status) => (
-                          <SelectItem key={status} value={status}>
-                            <span className="flex items-center gap-1.5">
-                              <span>{ATTENDANCE_STATUS_CONFIG[status].icon}</span>
-                              <span>{ATTENDANCE_STATUS_CONFIG[status].label}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    />
                   </TableCell>
                   <TableCell>
                     <Input
@@ -242,11 +260,11 @@ export function DailyAttendanceMarker({
       </div>
 
       {/* Submit button */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-muted-foreground sm:text-sm">
           {students.length} students &middot; {classDisplayName} &middot; {sectionName}
         </p>
-        <Button onClick={handleSubmit} disabled={isPending} size="lg">
+        <Button onClick={handleSubmit} disabled={isPending} size="lg" className="w-full sm:w-auto">
           {isPending ? (
             <Spinner size="sm" className="mr-2" />
           ) : (

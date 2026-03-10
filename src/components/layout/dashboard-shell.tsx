@@ -44,12 +44,12 @@ export function DashboardShell({
       />
       <main
         className={cn(
-          'min-w-0 overflow-hidden pt-16 transition-all duration-300',
+          'min-w-0 overflow-hidden pt-14 transition-all duration-300 md:pt-16',
           // No left padding on mobile; sidebar is a drawer
           collapsed ? 'md:pl-16' : 'md:pl-64',
         )}
       >
-        <div className="p-4 md:p-6">{children}</div>
+        <div className="p-3 pb-20 sm:p-4 md:p-6 md:pb-6">{children}</div>
       </main>
     </div>
   );

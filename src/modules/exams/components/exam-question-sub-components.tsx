@@ -53,7 +53,35 @@ export function ExamQuestionsTable({
   isAnyLoading: boolean;
 }) {
   return (
-    <div className="overflow-x-auto">
+    <>
+      {/* ── Mobile Card View ── */}
+      <div className="space-y-2 md:hidden">
+        {questions.map((eq) => {
+          const isRemoving = loadingKeys.has(`remove:${eq.question.id}`);
+          return (
+            <div key={eq.id} className={`rounded-lg border bg-card p-3 space-y-1.5 ${isRemoving ? 'opacity-50' : ''}`}>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium line-clamp-2 flex-1">
+                  {eq.sortOrder}. {eq.question.title}
+                </p>
+                {isDraft && (
+                  <Button size="icon" variant="ghost" className="h-8 w-8 shrink-0" disabled={isRemoving || isAnyLoading} onClick={() => onRemove(eq.question.id)}>
+                    {isRemoving ? <Spinner size="sm" /> : <Trash2 className="h-4 w-4 text-destructive" />}
+                  </Button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="outline" className="text-[10px]">{eq.question.type.replace('_', ' ')}</Badge>
+                <Badge variant="outline" className="text-[10px]">{eq.question.difficulty}</Badge>
+                <Badge variant="secondary" className="text-[10px] font-mono">{Number(eq.marks)}m</Badge>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Desktop Table View ── */}
+      <div className="hidden md:block overflow-x-auto">
       <Table>
         <TableHeader>
           <TableRow>
@@ -117,7 +145,8 @@ export function ExamQuestionsTable({
           })}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }
 

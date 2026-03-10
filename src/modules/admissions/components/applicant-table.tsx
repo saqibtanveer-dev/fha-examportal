@@ -122,6 +122,34 @@ export function ApplicantTable({
       )}
 
       <div className="overflow-x-auto rounded-md border">
+        {/* ── Mobile Card View ── */}
+        <div className="space-y-2 p-2 md:hidden">
+          {applicants.map((a) => (
+            <div key={a.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Checkbox checked={selectedIds.has(a.id)} onCheckedChange={() => toggleSelect(a.id)} />
+                <div className="min-w-0 flex-1" onClick={() => onViewDetail?.(a.id)}>
+                  <p className="text-sm font-medium truncate">{a.firstName} {a.lastName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{a.email}</p>
+                </div>
+                <ApplicantStatusBadge status={a.status} />
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                {a.applicationNumber && <span className="font-mono">{a.applicationNumber}</span>}
+                <span className="font-mono flex items-center gap-0.5"><KeyRound className="h-2.5 w-2.5" />{a.accessToken}</span>
+                {a.result && (
+                  <span className={a.result.isPassed ? 'text-green-600' : 'text-red-600'}>
+                    {a.result.obtainedMarks}/{a.result.totalMarks} ({Number(a.result.percentage).toFixed(1)}%)
+                    {a.result.rank && ` #${a.result.rank}`}
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Desktop Table View ── */}
+        <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -219,6 +247,7 @@ export function ApplicantTable({
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

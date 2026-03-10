@@ -128,7 +128,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
 
       {/* ── Mobile Sidebar (Sheet Drawer) ───────────────────────── */}
       <Sheet open={mobileOpen} onOpenChange={(open) => !open && onMobileClose()}>
-        <SheetContent side="left" className="w-72 p-0">
+        <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle className="flex items-center gap-2">
               <GraduationCap className="h-6 w-6 text-primary" />

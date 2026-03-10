@@ -67,7 +67,51 @@ export function QuestionPerformanceTable({ questions }: { questions: QuestionAna
         <CardDescription>Click column headers to sort</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto rounded-md border">
+        {/* ── Mobile Card View ── */}
+        <div className="space-y-2 md:hidden">
+          {sorted.map((q) => (
+            <div key={q.examQuestionId} className="rounded-lg border bg-card p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">Q{q.questionNumber}</p>
+                <span className={cn(
+                  'text-sm font-medium',
+                  q.accuracyRate >= 70 ? 'text-green-600' :
+                  q.accuracyRate >= 40 ? 'text-amber-600' : 'text-red-600',
+                )}>
+                  {q.accuracyRate.toFixed(1)}% accuracy
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground line-clamp-2">{q.title}</p>
+              <div className="flex flex-wrap gap-1.5">
+                <Badge variant="secondary" className="text-[10px]">{q.type.replace('_', ' ')}</Badge>
+                <Badge variant="outline" className="text-[10px]">{q.maxMarks}m</Badge>
+                {getDifficultyBadge(q.difficultyIndex)}
+                {getDiscriminationBadge(q.discriminationIndex)}
+              </div>
+              <div className="grid grid-cols-4 gap-1 text-center text-[10px]">
+                <div className="rounded bg-green-50 dark:bg-green-950/30 p-1">
+                  <p className="font-medium text-green-700 dark:text-green-400">{q.correctCount}</p>
+                  <p className="text-muted-foreground">Correct</p>
+                </div>
+                <div className="rounded bg-amber-50 dark:bg-amber-950/30 p-1">
+                  <p className="font-medium text-amber-700 dark:text-amber-400">{q.partialCount}</p>
+                  <p className="text-muted-foreground">Partial</p>
+                </div>
+                <div className="rounded bg-red-50 dark:bg-red-950/30 p-1">
+                  <p className="font-medium text-red-700 dark:text-red-400">{q.wrongCount}</p>
+                  <p className="text-muted-foreground">Wrong</p>
+                </div>
+                <div className="rounded bg-muted p-1">
+                  <p className="font-medium">{q.unansweredCount}</p>
+                  <p className="text-muted-foreground">Skip</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Desktop Table View ── */}
+        <div className="hidden md:block overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>

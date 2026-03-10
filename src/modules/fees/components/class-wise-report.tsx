@@ -68,7 +68,28 @@ export function ClassWiseReport() {
           <CardTitle className="text-base">Class-wise Fee Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-md border">
+          {/* ── Mobile Card View ── */}
+          <div className="space-y-2 md:hidden">
+            {(classSummary ?? []).map((c) => (
+              <div key={c.classId} className="rounded-lg border bg-card p-3 space-y-1.5 cursor-pointer active:bg-muted" onClick={() => drillToSections(c.classId, c.className)}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">{c.className}</p>
+                  <div className="flex items-center gap-1.5">
+                    {getCollectionBadge(c.collectionPercentage)}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{c.studentCount} students</span>
+                  <span>Due: <span className="font-mono text-foreground">{formatCurrency(c.totalDue)}</span></span>
+                  <span>Paid: <span className="font-mono text-foreground">{formatCurrency(c.totalCollected)}</span></span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Desktop Table View ── */}
+          <div className="hidden md:block overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -114,7 +135,28 @@ export function ClassWiseReport() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto rounded-md border">
+          {/* ── Mobile Card View ── */}
+          <div className="space-y-2 md:hidden">
+            {(sectionSummary ?? []).map((s) => (
+              <div key={s.sectionId} className="rounded-lg border bg-card p-3 space-y-1.5 cursor-pointer active:bg-muted" onClick={() => drillToStudents(s.sectionId)}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">{s.sectionName}</p>
+                  <div className="flex items-center gap-1.5">
+                    {getCollectionBadge(s.collectionPercentage)}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <span>{s.studentCount} students</span>
+                  <span>Due: <span className="font-mono text-foreground">{formatCurrency(s.totalDue)}</span></span>
+                  <span>Paid: <span className="font-mono text-foreground">{formatCurrency(s.totalCollected)}</span></span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Desktop Table View ── */}
+          <div className="hidden md:block overflow-x-auto rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -163,7 +205,29 @@ export function ClassWiseReport() {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto rounded-md border">
+        {/* ── Mobile Card View ── */}
+        <div className="space-y-2 md:hidden">
+          {(studentSummary ?? []).map((s) => (
+            <div key={s.studentProfileId} className="rounded-lg border bg-card p-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium truncate">{s.studentName}</p>
+                  <p className="text-xs text-muted-foreground">{s.rollNumber} &middot; {s.sectionName}</p>
+                </div>
+                <Badge variant={s.status === 'PAID' ? 'default' : s.status === 'PARTIAL' ? 'secondary' : 'destructive'}>
+                  {s.status}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-muted-foreground">Balance: <span className="font-mono text-foreground">{formatCurrency(s.balance)}</span></span>
+                <span className="text-muted-foreground">Paid: <span className="font-mono text-foreground">{formatCurrency(s.totalPaid)}</span></span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Desktop Table View ── */}
+        <div className="hidden md:block overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>

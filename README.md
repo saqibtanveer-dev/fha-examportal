@@ -35,7 +35,3 @@ The easiest way to deploy your Next.js app is to use the [Vercel Platform](https
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
 
-
-
-khyal rakhna brutally deeply is project ko expesically brutally deeply fee module ko full production grade aur full reliable bnana hy future me chal kr iss system ko use krny sy koi issue na generate ho aur payments k msail pyda na hon
-full reliability chahiya fee module ki 

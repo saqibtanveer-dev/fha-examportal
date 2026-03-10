@@ -78,7 +78,70 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
 
   return (
   <>
-    <div className="overflow-x-auto rounded-md border">
+    {/* ── Mobile Card View ──────────────────────────────────── */}
+    <div className="space-y-3 md:hidden">
+      {users.map((user) => (
+        <div key={user.id} className="rounded-lg border bg-card p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">
+                {user.firstName} {user.lastName}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            </div>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <Badge variant={user.isActive ? 'default' : 'destructive'} className="text-[10px] px-1.5">
+                {user.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditingUser(user)}>
+                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                  </DropdownMenuItem>
+                  {user.role === 'FAMILY' && user.familyProfile && (
+                    <DropdownMenuItem onClick={() => setFamilyLinkUser(user)}>
+                      <Link2 className="mr-2 h-4 w-4" /> Manage Children
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem onClick={() => handleToggleActive(user.id)}>
+                    <Power className="mr-2 h-4 w-4" /> {user.isActive ? 'Deactivate' : 'Activate'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(user.id)}>
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <Badge variant={roleBadgeVariant[user.role] ?? 'outline'} className="text-[10px]">{user.role}</Badge>
+            {user.role === 'STUDENT' && user.studentProfile && (
+              <span className="text-[10px] text-muted-foreground">
+                {user.studentProfile.class?.name}
+                {user.studentProfile.section && ` - ${user.studentProfile.section.name}`}
+                {user.studentProfile.rollNumber && ` (Roll: ${user.studentProfile.rollNumber})`}
+              </span>
+            )}
+            {user.role === 'TEACHER' && user.teacherProfile && (
+              <span className="text-[10px] text-muted-foreground">ID: {user.teacherProfile.employeeId}</span>
+            )}
+            {user.role === 'FAMILY' && user.familyProfile && (
+              <span className="text-[10px] text-muted-foreground">
+                {user.familyProfile.relationship} · {user.familyProfile.studentLinks.length} child{user.familyProfile.studentLinks.length !== 1 ? 'ren' : ''}
+              </span>
+            )}
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* ── Desktop Table View ────────────────────────────────── */}
+    <div className="hidden md:block overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

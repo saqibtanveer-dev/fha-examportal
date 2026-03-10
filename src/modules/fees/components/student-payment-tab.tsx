@@ -111,7 +111,31 @@ export function StudentPaymentTab() {
             onClear={() => { setStudentId(''); setStudentLabel(''); setAssignments([]); resetForm(); }}
           />
           {assignments.length > 0 && (
-            <div className="overflow-x-auto rounded-md border">
+            <>
+              {/* ── Mobile Card View ── */}
+              <div className="space-y-2 md:hidden">
+                {assignments.map((a) => (
+                  <div
+                    key={a.id}
+                    className={`rounded-lg border p-3 space-y-1 cursor-pointer ${selectedId === a.id ? 'bg-muted ring-2 ring-primary' : 'bg-card'}`}
+                    onClick={() => setSelectedId(a.id)}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">{formatMonth(a.generatedForMonth)}</p>
+                      <FeeStatusBadge status={a.status} />
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-mono">{formatCurrency(a.balanceAmount)}</span>
+                      <Button size="sm" variant="ghost" className="h-6 px-2" onClick={(e) => { e.stopPropagation(); setHistoryAssignmentId(a.id); }}>
+                        <Receipt className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Desktop Table View ── */}
+              <div className="hidden md:block overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -137,7 +161,8 @@ export function StudentPaymentTab() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

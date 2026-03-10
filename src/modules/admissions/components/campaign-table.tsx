@@ -76,6 +76,28 @@ export function CampaignTable({ campaigns }: Props) {
   return (
     <>
       <div className="overflow-x-auto rounded-md border">
+        {/* ── Mobile Card View ── */}
+        <div className="space-y-2 p-2 md:hidden">
+          {campaigns.map((c) => (
+            <div key={c.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <Link href={ROUTES.ADMIN_ADMISSIONS.CAMPAIGN_DETAIL(c.id)} className="text-sm font-medium hover:underline truncate flex-1">
+                  {c.name}
+                </Link>
+                <CampaignStatusBadge status={c.status} />
+              </div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                <span className="capitalize">{c.type.replace('_', ' ').toLowerCase()}</span>
+                <span>{c._count?.applicants ?? 0} applicants</span>
+                <span>{c.testDuration}min</span>
+                {c.hasScholarship && <Trophy className="h-3 w-3 text-yellow-500" />}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* ── Desktop Table View ── */}
+        <div className="hidden md:block">
         <Table>
           <TableHeader>
             <TableRow>
@@ -160,6 +182,7 @@ export function CampaignTable({ campaigns }: Props) {
             ))}
           </TableBody>
         </Table>
+        </div>
       </div>
 
       <ConfirmDialog

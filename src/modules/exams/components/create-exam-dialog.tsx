@@ -50,7 +50,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
         </DialogHeader>
         <form action={form.handleSubmit} className="space-y-4">
           {/* Delivery Mode Toggle */}
-          <div className="flex items-center gap-3 rounded-lg border p-3">
+          <div className="flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-center sm:gap-3">
             <Label className="text-sm font-medium">Delivery Mode:</Label>
             <div className="flex gap-2">
               <Button
@@ -59,6 +59,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
                 size="sm"
                 onClick={() => form.setDeliveryMode('ONLINE')}
                 disabled={form.isPending}
+                className="flex-1 sm:flex-none"
               >
                 Online
               </Button>
@@ -68,6 +69,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
                 size="sm"
                 onClick={() => form.setDeliveryMode('WRITTEN')}
                 disabled={form.isPending}
+                className="flex-1 sm:flex-none"
               >
                 Written (Paper)
               </Button>
@@ -169,25 +171,27 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
           {/* Class Assignment */}
           <div className="space-y-2">
             <Label>Assign to Sections ({form.selectedSections.length} selected)</Label>
-            <div className="space-y-1">
+            <div className="space-y-2">
               {classes.map((c) => (
-                <div key={c.id} className="flex flex-wrap gap-2 items-center">
-                  <span className="text-sm font-medium w-16">{c.name}:</span>
-                  {c.sections.map((s) => {
-                    const isChecked = form.selectedSections.some((x) => x.classId === c.id && x.sectionId === s.id);
-                    return (
-                      <label key={s.id} className="flex items-center gap-1 cursor-pointer">
-                        <Checkbox
-                          checked={isChecked}
-                          onCheckedChange={(checked) => {
-                            if (checked) form.setSelectedSections((p) => [...p, { classId: c.id, sectionId: s.id }]);
-                            else form.setSelectedSections((p) => p.filter((x) => !(x.classId === c.id && x.sectionId === s.id)));
-                          }}
-                        />
-                        <span className="text-sm">{s.name}</span>
-                      </label>
-                    );
-                  })}
+                <div key={c.id} className="space-y-1">
+                  <span className="text-sm font-medium">{c.name}:</span>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1.5 pl-1">
+                    {c.sections.map((s) => {
+                      const isChecked = form.selectedSections.some((x) => x.classId === c.id && x.sectionId === s.id);
+                      return (
+                        <label key={s.id} className="flex items-center gap-1.5 cursor-pointer">
+                          <Checkbox
+                            checked={isChecked}
+                            onCheckedChange={(checked) => {
+                              if (checked) form.setSelectedSections((p) => [...p, { classId: c.id, sectionId: s.id }]);
+                              else form.setSelectedSections((p) => p.filter((x) => !(x.classId === c.id && x.sectionId === s.id)));
+                            }}
+                          />
+                          <span className="text-sm">{s.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
@@ -201,7 +205,7 @@ export function CreateExamDialog({ open, onOpenChange, subjects, classes, academ
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => { form.resetForm(); onOpenChange(false); }}>Cancel</Button>
             <Button type="submit" disabled={form.isPending || !form.subjectId || form.selectedQuestions.length === 0 || form.selectedSections.length === 0}>
               {form.isPending && <Spinner size="sm" className="mr-2" />}Create Exam

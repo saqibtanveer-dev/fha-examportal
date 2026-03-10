@@ -62,7 +62,7 @@ export function AuditLogClient({ result }: Props) {
         breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Audit Log' }]}
       />
 
-      <form onSubmit={handleSearch} className="flex gap-2 max-w-sm">
+      <form onSubmit={handleSearch} className="flex gap-2 max-w-full sm:max-w-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -80,7 +80,28 @@ export function AuditLogClient({ result }: Props) {
       {result.data.length === 0 ? (
         <EmptyState icon={<Shield className="h-12 w-12 text-muted-foreground" />} title="No logs" description="No audit entries found." />
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <>
+          {/* ── Mobile Card View ──────────────────────────────── */}
+          <div className="space-y-2 md:hidden">
+            {result.data.map((log) => (
+              <div key={log.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <Badge variant="outline" className="text-[10px]">{log.action}</Badge>
+                  <span className="text-[10px] text-muted-foreground">{formatDateTime(log.createdAt)}</span>
+                </div>
+                <p className="text-xs">
+                  {log.entityType} <span className="text-muted-foreground">({log.entityId.slice(0, 8)})</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {log.user ? `${log.user.firstName} ${log.user.lastName}` : '—'}
+                  {log.ipAddress && ` · ${log.ipAddress}`}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* ── Desktop Table View ────────────────────────────── */}
+          <div className="hidden md:block overflow-x-auto rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
@@ -114,6 +135,7 @@ export function AuditLogClient({ result }: Props) {
             </TableBody>
           </Table>
         </div>
+        </>
       )}
 
       {/* Pagination */}

@@ -128,7 +128,50 @@ export function QuestionTable({ questions }: Props) {
 
   return (
   <>
-    <div className="overflow-x-auto rounded-md border">
+    {/* ── Mobile Card View ──────────────────────────────────── */}
+    <div className="space-y-2 md:hidden">
+      {questions.map((q) => {
+        const qPending = isLoading(q.id);
+        return (
+          <div key={q.id} className={`rounded-lg border bg-card p-3 space-y-2 ${qPending ? 'opacity-50' : ''}`}>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-medium line-clamp-2 break-words flex-1">{q.title}</p>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" disabled={qPending}>
+                    {qPending ? <Spinner size="sm" /> : <MoreHorizontal className="h-4 w-4" />}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditingQuestion(q)}>
+                    <Pencil className="mr-2 h-4 w-4" />Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDuplicate(q.id)}>
+                    <Copy className="mr-2 h-4 w-4" />Duplicate
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm({ id: q.id, title: q.title })}>
+                    <Trash2 className="mr-2 h-4 w-4" />Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px] px-1.5">{q.subject.code}</Badge>
+              <Badge variant="secondary" className="text-[10px] px-1.5">{typeLabels[q.type] ?? q.type}</Badge>
+              <Badge className={`${difficultyColors[q.difficulty] ?? ''} text-[10px] px-1.5`} variant="outline">
+                {q.difficulty}
+              </Badge>
+              <span className="text-xs text-muted-foreground">{Number(q.marks)} marks</span>
+              <span className="text-xs text-muted-foreground">· {q._count.examQuestions} exams</span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* ── Desktop Table View ────────────────────────────────── */}
+    <div className="hidden md:block overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

@@ -80,7 +80,25 @@ export function StudentFeeSection({ studentProfileId }: Props) {
               No fees assigned for this student.
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-md border">
+            <>
+              {/* ── Mobile Card View ── */}
+              <div className="space-y-2 md:hidden">
+                {assignments.map((a) => (
+                  <div key={a.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">{formatMonth(a.generatedForMonth)}</p>
+                      <FeeStatusBadge status={a.status} />
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Balance: <span className="font-mono text-foreground">{formatCurrency(a.balanceAmount)}</span></span>
+                      <span className="text-muted-foreground">Paid: <span className="font-mono text-foreground">{formatCurrency(a.paidAmount)}</span></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Desktop Table View ── */}
+              <div className="hidden md:block overflow-x-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -105,7 +123,8 @@ export function StudentFeeSection({ studentProfileId }: Props) {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

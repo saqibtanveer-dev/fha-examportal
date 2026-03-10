@@ -86,7 +86,26 @@ export function PrincipalFeesView({ overview, classWise, defaulters }: Props) {
               {classWise.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-4 text-center">No data available.</p>
               ) : (
-                <div className="overflow-x-auto rounded-md border">
+                <>
+                  {/* ── Mobile Card View ── */}
+                  <div className="space-y-2 md:hidden">
+                    {classWise.map((c) => (
+                      <div key={c.classId} className="rounded-lg border bg-card p-3 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm font-medium">{c.className}</p>
+                          <CollectionBadge pct={c.collectionPercentage} />
+                        </div>
+                        <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                          <span>{c.studentCount} students</span>
+                          <span>Due: <span className="font-mono text-foreground">{formatCurrency(c.totalDue)}</span></span>
+                          <span>Paid: <span className="font-mono text-foreground">{formatCurrency(c.totalCollected)}</span></span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ── Desktop Table View ── */}
+                  <div className="hidden md:block overflow-x-auto rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -113,7 +132,8 @@ export function PrincipalFeesView({ overview, classWise, defaulters }: Props) {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -130,7 +150,30 @@ export function PrincipalFeesView({ overview, classWise, defaulters }: Props) {
                   No defaulters — all fees are up to date!
                 </p>
               ) : (
-                <div className="overflow-x-auto rounded-md border">
+                <>
+                  {/* ── Mobile Card View ── */}
+                  <div className="space-y-2 md:hidden">
+                    {defaulters.map((d) => {
+                      const daysOverdue = Math.max(0, Math.floor((Date.now() - new Date(d.dueDate).getTime()) / 86400000));
+                      return (
+                        <div key={d.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-medium truncate">{d.studentProfile.user.firstName} {d.studentProfile.user.lastName}</p>
+                              <p className="text-xs text-muted-foreground">{d.studentProfile.class?.name ?? '—'} &middot; {d.generatedForMonth}</p>
+                            </div>
+                            <Badge variant={daysOverdue > 30 ? 'destructive' : 'secondary'}>{daysOverdue}d</Badge>
+                          </div>
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Balance: <span className="font-mono text-foreground">{formatCurrency(d.balanceAmount)}</span></span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* ── Desktop Table View ── */}
+                  <div className="hidden md:block overflow-x-auto rounded-md border">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -167,7 +210,8 @@ export function PrincipalFeesView({ overview, classWise, defaulters }: Props) {
                       })}
                     </TableBody>
                   </Table>
-                </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

@@ -59,7 +59,38 @@ const tierLabels: Record<string, string> = {
 
 export function MeritListTable({ entries }: Props) {
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <>
+      {/* ── Mobile Card View ── */}
+      <div className="space-y-2 md:hidden">
+        {entries.map((e) => (
+          <div key={e.id} className={`rounded-lg border bg-card p-3 space-y-1.5 ${!e.isPassed ? 'opacity-60' : ''}`}>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {e.rank != null && e.rank <= 3 && (
+                  <Trophy className={`h-4 w-4 shrink-0 ${e.rank === 1 ? 'text-yellow-500' : e.rank === 2 ? 'text-gray-400' : 'text-amber-700'}`} />
+                )}
+                <p className="text-sm font-medium truncate">{e.applicant.firstName} {e.applicant.lastName}</p>
+              </div>
+              <span className="font-mono font-bold text-sm shrink-0">#{e.rank ?? '—'}</span>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className={e.isPassed ? 'text-green-600 font-medium' : 'text-red-600'}>
+                {Number(e.obtainedMarks)}/{Number(e.totalMarks)} ({Number(e.percentage).toFixed(1)}%)
+              </span>
+              <ApplicantStatusBadge status={e.applicant.status} />
+              {e.applicant.scholarship && (
+                <span className="flex items-center gap-0.5">
+                  <Medal className={`h-3 w-3 ${tierColors[e.applicant.scholarship.tier] ?? ''}`} />
+                  {tierLabels[e.applicant.scholarship.tier] ?? e.applicant.scholarship.tier}
+                </span>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop Table View ── */}
+      <div className="hidden md:block overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -118,6 +149,7 @@ export function MeritListTable({ entries }: Props) {
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }

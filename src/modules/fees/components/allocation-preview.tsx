@@ -48,6 +48,27 @@ export function AllocationPreview({ preview, isPending, onConfirm }: Props) {
               {child.childName} ({child.className}) — {formatCurrency(child.allocatedAmount)}
             </h4>
             <div className="overflow-x-auto rounded-md border">
+              {/* ── Mobile Card View ── */}
+              <div className="space-y-2 p-2 md:hidden">
+                {child.assignmentAllocations.map((aa) => (
+                  <div key={aa.assignmentId} className="rounded-lg border bg-card p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium">{formatMonth(aa.periodLabel)}</p>
+                      <Badge variant={aa.status === 'CLEARED' ? 'default' : aa.status === 'PARTIAL' ? 'secondary' : 'outline'}>
+                        {aa.status}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 text-xs text-center">
+                      <div><p className="text-muted-foreground">Previous</p><p className="font-mono">{formatCurrency(aa.previousBalance)}</p></div>
+                      <div><p className="text-muted-foreground">Allocated</p><p className="font-mono text-green-700">{formatCurrency(aa.allocatedAmount)}</p></div>
+                      <div><p className="text-muted-foreground">Balance</p><p className="font-mono">{formatCurrency(aa.newBalance)}</p></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Desktop Table View ── */}
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -74,6 +95,7 @@ export function AllocationPreview({ preview, isPending, onConfirm }: Props) {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </div>
         ))}

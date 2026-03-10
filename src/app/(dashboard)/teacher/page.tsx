@@ -31,7 +31,7 @@ export default async function TeacherDashboardPage() {
   return (
     <div className="space-y-6">
       <PageHeader title="Teacher Dashboard" description="Manage your questions and exams" />
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card) => (
           <Card key={card.title}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">

@@ -48,6 +48,51 @@ export function DefaulterReport() {
           </p>
         ) : (
           <div className="overflow-x-auto rounded-md border">
+            {/* ── Mobile Card View ── */}
+            <div className="space-y-2 p-2 md:hidden">
+              {defaulters.map((d: {
+                id: string;
+                generatedForMonth: string;
+                totalAmount: number;
+                balanceAmount: number;
+                dueDate: string;
+                studentProfile: {
+                  rollNumber: string;
+                  user: { firstName: string; lastName: string };
+                  class: { name: string } | null;
+                  section: { name: string } | null;
+                };
+              }) => {
+                const daysOverdue = Math.max(
+                  0,
+                  Math.floor((Date.now() - new Date(d.dueDate).getTime()) / 86400000),
+                );
+                return (
+                  <div key={d.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate">
+                          {d.studentProfile.user.firstName} {d.studentProfile.user.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {d.studentProfile.class?.name} {d.studentProfile.section?.name} &middot; {d.studentProfile.rollNumber}
+                        </p>
+                      </div>
+                      <Badge variant={daysOverdue > 30 ? 'destructive' : 'secondary'}>
+                        {daysOverdue}d overdue
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">{formatMonth(d.generatedForMonth)}</span>
+                      <span className="font-mono font-medium">Balance: {formatCurrency(d.balanceAmount)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ── Desktop Table View ── */}
+            <div className="hidden md:block">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -99,6 +144,7 @@ export function DefaulterReport() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </div>
         )}
       </CardContent>

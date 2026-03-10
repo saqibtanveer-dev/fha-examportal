@@ -70,7 +70,51 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
 
   return (
   <>
-    <div className="overflow-x-auto rounded-md border">
+    {/* ── Mobile Card View ──────────────────────────────────── */}
+    <div className="space-y-2 md:hidden">
+      {subjects.map((subj) => (
+        <div key={subj.id} className="rounded-lg border bg-card p-3 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{subj.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {subj.code} · {subj.department.name}
+              </p>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <Badge variant={subj.isActive ? 'default' : 'destructive'} className="text-[10px] px-1.5">
+                {subj.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setEditingSubject(subj)}>
+                    <Pencil className="mr-2 h-4 w-4" />Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(subj.id)}>
+                    <Trash2 className="mr-2 h-4 w-4" />Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+            <span>{subj._count.questions} questions</span>
+            <span>·</span>
+            <span>{subj._count.exams} exams</span>
+            <span>·</span>
+            <span>{subj._count.subjectClassLinks} classes</span>
+          </div>
+        </div>
+      ))}
+    </div>
+
+    {/* ── Desktop Table View ────────────────────────────────── */}
+    <div className="hidden md:block overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>

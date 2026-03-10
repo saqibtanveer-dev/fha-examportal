@@ -37,6 +37,26 @@ export function StructureTable({ structures }: Props) {
               {className}
             </h3>
             <div className="overflow-x-auto rounded-md border">
+              {/* ── Mobile Card View ── */}
+              <div className="space-y-2 p-2 md:hidden">
+                {items.map((s) => (
+                  <div key={s.id} className="rounded-lg border bg-card p-3 space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-medium truncate">{s.category.name}</p>
+                      <Badge variant={s.isActive ? 'default' : 'destructive'}>
+                        {s.isActive ? 'Active' : 'Inactive'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>{FREQUENCY_LABELS[s.category.frequency] ?? s.category.frequency}</span>
+                      <span className="font-mono font-medium text-foreground">{formatCurrency(s.amount)}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* ── Desktop Table View ── */}
+              <div className="hidden md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -61,6 +81,7 @@ export function StructureTable({ structures }: Props) {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             </div>
           </div>
         ))}

@@ -147,7 +147,27 @@ export function FeesOverviewView({ overview, classSummary, settings }: Props) {
             <CardTitle>Class-wise Collection</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="overflow-x-auto">
+            {/* ── Mobile Card View ── */}
+            <div className="space-y-2 md:hidden">
+              {classSummary.map((cs) => (
+                <div key={cs.classId} className="rounded-lg border bg-card p-3 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-medium">{cs.className}</p>
+                    <Badge variant={cs.collectionPercentage >= 80 ? 'default' : cs.collectionPercentage >= 50 ? 'secondary' : 'destructive'}>
+                      {cs.collectionPercentage}%
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>{cs.studentCount} students</span>
+                    <span>Due: <span className="font-mono text-foreground">{formatCurrency(cs.totalDue)}</span></span>
+                    <span>Paid: <span className="font-mono text-foreground">{formatCurrency(cs.totalCollected)}</span></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* ── Desktop Table View ── */}
+            <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

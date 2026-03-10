@@ -173,7 +173,7 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
           {/* ── Teacher Profile Fields ── */}
           {role === 'TEACHER' && <TeacherFormFields disabled={isPending} />}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
               Cancel
             </Button>

@@ -40,7 +40,32 @@ export function ResultsTable({ results, viewMode = 'student', examId, detailHref
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border">
+    <>
+      {/* ── Mobile Card View ── */}
+      <div className="space-y-2 md:hidden">
+        {results.map((r) => (
+          <Link key={r.id} href={getDetailHref(r)} className="block rounded-lg border bg-card p-3 space-y-1.5 active:bg-muted">
+            {isTeacher && (
+              <p className="text-xs text-muted-foreground">{r.student.firstName} {r.student.lastName}</p>
+            )}
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium line-clamp-1 flex-1">{r.exam.title}</p>
+              <Badge variant={r.isPassed ? 'default' : 'destructive'}>
+                {r.isPassed ? 'Passed' : 'Failed'}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span><Badge variant="outline" className="text-[10px]">{r.exam.subject.code}</Badge></span>
+              <span className="font-mono">{Number(r.obtainedMarks)}/{Number(r.totalMarks)}</span>
+              <span>{formatPercentage(Number(r.percentage))}</span>
+              {r.grade && <Badge variant="secondary" className="text-[10px]">{r.grade}</Badge>}
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* ── Desktop Table View ── */}
+      <div className="hidden md:block overflow-x-auto rounded-md border">
       <Table>
         <TableHeader>
           <TableRow>
@@ -102,6 +127,7 @@ export function ResultsTable({ results, viewMode = 'student', examId, detailHref
           ))}
         </TableBody>
       </Table>
-    </div>
+      </div>
+    </>
   );
 }

@@ -12,10 +12,6 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
-// ============================================
-// Execute Full Year Transition
-// ============================================
-
 export const executeYearTransitionAction = safeAction(async function executeYearTransitionAction(
   input: YearTransitionInput,
 ): Promise<ActionResult<{ promoted: number; graduated: number; heldBack: number }>> {
@@ -233,10 +229,6 @@ export const executeYearTransitionAction = safeAction(async function executeYear
     data: { promoted: totalPromoted, graduated: totalGraduated, heldBack: totalHeldBack },
   };
 });
-
-// ============================================
-// Undo Year Transition (Emergency Rollback)
-// ============================================
 
 export const undoYearTransitionAction = safeAction(async function undoYearTransitionAction(
   academicSessionId: string,

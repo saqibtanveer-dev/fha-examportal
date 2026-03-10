@@ -1,11 +1,10 @@
 export { AttendanceStatusBadge } from './attendance-status-badge';
+export { AttendanceStatusSelect } from './attendance-status-select';
 export { AttendanceSummaryCard } from './attendance-summary-card';
 export { DailyAttendanceMarker } from './daily-attendance-marker';
 export { SubjectAttendanceMarker } from './subject-attendance-marker';
 export { AttendanceCalendar } from './attendance-calendar';
 export { AttendanceFiltersBar } from './attendance-filters';
-export {
-  DailyAttendanceTable,
-  SubjectAttendanceTable,
-  StudentWiseAttendanceTable,
-} from './attendance-tables';
+export { DailyAttendanceTable } from './daily-attendance-table';
+export { SubjectAttendanceTable } from './subject-attendance-table';
+export { StudentWiseAttendanceTable } from './student-wise-attendance-table';

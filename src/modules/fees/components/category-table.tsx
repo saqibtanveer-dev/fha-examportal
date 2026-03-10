@@ -51,7 +51,48 @@ export function CategoryTable({ categories }: Props) {
 
   return (
     <>
-      <div className="overflow-x-auto rounded-md border">
+      {/* ── Mobile Card View ──────────────────────────────────── */}
+      <div className="space-y-2 md:hidden">
+        {categories.map((cat) => (
+          <div key={cat.id} className="rounded-lg border bg-card p-3 space-y-2">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">{cat.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {FREQUENCY_LABELS[cat.frequency] ?? cat.frequency} · {cat._count?.structures ?? 0} structures
+                </p>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <Badge variant={cat.isActive ? 'default' : 'destructive'} className="text-[10px] px-1.5">
+                  {cat.isActive ? 'Active' : 'Inactive'}
+                </Badge>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setEditing(cat)}>
+                      <Pencil className="mr-2 h-4 w-4" />Edit
+                    </DropdownMenuItem>
+                    <DropdownMenuItem className="text-destructive" onClick={() => setDeleting(cat)}>
+                      <Trash2 className="mr-2 h-4 w-4" />Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+              {cat.isMandatory && <Badge variant="secondary" className="text-[10px]">Mandatory</Badge>}
+              {cat.isRefundable && <Badge variant="outline" className="text-[10px]">Refundable</Badge>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Desktop Table View ────────────────────────────────── */}
+      <div className="hidden md:block overflow-x-auto rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
