@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth-utils';
 import { prisma } from '@/lib/prisma';
 import { serialize } from '@/utils/serialize';
 import { safeFetchAction } from '@/lib/safe-action';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 export type StudentDashboardStats = {
   newExams: number;
@@ -57,9 +58,26 @@ export const fetchStudentDashboardStatsAction = safeFetchAction(async () : Promi
           },
         },
       },
+      select: { id: true, subjectId: true },
+    });
+
+    // Filter to only subjects the student is enrolled in
+    const sp = await prisma.studentProfile.findUnique({
+      where: { userId },
       select: { id: true },
     });
-    newExams = assignedExams.filter((e) => !attemptedIds.has(e.id)).length;
+    const currentSession = await prisma.academicSession.findFirst({
+      where: { isCurrent: true },
+      select: { id: true },
+    });
+    let visible: Set<string> | null = null;
+    if (sp && currentSession) {
+      visible = await getStudentVisibleSubjectIds(sp.id, studentProfile.classId, currentSession.id);
+    }
+
+    newExams = assignedExams.filter(
+      (e) => !attemptedIds.has(e.id) && (!visible || visible.has(e.subjectId)),
+    ).length;
   }
 
   return serialize({

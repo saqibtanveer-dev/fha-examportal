@@ -7,6 +7,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction, safeFetchAction } from '@/lib/safe-action';
+import { validateElectiveGroupConflict } from '@/lib/enrollment-helpers';
 import { z } from 'zod/v4';
 
 // ── Schemas ──
@@ -57,6 +58,19 @@ export const enrollStudentInSubjectAction = safeAction(
     });
     if (!link) return actionError('Subject is not linked to this class');
 
+    // Check elective group conflict — student can't take two subjects from same group
+    if (link.isElective) {
+      const conflict = await validateElectiveGroupConflict(
+        data.studentProfileId,
+        data.subjectId,
+        data.classId,
+        data.academicSessionId,
+      );
+      if (conflict) {
+        return actionError(`Student is already enrolled in "${conflict}" from the same elective group`);
+      }
+    }
+
     const enrollment = await prisma.studentSubjectEnrollment.upsert({
       where: {
         studentProfileId_subjectId_academicSessionId: {
@@ -92,6 +106,21 @@ export const bulkEnrollStudentsAction = safeAction(
       where: { subjectId_classId: { subjectId: data.subjectId, classId: data.classId } },
     });
     if (!link) return actionError('Subject is not linked to this class');
+
+    // Validate elective group conflicts for all students
+    if (link.isElective) {
+      for (const studentProfileId of data.studentProfileIds) {
+        const conflict = await validateElectiveGroupConflict(
+          studentProfileId,
+          data.subjectId,
+          data.classId,
+          data.academicSessionId,
+        );
+        if (conflict) {
+          return actionError(`A student is already enrolled in "${conflict}" from the same elective group`);
+        }
+      }
+    }
 
     // Use a transaction for bulk upsert
     const results = await prisma.$transaction(
@@ -175,4 +204,28 @@ export const fetchEnrollmentsBySubjectAction = safeFetchAction(async (
     },
     orderBy: { studentProfile: { rollNumber: 'asc' } },
   });
+});
+
+/** Fetch elective groups for a class (server action wrapper) */
+export const fetchElectiveGroupsAction = safeFetchAction(async (
+  classId: string,
+  academicSessionId: string,
+) => {
+  await requireRole('ADMIN');
+
+  const { getElectiveGroupsForClass } = await import('./enrollment-queries');
+  return getElectiveGroupsForClass(classId, academicSessionId);
+});
+
+/** Fetch unassigned students for an elective group (server action wrapper) */
+export const fetchUnassignedStudentsAction = safeFetchAction(async (
+  classId: string,
+  sectionId: string,
+  electiveGroupName: string,
+  academicSessionId: string,
+) => {
+  await requireRole('ADMIN');
+
+  const { getUnassignedStudentsForElectiveGroup } = await import('./enrollment-queries');
+  return getUnassignedStudentsForElectiveGroup(classId, sectionId, electiveGroupName, academicSessionId);
 });

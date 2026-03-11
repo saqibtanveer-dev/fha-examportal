@@ -10,13 +10,13 @@ import { PageHeader, EmptyState, Spinner } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock } from 'lucide-react';
 import { TimetableGrid } from '@/modules/timetable/components';
-import { useActivePeriodSlots, useTimetableByClass } from '@/modules/timetable/hooks/use-timetable';
+import { useActivePeriodSlots } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import { fetchCurrentAcademicSessionAction } from '@/modules/attendance/attendance-fetch-actions';
+import { fetchTimetableForStudentAction } from '@/modules/timetable/timetable-fetch-actions';
 import { queryKeys } from '@/lib/query-keys';
 import { useSelectedChild } from '@/modules/family/hooks';
 import { ChildSelector } from './child-selector';
-import type { TimetableEntryWithRelations } from '@/modules/timetable/timetable.types';
 
 export function FamilyTimetableClient() {
   const { children, selectedChild, selectedChildId, isLoading: childrenLoading } = useSelectedChild();
@@ -30,15 +30,19 @@ export function FamilyTimetableClient() {
 
   const sessionId = (currentSession as Record<string, string> | null)?.id ?? '';
 
-  const { data: entries, isLoading: entriesLoading } = useTimetableByClass(
-    selectedChild?.classId ?? '',
-    selectedChild?.sectionId ?? '',
-    sessionId,
-    !!selectedChild && !!sessionId,
-  );
+  const { data: entries, isLoading: entriesLoading } = useQuery({
+    queryKey: [...queryKeys.timetable.byClass(selectedChild?.classId ?? '', selectedChild?.sectionId ?? ''), 'student', selectedChild?.studentProfileId],
+    queryFn: () => fetchTimetableForStudentAction(
+      selectedChild!.studentProfileId,
+      selectedChild!.classId,
+      selectedChild!.sectionId,
+      sessionId,
+    ),
+    enabled: !!selectedChild && !!sessionId,
+  });
 
   const grid = useMemo(
-    () => buildTimetableGrid(entries as unknown as TimetableEntryWithRelations[], periodSlots ?? []),
+    () => buildTimetableGrid(entries as never[], periodSlots ?? []),
     [entries, periodSlots],
   );
 

@@ -18,6 +18,8 @@ import { toast } from 'sonner';
 import { createTimetableEntryAction, updateTimetableEntryAction, deleteTimetableEntryAction } from '../timetable-entry-actions';
 import { ORDERED_DAYS, DAY_LABELS } from '../timetable.constants';
 import type { PeriodSlotListItem, TimetableEntryWithRelations } from '../timetable.types';
+import { Zap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 type SubjectOption = { id: string; name: string; code: string };
 type TeacherOption = { id: string; employeeId: string; user: { id: string; firstName: string; lastName: string } };
@@ -73,6 +75,12 @@ export function TimetableEntryForm({
     if (linkedSubjectIds.size === 0) return subjects;
     return subjects.filter((s) => linkedSubjectIds.has(s.id));
   }, [subjects, subjectClassLinks, classId]);
+
+  // Check if selected subject is elective
+  const selectedSubjectLink = useMemo(() => {
+    if (!subjectId) return null;
+    return subjectClassLinks.find((l) => l.subjectId === subjectId && l.classId === classId) ?? null;
+  }, [subjectId, subjectClassLinks, classId]);
 
   function handleSubmit() {
     if (!periodSlotId || !subjectId || !teacherProfileId) {
@@ -184,6 +192,12 @@ export function TimetableEntryForm({
                 ))}
               </SelectContent>
             </Select>
+            {selectedSubjectLink?.isElective && (
+              <Badge variant="outline" className="mt-1 gap-1 text-xs">
+                <Zap className="h-3 w-3 text-amber-500" />
+                Elective{selectedSubjectLink.electiveGroupName ? ` — ${selectedSubjectLink.electiveGroupName}` : ''}
+              </Badge>
+            )}
           </div>
 
           <div className="space-y-1.5">

@@ -138,6 +138,7 @@ const timetableEntryInclude = {
     select: { id: true, name: true, shortName: true, startTime: true, endTime: true, sortOrder: true },
   },
   academicSession: { select: { id: true, name: true } },
+  electiveSlotGroup: { select: { id: true, name: true } },
 } as const;
 
 export async function listTimetableEntriesByClass(
@@ -182,18 +183,47 @@ export async function getTimetableEntryById(id: string) {
   });
 }
 
-export async function getTimetableEntryBySlot(
+/**
+ * Get all timetable entries for a specific slot.
+ * Returns multiple entries for elective periods.
+ */
+export async function getTimetableEntriesBySlot(
   classId: string,
   sectionId: string,
   periodSlotId: string,
   dayOfWeek: DayOfWeek,
   academicSessionId: string,
 ) {
+  return prisma.timetableEntry.findMany({
+    where: {
+      classId,
+      sectionId,
+      periodSlotId,
+      dayOfWeek,
+      academicSessionId,
+      isActive: true,
+    },
+    include: timetableEntryInclude,
+  });
+}
+
+/**
+ * Get a specific timetable entry by its unique slot+subject combination.
+ */
+export async function getTimetableEntryBySlotAndSubject(
+  classId: string,
+  sectionId: string,
+  subjectId: string,
+  periodSlotId: string,
+  dayOfWeek: DayOfWeek,
+  academicSessionId: string,
+) {
   return prisma.timetableEntry.findUnique({
     where: {
-      classId_sectionId_periodSlotId_dayOfWeek_academicSessionId: {
+      classId_sectionId_subjectId_periodSlotId_dayOfWeek_academicSessionId: {
         classId,
         sectionId,
+        subjectId,
         periodSlotId,
         dayOfWeek,
         academicSessionId,

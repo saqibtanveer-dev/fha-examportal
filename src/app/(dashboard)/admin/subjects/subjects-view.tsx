@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { Plus, Zap, Shield } from 'lucide-react';
 import { PageHeader, EmptyState } from '@/components/shared';
 import { SubjectTable, CreateSubjectDialog } from '@/modules/subjects/components';
 
@@ -10,6 +11,8 @@ type SubjectClassLink = {
   id: string;
   classId: string;
   isActive: boolean;
+  isElective: boolean;
+  electiveGroupName: string | null;
   class: { id: string; name: string; grade: number };
 };
 
@@ -43,9 +46,21 @@ export function SubjectsView({ subjects, departments, allClasses }: Props) {
         description="Manage academic subjects and their class assignments"
         breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Subjects' }]}
         actions={
-          <Button onClick={() => setDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />Add Subject
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/subjects/elective-enrollment">
+                <Zap className="mr-1 h-4 w-4 text-amber-500" />Enrollment
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/subjects/integrity">
+                <Shield className="mr-1 h-4 w-4" />Integrity
+              </Link>
+            </Button>
+            <Button onClick={() => setDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />Add Subject
+            </Button>
+          </div>
         }
       />
       {subjects.length === 0 ? (

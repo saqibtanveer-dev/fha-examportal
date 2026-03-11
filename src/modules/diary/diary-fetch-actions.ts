@@ -21,6 +21,7 @@ import {
 import type { DiaryFilters, DiaryCoverageData, DiaryCoverageRow, DiaryStatsData } from './diary.types';
 import { getWorkingDays, normalizeDiaryDate, getTodayDateString } from './diary.utils';
 import { safeFetchAction } from '@/lib/safe-action';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 // ── Helpers ──
 
@@ -96,7 +97,16 @@ export const fetchStudentDiaryAction = safeFetchAction(async (
     endDate,
     subjectId,
   );
-  return serialize(entries);
+
+  // Filter out elective subjects the student is not enrolled in
+  const visibleSubjects = await getStudentVisibleSubjectIds(
+    studentProfile.id,
+    studentProfile.classId,
+    academicSessionId,
+  );
+  const filtered = entries.filter((e) => visibleSubjects.has(e.subjectId));
+
+  return serialize(filtered);
 });
 
 export const fetchStudentTodayDiaryAction = safeFetchAction(async () => {
@@ -115,7 +125,16 @@ export const fetchStudentTodayDiaryAction = safeFetchAction(async () => {
     academicSessionId,
     today,
   );
-  return serialize(entries);
+
+  // Filter out elective subjects the student is not enrolled in
+  const visibleSubjects = await getStudentVisibleSubjectIds(
+    studentProfile.id,
+    studentProfile.classId,
+    academicSessionId,
+  );
+  const filtered = entries.filter((e) => visibleSubjects.has(e.subjectId));
+
+  return serialize(filtered);
 });
 
 export const fetchMyStudentDiaryProfileAction = safeFetchAction(async () => {

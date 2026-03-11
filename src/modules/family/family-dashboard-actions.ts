@@ -9,6 +9,7 @@ import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
 import type { ChildDashboardStats, AllChildrenOverview } from './family.types';
 import { safeFetchAction } from '@/lib/safe-action';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 /**
  * Fetch dashboard stats for a single child.
@@ -172,12 +173,18 @@ async function fetchDiaryStats(
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
+  // Only count diary entries for subjects the student is enrolled in
+  const visibleSubjects = sessionId
+    ? await getStudentVisibleSubjectIds(studentProfileId, classId, sessionId)
+    : null;
+
   const whereClause = {
     classId,
     sectionId,
     status: 'PUBLISHED' as const,
     deletedAt: null,
     ...(sessionId ? { academicSessionId: sessionId } : {}),
+    ...(visibleSubjects ? { subjectId: { in: [...visibleSubjects] } } : {}),
   };
 
   const [totalEntries, readReceipts, todayEntries] = await Promise.all([

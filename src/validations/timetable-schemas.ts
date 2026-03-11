@@ -49,6 +49,8 @@ export const createTimetableEntrySchema = z.object({
   dayOfWeek: dayOfWeekEnum,
   academicSessionId: z.string().uuid('Invalid academic session'),
   room: z.string().max(50).optional(),
+  isElectiveSlot: z.boolean().default(false),
+  electiveSlotGroupId: z.string().uuid().optional(),
 });
 
 export type CreateTimetableEntryInput = z.infer<typeof createTimetableEntrySchema>;

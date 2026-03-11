@@ -24,6 +24,7 @@ import {
   getStudentsEnrolledInSubject,
   hasEnrollmentsForClass,
 } from '@/modules/subjects/enrollment-queries';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 // ============================================
 // HELPERS
@@ -108,13 +109,25 @@ export const fetchStudentSubjectAttendanceAction = safeFetchAction(
     }
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return [];
-    return serialize(await getSubjectAttendanceByStudent(
+    const records = await getSubjectAttendanceByStudent(
       studentProfileId,
       new Date(startDate + 'T00:00:00.000Z'),
       new Date(endDate + 'T00:00:00.000Z'),
       academicSessionId,
       subjectId,
-    ));
+    );
+    // Filter: only show attendance for subjects the student is enrolled in
+    if (session.user.role === 'STUDENT' || session.user.role === 'FAMILY') {
+      const student = await prisma.studentProfile.findUnique({
+        where: { id: studentProfileId },
+        select: { classId: true },
+      });
+      if (student) {
+        const visibleSubjects = await getStudentVisibleSubjectIds(studentProfileId, student.classId, academicSessionId);
+        return serialize(records.filter((r) => visibleSubjects.has(r.subjectId)));
+      }
+    }
+    return serialize(records);
   },
 );
 

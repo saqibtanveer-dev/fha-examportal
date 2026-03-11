@@ -8,6 +8,7 @@ import { prisma } from '@/lib/prisma';
 import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
 import type { ActionResult } from '@/types/action-result';
 import { safeFetchAction } from '@/lib/safe-action';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 /**
  * Fetch upcoming exams for a child.
@@ -27,6 +28,11 @@ export const fetchChildUpcomingExamsAction = safeFetchAction(async (
     return { success: false, error: 'Student not found' };
   }
 
+  const academicSession = await prisma.academicSession.findFirst({
+    where: { isCurrent: true },
+    select: { id: true },
+  });
+
   const now = new Date();
 
   const exams = await prisma.exam.findMany({
@@ -39,6 +45,7 @@ export const fetchChildUpcomingExamsAction = safeFetchAction(async (
       id: true,
       title: true,
       type: true,
+      subjectId: true,
       scheduledStartAt: true,
       totalMarks: true,
       subject: { select: { name: true } },
@@ -47,9 +54,20 @@ export const fetchChildUpcomingExamsAction = safeFetchAction(async (
     take: 20,
   });
 
+  // Filter out exams for elective subjects the child is not enrolled in
+  let filteredExams = exams;
+  if (academicSession) {
+    const visibleSubjects = await getStudentVisibleSubjectIds(
+      studentProfileId,
+      studentProfile.classId,
+      academicSession.id,
+    );
+    filteredExams = exams.filter((e) => visibleSubjects.has(e.subjectId));
+  }
+
   return {
     success: true,
-    data: exams.map((e) => ({
+    data: filteredExams.map((e) => ({
       examId: e.id,
       title: e.title,
       subject: e.subject.name,

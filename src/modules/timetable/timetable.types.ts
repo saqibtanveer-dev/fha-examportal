@@ -1,6 +1,7 @@
 import type {
   PeriodSlot,
   TimetableEntry,
+  ElectiveSlotGroup,
   Class,
   Section,
   Subject,
@@ -32,12 +33,31 @@ export type TimetableEntryWithRelations = TimetableEntry & {
   academicSession: Pick<AcademicSession, 'id' | 'name'>;
 };
 
-/** One cell in the timetable grid: day × period → entry */
-export type TimetableCell = {
+// ── Grid Cell Types (Discriminated Union) ──
+
+export type RegularCell = {
+  type: 'regular';
   dayOfWeek: DayOfWeek;
   periodSlotId: string;
-  entry: TimetableEntryWithRelations | null;
+  entry: TimetableEntryWithRelations;
 };
+
+export type ElectiveCell = {
+  type: 'elective';
+  dayOfWeek: DayOfWeek;
+  periodSlotId: string;
+  groupId: string;
+  groupName: string | null;
+  entries: TimetableEntryWithRelations[];
+};
+
+export type EmptyCell = {
+  type: 'empty';
+  dayOfWeek: DayOfWeek;
+  periodSlotId: string;
+};
+
+export type TimetableGridCell = RegularCell | ElectiveCell | EmptyCell;
 
 /** Full weekly timetable for a class/section */
 export type WeeklyTimetable = {
@@ -48,12 +68,17 @@ export type WeeklyTimetable = {
   academicSessionId: string;
   periodSlots: PeriodSlotListItem[];
   days: DayOfWeek[];
-  grid: Record<string, Record<string, TimetableEntryWithRelations | null>>;
-  // grid[dayOfWeek][periodSlotId] = entry | null
+  grid: Record<string, Record<string, TimetableGridCell>>;
+  // grid[dayOfWeek][periodSlotId] = cell
 };
 
 /** Teacher's daily schedule */
 export type TeacherDaySchedule = {
   dayOfWeek: DayOfWeek;
+  entries: TimetableEntryWithRelations[];
+};
+
+/** Elective slot group with related entries */
+export type ElectiveSlotGroupWithEntries = ElectiveSlotGroup & {
   entries: TimetableEntryWithRelations[];
 };

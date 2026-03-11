@@ -492,6 +492,7 @@ model Class {
   periodSlots          PeriodSlot[]         // class-specific period overrides
   studentSubjectEnrollments StudentSubjectEnrollment[]
   feeStructures        FeeStructure[]
+  electiveSlotGroups   ElectiveSlotGroup[]
 
   @@index([grade])
 }
@@ -519,6 +520,7 @@ model Section {
   subjectAttendance    SubjectAttendance[]
   diaryEntries         DiaryEntry[]
   datesheetEntries     DatesheetEntry[]
+  electiveSlotGroups   ElectiveSlotGroup[]
 
   @@unique([classId, name])
   @@index([classId])
@@ -832,6 +834,7 @@ model AcademicSession {
   feeAssignments    FeeAssignment[]
   feeSettings       FeeSettings?
   feeCredits        FeeCredit[]
+  electiveSlotGroups ElectiveSlotGroup[]
 
   @@index([isCurrent])
 }
@@ -1360,6 +1363,7 @@ model PeriodSlot {
   section           Section?         @relation(fields: [sectionId], references: [id])
   timetableEntries  TimetableEntry[]
   subjectAttendance SubjectAttendance[]
+  electiveSlotGroups ElectiveSlotGroup[]
 
   @@unique([sortOrder, classId, sectionId])
   @@index([isActive])
@@ -1368,36 +1372,64 @@ model PeriodSlot {
   @@index([sectionId])
 }
 
-model TimetableEntry {
-  id                String     @id @default(uuid())
+model ElectiveSlotGroup {
+  id                String    @id @default(uuid())
   classId           String
   sectionId         String
-  subjectId         String
-  teacherProfileId  String
   periodSlotId      String
   dayOfWeek         DayOfWeek
   academicSessionId String
-  room              String?
-  isActive          Boolean    @default(true)
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  name              String?   // Optional label: "Science Elective Block"
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   class           Class           @relation(fields: [classId], references: [id])
   section         Section         @relation(fields: [sectionId], references: [id])
-  subject         Subject         @relation(fields: [subjectId], references: [id])
-  teacherProfile  TeacherProfile  @relation(fields: [teacherProfileId], references: [id])
   periodSlot      PeriodSlot      @relation(fields: [periodSlotId], references: [id])
   academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
-  subjectAttendance SubjectAttendance[]
+  entries         TimetableEntry[]
 
   @@unique([classId, sectionId, periodSlotId, dayOfWeek, academicSessionId])
+  @@index([classId, sectionId, academicSessionId])
+  @@index([periodSlotId, dayOfWeek])
+}
+
+model TimetableEntry {
+  id                  String     @id @default(uuid())
+  classId             String
+  sectionId           String
+  subjectId           String
+  teacherProfileId    String
+  periodSlotId        String
+  dayOfWeek           DayOfWeek
+  academicSessionId   String
+  room                String?
+  isElectiveSlot      Boolean    @default(false)
+  electiveSlotGroupId String?
+  isActive            Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+
+  class             Class              @relation(fields: [classId], references: [id])
+  section           Section            @relation(fields: [sectionId], references: [id])
+  subject           Subject            @relation(fields: [subjectId], references: [id])
+  teacherProfile    TeacherProfile     @relation(fields: [teacherProfileId], references: [id])
+  periodSlot        PeriodSlot         @relation(fields: [periodSlotId], references: [id])
+  academicSession   AcademicSession    @relation(fields: [academicSessionId], references: [id])
+  electiveSlotGroup ElectiveSlotGroup? @relation(fields: [electiveSlotGroupId], references: [id])
+  subjectAttendance SubjectAttendance[]
+
+  @@unique([classId, sectionId, subjectId, periodSlotId, dayOfWeek, academicSessionId])
   @@index([teacherProfileId, dayOfWeek, academicSessionId])
   @@index([classId, sectionId, academicSessionId])
+  @@index([electiveSlotGroupId])
   @@index([periodSlotId])
   @@index([isActive])
   @@index([subjectId])
   @@index([academicSessionId])
   @@index([dayOfWeek])
+  @@index([isElectiveSlot])
 }
 
 // ============================================

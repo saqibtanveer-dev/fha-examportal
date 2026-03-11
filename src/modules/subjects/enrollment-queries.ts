@@ -99,3 +99,89 @@ export async function hasEnrollmentsForClass(
   });
   return count > 0;
 }
+
+/**
+ * Get elective groups for a class with subject counts and enrollment counts.
+ */
+export async function getElectiveGroupsForClass(classId: string, academicSessionId: string) {
+  const links = await prisma.subjectClassLink.findMany({
+    where: { classId, isElective: true, isActive: true },
+    select: {
+      subjectId: true,
+      electiveGroupName: true,
+      subject: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { electiveGroupName: 'asc' },
+  });
+
+  // Group by electiveGroupName
+  const groups = new Map<string, typeof links>();
+  for (const link of links) {
+    const groupName = link.electiveGroupName ?? 'Ungrouped';
+    const existing = groups.get(groupName) ?? [];
+    existing.push(link);
+    groups.set(groupName, existing);
+  }
+
+  // Get enrollment counts per subject
+  const enrollmentCounts = await prisma.studentSubjectEnrollment.groupBy({
+    by: ['subjectId'],
+    where: {
+      classId,
+      academicSessionId,
+      isActive: true,
+      subjectId: { in: links.map((l) => l.subjectId) },
+    },
+    _count: true,
+  });
+  const countMap = new Map(enrollmentCounts.map((e) => [e.subjectId, e._count]));
+
+  return Array.from(groups.entries()).map(([groupName, subjects]) => ({
+    groupName,
+    subjects: subjects.map((s) => ({
+      ...s.subject,
+      enrolledCount: countMap.get(s.subjectId) ?? 0,
+    })),
+  }));
+}
+
+/**
+ * Get students NOT yet enrolled in any subject within an elective group.
+ */
+export async function getUnassignedStudentsForElectiveGroup(
+  classId: string,
+  sectionId: string,
+  electiveGroupName: string,
+  academicSessionId: string,
+) {
+  // Get all subject IDs in this group
+  const groupSubjects = await prisma.subjectClassLink.findMany({
+    where: { classId, electiveGroupName, isElective: true, isActive: true },
+    select: { subjectId: true },
+  });
+  const subjectIds = groupSubjects.map((s) => s.subjectId);
+
+  // Get students who ARE enrolled in any of these subjects
+  const enrolledStudentIds = await prisma.studentSubjectEnrollment.findMany({
+    where: {
+      subjectId: { in: subjectIds },
+      academicSessionId,
+      isActive: true,
+    },
+    select: { studentProfileId: true },
+  });
+  const enrolledSet = new Set(enrolledStudentIds.map((e) => e.studentProfileId));
+
+  // Get all section students and filter out enrolled ones
+  const sectionStudents = await prisma.studentProfile.findMany({
+    where: { classId, sectionId, status: 'ACTIVE' },
+    select: {
+      id: true,
+      rollNumber: true,
+      user: { select: { firstName: true, lastName: true } },
+    },
+    orderBy: { rollNumber: 'asc' },
+  });
+
+  return sectionStudents.filter((s) => !enrolledSet.has(s.id));
+}

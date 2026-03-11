@@ -18,7 +18,7 @@ import {
   useActivePeriodSlots,
 } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
-import type { PeriodSlotListItem, TimetableEntryWithRelations } from '@/modules/timetable/timetable.types';
+import type { PeriodSlotListItem, TimetableEntryWithRelations, TimetableGridCell } from '@/modules/timetable/timetable.types';
 import type { RefClass } from '@/stores';
 import { useReferenceStore } from '@/stores';
 
@@ -59,10 +59,11 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
   // Build grid from flat entries
   const grid = useMemo(() => buildTimetableGrid(timetableEntries, effectivePeriodSlots), [timetableEntries, effectivePeriodSlots]);
 
-  function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, entry: unknown) {
+  function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, cell: TimetableGridCell) {
     setSelectedDay(dayOfWeek);
     setSelectedPeriodSlotId(periodSlotId);
-    setSelectedEntry(entry as TimetableEntryWithRelations | null);
+    // For regular cells, pass the entry; for empty/elective, pass null to create new
+    setSelectedEntry(cell.type === 'regular' ? cell.entry : null);
     setEntryFormOpen(true);
   }
 

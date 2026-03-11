@@ -5,9 +5,10 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, Spinner, EmptyState } from '@/components/shared';
 import { TimetableGrid } from '@/modules/timetable/components';
-import { useActivePeriodSlots, useTimetableByClass } from '@/modules/timetable/hooks/use-timetable';
+import { useActivePeriodSlots } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
 import { fetchCurrentAcademicSessionAction } from '@/modules/attendance/attendance-fetch-actions';
+import { fetchTimetableForStudentAction } from '@/modules/timetable/timetable-fetch-actions';
 import { queryKeys } from '@/lib/query-keys';
 
 type StudentProfile = {
@@ -32,12 +33,11 @@ export function StudentTimetableView({ studentProfile }: Props) {
 
   const sessionId = currentSession?.id ?? '';
 
-  const { data: entries, isLoading: entriesLoading } = useTimetableByClass(
-    studentProfile.classId,
-    studentProfile.sectionId,
-    sessionId,
-    !!sessionId,
-  );
+  const { data: entries, isLoading: entriesLoading } = useQuery({
+    queryKey: [...queryKeys.timetable.byClass(studentProfile.classId, studentProfile.sectionId), 'student', studentProfile.id],
+    queryFn: () => fetchTimetableForStudentAction(studentProfile.id, studentProfile.classId, studentProfile.sectionId, sessionId),
+    enabled: !!sessionId,
+  });
 
   const grid = useMemo(
     () => buildTimetableGrid(entries, periodSlots ?? []),

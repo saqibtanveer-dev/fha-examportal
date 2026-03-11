@@ -1,6 +1,6 @@
 import { DayOfWeek } from '@prisma/client';
 import { DAY_LABELS, DAY_SHORT_LABELS, ORDERED_DAYS, TIME_FORMAT_REGEX } from './timetable.constants';
-import type { PeriodSlotListItem, TimetableEntryWithRelations } from './timetable.types';
+import type { PeriodSlotListItem, TimetableGridCell } from './timetable.types';
 
 /** Validate HH:mm time format */
 export function isValidTime(time: string): boolean {
@@ -51,21 +51,71 @@ export function formatTimeRange(startTime: string, endTime: string): string {
   return `${startTime} - ${endTime}`;
 }
 
-/** Build grid[dayOfWeek][periodSlotId] from flat timetable entries */
-export function buildTimetableGrid<T extends { dayOfWeek: string; periodSlotId: string }>(
+/**
+ * Build grid[dayOfWeek][periodSlotId] from flat timetable entries.
+ * Handles both regular (single) and elective (multi) entries per cell.
+ * Uses discriminated union types for type-safe cell rendering.
+ */
+export function buildTimetableGrid<T extends { dayOfWeek: string; periodSlotId: string; isElectiveSlot: boolean; electiveSlotGroupId: string | null; electiveSlotGroup?: { id: string; name: string | null } | null }>(
   entries: T[] | undefined,
   periodSlots: PeriodSlotListItem[],
-): Record<string, Record<string, T | null>> {
-  const grid: Record<string, Record<string, T | null>> = {};
+): Record<string, Record<string, TimetableGridCell>> {
+  const grid: Record<string, Record<string, TimetableGridCell>> = {};
+
+  // Initialize all cells as empty
   for (const day of ORDERED_DAYS) {
     grid[day] = {};
-    for (const slot of periodSlots) grid[day][slot.id] = null;
-  }
-  if (entries) {
-    for (const entry of entries) {
-      const daySlots = grid[entry.dayOfWeek];
-      if (daySlots) daySlots[entry.periodSlotId] = entry;
+    for (const slot of periodSlots) {
+      grid[day][slot.id] = { type: 'empty', dayOfWeek: day, periodSlotId: slot.id };
     }
   }
+
+  if (!entries || entries.length === 0) return grid;
+
+  // Group elective entries by their slot group ID
+  const electiveGroups = new Map<string, { groupName: string | null; entries: T[] }>();
+
+  for (const entry of entries) {
+    const daySlots = grid[entry.dayOfWeek];
+    if (!daySlots) continue;
+
+    if (entry.isElectiveSlot && entry.electiveSlotGroupId) {
+      const existing = electiveGroups.get(entry.electiveSlotGroupId);
+      if (existing) {
+        existing.entries.push(entry);
+      } else {
+        electiveGroups.set(entry.electiveSlotGroupId, {
+          groupName: entry.electiveSlotGroup?.name ?? null,
+          entries: [entry],
+        });
+      }
+    } else {
+      // Regular entry — single subject per cell
+      daySlots[entry.periodSlotId] = {
+        type: 'regular',
+        dayOfWeek: entry.dayOfWeek as DayOfWeek,
+        periodSlotId: entry.periodSlotId,
+        entry: entry as never,
+      };
+    }
+  }
+
+  // Place elective groups into the grid
+  for (const [groupId, group] of electiveGroups) {
+    const firstEntry = group.entries[0];
+    if (!firstEntry) continue;
+    const daySlots = grid[firstEntry.dayOfWeek];
+    if (!daySlots) continue;
+
+    daySlots[firstEntry.periodSlotId] = {
+      type: 'elective',
+      dayOfWeek: firstEntry.dayOfWeek as DayOfWeek,
+      periodSlotId: firstEntry.periodSlotId,
+      groupId,
+      groupName: group.groupName,
+      entries: group.entries as never[],
+    };
+  }
+
   return grid;
 }

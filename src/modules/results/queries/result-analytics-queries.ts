@@ -27,10 +27,22 @@ export async function getExamAnalytics(examId: string) {
 }
 
 export async function getStudentAnalytics(studentId: string) {
-  const results = await prisma.examResult.findMany({
+  const allResults = await prisma.examResult.findMany({
     where: { studentId },
     include: { exam: { include: { subject: { select: { name: true } } } } },
     orderBy: { createdAt: 'asc' },
+  });
+
+  const now = new Date();
+  const results = allResults.filter((r) => {
+    const policy = r.exam.showResultAfter;
+    if (policy === 'IMMEDIATELY') return true;
+    if (policy === 'AFTER_DEADLINE') {
+      const deadline = r.exam.scheduledEndAt;
+      return deadline ? now >= deadline : true;
+    }
+    if (policy === 'MANUAL') return !!r.publishedAt;
+    return true;
   });
 
   const bySubject: Record<string, { total: number; sum: number }> = {};

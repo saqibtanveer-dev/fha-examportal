@@ -13,6 +13,7 @@ import {
   type InitializeWrittenSessionsInput,
   type EnterWrittenMarksInput,
 } from '@/validations/written-exam-schemas';
+import { isSubjectElectiveForClass, getStudentsForSubject } from '@/lib/enrollment-helpers';
 
 
 const MARKS_PATH = '/teacher/exams';
@@ -53,20 +54,42 @@ export const initializeWrittenExamSessionsAction = safeAction(
     });
     if (assignments.length === 0) return { success: false, error: 'No classes assigned' };
 
-    // Build student query conditions — section-scoped
-    const classConditions = assignments.map((a) => ({
-      classId: a.classId,
-      sectionId: a.sectionId,
-    }));
-
-    const students = await prisma.studentProfile.findMany({
-      where: {
-        OR: classConditions,
-        status: 'ACTIVE',
-        user: { isActive: true, deletedAt: null },
-      },
-      select: { userId: true },
+    // Get exam's subject to check if it's elective
+    const exam = await prisma.exam.findUnique({
+      where: { id: examId },
+      select: { subjectId: true, academicSessionId: true },
     });
+    if (!exam) return { success: false, error: 'Exam not found' };
+
+    // Build student list — enrollment-aware for elective subjects
+    let allStudentUserIds: string[] = [];
+
+    for (const assignment of assignments) {
+      const isElective = await isSubjectElectiveForClass(exam.subjectId, assignment.classId);
+
+      if (isElective && exam.academicSessionId) {
+        // For elective subjects, only include enrolled students
+        const enrolledStudents = await getStudentsForSubject(
+          exam.subjectId,
+          assignment.classId,
+          assignment.sectionId,
+          exam.academicSessionId,
+        );
+        allStudentUserIds.push(...enrolledStudents.map((s) => s.userId));
+      } else {
+        // For compulsory subjects, include all section students
+        const sectionStudents = await prisma.studentProfile.findMany({
+          where: {
+            classId: assignment.classId,
+            sectionId: assignment.sectionId,
+            status: 'ACTIVE',
+            user: { isActive: true, deletedAt: null },
+          },
+          select: { userId: true },
+        });
+        allStudentUserIds.push(...sectionStudents.map((s) => s.userId));
+      }
+    }
 
     // Get existing sessions to avoid duplicates (idempotent)
     const existingSessions = await prisma.examSession.findMany({
@@ -74,8 +97,7 @@ export const initializeWrittenExamSessionsAction = safeAction(
       select: { studentId: true },
     });
     const existingStudentIds = new Set(existingSessions.map((s) => s.studentId));
-    const newStudentIds = students
-      .map((s) => s.userId)
+    const newStudentIds = allStudentUserIds
       .filter((id) => !existingStudentIds.has(id));
 
     if (newStudentIds.length === 0) {

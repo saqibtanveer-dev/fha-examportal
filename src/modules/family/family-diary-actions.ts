@@ -17,6 +17,7 @@ import { getTodayDateString } from '@/modules/diary/diary.utils';
 import type { ActionResult } from '@/types/action-result';
 import { safeFetchAction } from '@/lib/safe-action';
 import { safeAction } from '@/lib/safe-action';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 async function getCurrentAcademicSessionId(): Promise<string> {
   const session = await prisma.academicSession.findFirst({
@@ -54,7 +55,16 @@ export const fetchChildDiaryForFamilyAction = safeFetchAction(async (
     endDate,
     subjectId,
   );
-  return serialize(entries);
+
+  // Filter out elective subjects the child is not enrolled in
+  const visibleSubjects = await getStudentVisibleSubjectIds(
+    studentProfileId,
+    studentProfile.classId,
+    academicSessionId,
+  );
+  const filtered = entries.filter((e) => visibleSubjects.has(e.subjectId));
+
+  return serialize(filtered);
 });
 
 /**
@@ -80,7 +90,16 @@ export const fetchChildTodayDiaryForFamilyAction = safeFetchAction(async (
     academicSessionId,
     today,
   );
-  return serialize(entries);
+
+  // Filter out elective subjects the child is not enrolled in
+  const visibleSubjects = await getStudentVisibleSubjectIds(
+    studentProfileId,
+    studentProfile.classId,
+    academicSessionId,
+  );
+  const filtered = entries.filter((e) => visibleSubjects.has(e.subjectId));
+
+  return serialize(filtered);
 });
 
 /**

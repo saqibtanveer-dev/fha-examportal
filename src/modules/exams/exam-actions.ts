@@ -13,6 +13,7 @@ import { createBulkNotifications } from '@/modules/notifications/notification-qu
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
+import { isSubjectElectiveForClass } from '@/lib/enrollment-helpers';
 import { safeAction } from '@/lib/safe-action';
 
 // ============================================
@@ -126,7 +127,6 @@ export const publishExamAction = safeAction(async function publishExamAction(id:
 
   // Skip student notifications for written exams (students don't see them on portal)
   if (exam.deliveryMode !== 'WRITTEN') {
-    // Notify active students in assigned sections only
     const sectionIds = exam.examClassAssignments.map((a) => a.sectionId);
     const students = await prisma.studentProfile.findMany({
       where: {
@@ -134,12 +134,32 @@ export const publishExamAction = safeAction(async function publishExamAction(id:
         status: 'ACTIVE',
         user: { isActive: true, deletedAt: null },
       },
-      select: { userId: true },
+      select: { id: true, userId: true, classId: true },
     });
-    const studentIds = students.map((s) => s.userId);
-    if (studentIds.length > 0) {
+
+    // Filter: only notify students enrolled in the subject (for electives)
+    let studentUserIds = students.map((s) => s.userId);
+    const firstStudent = students.at(0);
+    if (firstStudent) {
+      const isElective = await isSubjectElectiveForClass(exam.subjectId, firstStudent.classId);
+      if (isElective) {
+        const currentSession = await prisma.academicSession.findFirst({
+          where: { isCurrent: true }, select: { id: true },
+        });
+        if (currentSession) {
+          const enrolledStudents = await prisma.studentSubjectEnrollment.findMany({
+            where: { subjectId: exam.subjectId, academicSessionId: currentSession.id, isActive: true },
+            select: { studentProfileId: true },
+          });
+          const enrolledIds = new Set(enrolledStudents.map((e) => e.studentProfileId));
+          studentUserIds = students.filter((s) => enrolledIds.has(s.id)).map((s) => s.userId);
+        }
+      }
+    }
+
+    if (studentUserIds.length > 0) {
       await createBulkNotifications(
-        studentIds,
+        studentUserIds,
         'EXAM_ASSIGNED',
         'New Exam Assigned',
         `Exam "${exam.title}" has been published. Check your dashboard.`,

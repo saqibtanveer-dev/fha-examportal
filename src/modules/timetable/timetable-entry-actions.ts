@@ -16,13 +16,16 @@ import {
   type BulkCreateTimetableInput,
 } from '@/validations/timetable-schemas';
 import { hasTeacherConflict } from './timetable-queries';
+import { isSubjectElectiveForClass } from '@/lib/enrollment-helpers';
 
 function revalidateTimetablePaths() {
   revalidatePath('/admin/timetable');
   revalidatePath('/teacher/timetable');
+  revalidatePath('/student/timetable');
+  revalidatePath('/family/timetable');
 }
 
-// ── Create Entry ──
+// ── Create Entry (handles both regular and elective) ──
 
 export const createTimetableEntryAction = safeAction(
   async function createTimetableEntryAction(input: CreateTimetableEntryInput): Promise<ActionResult<{ id: string }>> {
@@ -37,10 +40,74 @@ export const createTimetableEntryAction = safeAction(
     if (!periodSlot) return actionError('Period slot not found');
     if (periodSlot.isBreak) return actionError('Cannot assign a subject to a break period');
 
+    // Check teacher conflict
     const conflict = await hasTeacherConflict(
       data.teacherProfileId, data.periodSlotId, data.dayOfWeek, data.academicSessionId,
     );
     if (conflict) return actionError('Teacher is already assigned to another class in this period');
+
+    // Check if subject is elective
+    const isElective = await isSubjectElectiveForClass(data.subjectId, data.classId);
+
+    // Check existing entries in this slot
+    const existingEntries = await prisma.timetableEntry.findMany({
+      where: {
+        classId: data.classId,
+        sectionId: data.sectionId,
+        periodSlotId: data.periodSlotId,
+        dayOfWeek: data.dayOfWeek,
+        academicSessionId: data.academicSessionId,
+        isActive: true,
+      },
+    });
+
+    // Validate: no mixing elective + non-elective in same period
+    if (existingEntries.length > 0) {
+      const hasElective = existingEntries.some((e) => e.isElectiveSlot);
+      const hasRegular = existingEntries.some((e) => !e.isElectiveSlot);
+
+      if (isElective && hasRegular) {
+        return actionError('This period has a regular subject. Remove it first to create an elective block.');
+      }
+      if (!isElective && hasElective) {
+        return actionError('This period is an elective block. Cannot add a non-elective subject.');
+      }
+      if (!isElective && hasRegular) {
+        return actionError('This period already has a subject assigned.');
+      }
+    }
+
+    let electiveSlotGroupId: string | undefined;
+
+    if (isElective) {
+      // Find or create ElectiveSlotGroup for this slot
+      const existingGroup = await prisma.electiveSlotGroup.findUnique({
+        where: {
+          classId_sectionId_periodSlotId_dayOfWeek_academicSessionId: {
+            classId: data.classId,
+            sectionId: data.sectionId,
+            periodSlotId: data.periodSlotId,
+            dayOfWeek: data.dayOfWeek,
+            academicSessionId: data.academicSessionId,
+          },
+        },
+      });
+
+      if (existingGroup) {
+        electiveSlotGroupId = existingGroup.id;
+      } else {
+        const newGroup = await prisma.electiveSlotGroup.create({
+          data: {
+            classId: data.classId,
+            sectionId: data.sectionId,
+            periodSlotId: data.periodSlotId,
+            dayOfWeek: data.dayOfWeek,
+            academicSessionId: data.academicSessionId,
+          },
+        });
+        electiveSlotGroupId = newGroup.id;
+      }
+    }
 
     const entry = await prisma.timetableEntry.create({
       data: {
@@ -52,6 +119,8 @@ export const createTimetableEntryAction = safeAction(
         dayOfWeek: data.dayOfWeek,
         academicSessionId: data.academicSessionId,
         room: data.room,
+        isElectiveSlot: isElective,
+        electiveSlotGroupId,
       },
     });
 
@@ -95,12 +164,28 @@ export const deleteTimetableEntryAction = safeAction(
   async function deleteTimetableEntryAction(id: string): Promise<ActionResult> {
     const session = await requireRole('ADMIN');
 
+    const existing = await prisma.timetableEntry.findUnique({ where: { id } });
+    if (!existing) return actionError('Timetable entry not found');
+
     const linkedAttendance = await prisma.subjectAttendance.count({ where: { timetableEntryId: id } });
     if (linkedAttendance > 0) {
       return actionError('Cannot delete timetable entry with linked attendance records. Deactivate instead.');
     }
 
     await prisma.timetableEntry.delete({ where: { id } });
+
+    // Clean up empty ElectiveSlotGroup if this was the last entry
+    if (existing.electiveSlotGroupId) {
+      const remainingEntries = await prisma.timetableEntry.count({
+        where: { electiveSlotGroupId: existing.electiveSlotGroupId },
+      });
+      if (remainingEntries === 0) {
+        await prisma.electiveSlotGroup.delete({
+          where: { id: existing.electiveSlotGroupId },
+        });
+      }
+    }
+
     createAuditLog(session.user.id, 'DELETE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id).catch(() => {});
     revalidateTimetablePaths();
     return actionSuccess();
@@ -158,6 +243,8 @@ export const bulkCreateTimetableAction = safeAction(
         dayOfWeek: e.dayOfWeek,
         academicSessionId: e.academicSessionId,
         room: e.room,
+        isElectiveSlot: e.isElectiveSlot ?? false,
+        electiveSlotGroupId: e.electiveSlotGroupId,
       })),
       skipDuplicates: true,
     });

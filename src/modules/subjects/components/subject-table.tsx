@@ -18,7 +18,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Zap } from 'lucide-react';
 import { deleteSubjectAction } from '@/modules/subjects/subject-actions';
 import { EditSubjectDialog } from './edit-subject-dialog';
 import { SubjectClassManager } from './subject-class-manager';
@@ -28,6 +28,8 @@ type SubjectClassLink = {
   id: string;
   classId: string;
   isActive: boolean;
+  isElective: boolean;
+  electiveGroupName: string | null;
   class: { id: string; name: string; grade: number };
 };
 
@@ -108,7 +110,21 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
             <span>{subj._count.exams} exams</span>
             <span>·</span>
             <span>{subj._count.subjectClassLinks} classes</span>
+            {subj.subjectClassLinks.some((l) => l.isElective) && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-0.5 text-amber-600">
+                  <Zap className="h-3 w-3" />Elective
+                </span>
+              </>
+            )}
           </div>
+          <SubjectClassManager
+            subjectId={subj.id}
+            subjectName={subj.name}
+            currentLinks={subj.subjectClassLinks}
+            allClasses={allClasses}
+          />
         </div>
       ))}
     </div>

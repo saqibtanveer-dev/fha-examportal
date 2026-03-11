@@ -224,3 +224,36 @@ export const removeTeacherFromSubjectAction = safeAction(async function removeTe
   revalidatePath('/admin/users');
   return { success: true };
 });
+
+// ============================================
+// Subject-Class Elective Configuration
+// ============================================
+
+/** Update elective config for a subject-class link */
+export const updateSubjectClassElectiveAction = safeAction(
+  async function updateSubjectClassElective(input: {
+    subjectId: string;
+    classId: string;
+    isElective: boolean;
+    electiveGroupName?: string | null;
+  }): Promise<ActionResult> {
+    const session = await requireRole('ADMIN');
+
+    const link = await prisma.subjectClassLink.findUnique({
+      where: { subjectId_classId: { subjectId: input.subjectId, classId: input.classId } },
+    });
+    if (!link) return { success: false, error: 'Subject-class link not found' };
+
+    await prisma.subjectClassLink.update({
+      where: { id: link.id },
+      data: {
+        isElective: input.isElective,
+        electiveGroupName: input.isElective ? (input.electiveGroupName || null) : null,
+      },
+    });
+
+    createAuditLog(session.user.id, 'UPDATE_SUBJECT_ELECTIVE', 'SUBJECT_CLASS_LINK', link.id, input).catch(() => {});
+    revalidatePath('/admin/subjects');
+    return { success: true };
+  },
+);

@@ -5,23 +5,16 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ORDERED_DAYS, DAY_SHORT_LABELS } from '../timetable.constants';
 import { formatTimeRange } from '../timetable.utils';
-import type { PeriodSlotListItem } from '../timetable.types';
+import type { PeriodSlotListItem, TimetableGridCell } from '../timetable.types';
 
-/** Minimal entry shape that the grid needs to render */
-type GridEntry = {
-  subject: { name: string; code: string };
-  teacherProfile: { user: { firstName: string; lastName: string } };
-};
-
-type Props<T extends GridEntry = GridEntry> = {
+type Props = {
   periodSlots: PeriodSlotListItem[];
-  /** grid[dayOfWeek][periodSlotId] → entry | null */
-  grid: Record<string, Record<string, T | null>>;
-  onCellClick?: (dayOfWeek: DayOfWeek, periodSlotId: string, entry: T | null) => void;
+  grid: Record<string, Record<string, TimetableGridCell>>;
+  onCellClick?: (dayOfWeek: DayOfWeek, periodSlotId: string, cell: TimetableGridCell) => void;
   compact?: boolean;
 };
 
-export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellClick, compact = false }: Props<T>) {
+export function TimetableGrid({ periodSlots, grid, onCellClick, compact = false }: Props) {
   const activePeriods = periodSlots.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
@@ -33,10 +26,7 @@ export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellCl
               Period
             </th>
             {ORDERED_DAYS.map((day) => (
-              <th
-                key={day}
-                className="border bg-muted/50 p-2 text-center font-medium text-muted-foreground"
-              >
+              <th key={day} className="border bg-muted/50 p-2 text-center font-medium text-muted-foreground">
                 {DAY_SHORT_LABELS[day]}
               </th>
             ))}
@@ -45,7 +35,6 @@ export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellCl
         <tbody>
           {activePeriods.map((slot) => (
             <tr key={slot.id}>
-              {/* Period info */}
               <td className="border p-2 bg-muted/30">
                 <div className="font-medium text-xs">{slot.shortName}</div>
                 {!compact && (
@@ -53,16 +42,11 @@ export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellCl
                     {formatTimeRange(slot.startTime, slot.endTime)}
                   </div>
                 )}
-                {slot.isBreak && (
-                  <Badge variant="outline" className="mt-0.5 text-[10px]">
-                    Break
-                  </Badge>
-                )}
+                {slot.isBreak && <Badge variant="outline" className="mt-0.5 text-[10px]">Break</Badge>}
               </td>
 
-              {/* Day cells */}
               {ORDERED_DAYS.map((day) => {
-                const entry = grid[day]?.[slot.id] ?? null;
+                const cell = grid[day]?.[slot.id] ?? { type: 'empty' as const, dayOfWeek: day, periodSlotId: slot.id };
 
                 if (slot.isBreak) {
                   return (
@@ -77,25 +61,12 @@ export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellCl
                     key={day}
                     className={cn(
                       'border p-1.5 text-center transition-colors',
-                      entry ? 'bg-primary/5' : 'bg-background',
+                      cell.type !== 'empty' ? 'bg-primary/5' : 'bg-background',
                       onCellClick && 'cursor-pointer hover:bg-accent',
                     )}
-                    onClick={() => onCellClick?.(day, slot.id, entry)}
+                    onClick={() => onCellClick?.(day, slot.id, cell)}
                   >
-                    {entry ? (
-                      <div className="space-y-0.5">
-                        <div className="font-medium text-xs truncate" title={entry.subject.name}>
-                          {entry.subject.code}
-                        </div>
-                        {!compact && (
-                          <div className="text-[10px] text-muted-foreground truncate">
-                            {entry.teacherProfile.user.firstName} {entry.teacherProfile.user.lastName[0]}.
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground/50">—</span>
-                    )}
+                    <CellContent cell={cell} compact={compact} />
                   </td>
                 );
               })}
@@ -103,6 +74,50 @@ export function TimetableGrid<T extends GridEntry>({ periodSlots, grid, onCellCl
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function CellContent({ cell, compact }: { cell: TimetableGridCell; compact: boolean }) {
+  if (cell.type === 'empty') {
+    return <span className="text-xs text-muted-foreground/50">—</span>;
+  }
+
+  if (cell.type === 'regular') {
+    const { entry } = cell;
+    return (
+      <div className="space-y-0.5">
+        <div className="font-medium text-xs truncate" title={entry.subject.name}>
+          {entry.subject.code}
+        </div>
+        {!compact && (
+          <div className="text-[10px] text-muted-foreground truncate">
+            {entry.teacherProfile.user.firstName} {entry.teacherProfile.user.lastName[0]}.
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Elective cell — stacked subjects
+  return (
+    <div className="space-y-0.5">
+      {cell.groupName && (
+        <Badge variant="secondary" className="text-[8px] mb-0.5">Elective</Badge>
+      )}
+      {cell.entries.map((entry) => (
+        <div key={entry.id} className="rounded bg-accent/50 px-1 py-0.5">
+          <div className="font-medium text-[10px] truncate" title={entry.subject.name}>
+            {entry.subject.code}
+          </div>
+          {!compact && (
+            <div className="text-[9px] text-muted-foreground truncate">
+              {entry.teacherProfile.user.firstName} {entry.teacherProfile.user.lastName[0]}.
+              {entry.room ? ` · ${entry.room}` : ''}
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

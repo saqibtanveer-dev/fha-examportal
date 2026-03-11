@@ -16,6 +16,7 @@ import {
 } from './timetable-queries';
 import type { DayOfWeek } from '@prisma/client';
 import { safeFetchAction } from '@/lib/safe-action';
+import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 
 // ── Period Slot Reads ──
 
@@ -54,9 +55,22 @@ export const fetchTimetableByClassAction = safeFetchAction(async (
   sectionId: string,
   academicSessionId: string,
 ) => {
-  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
+  await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
   const entries = await listTimetableEntriesByClass(classId, sectionId, academicSessionId);
   return serialize(entries);
+});
+
+export const fetchTimetableForStudentAction = safeFetchAction(async (
+  studentProfileId: string,
+  classId: string,
+  sectionId: string,
+  academicSessionId: string,
+) => {
+  await requireRole('STUDENT', 'FAMILY');
+  const entries = await listTimetableEntriesByClass(classId, sectionId, academicSessionId);
+  const visibleSubjects = await getStudentVisibleSubjectIds(studentProfileId, classId, academicSessionId);
+  const filtered = entries.filter((e) => visibleSubjects.has(e.subjectId));
+  return serialize(filtered);
 });
 
 export const fetchTimetableByTeacherAction = safeFetchAction(async (
