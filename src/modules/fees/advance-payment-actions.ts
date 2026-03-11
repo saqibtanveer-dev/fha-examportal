@@ -68,7 +68,7 @@ export async function applyCreditsToAssignment(
   studentProfileId: string,
   assignmentId: string,
   balanceAmount: number,
-  academicSessionId: string,
+  _academicSessionId: string,
 ): Promise<number> {
   if (balanceAmount <= 0) return 0;
 
@@ -84,6 +84,10 @@ export async function applyCreditsToAssignment(
   let totalApplied = 0;
   let remaining = balanceAmount;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const ops: any[] = [];
+  const exhaustedIds: string[] = [];
+
   for (const credit of credits) {
     if (remaining <= 0) break;
     const creditRemaining = Number(credit.remainingAmount);
@@ -92,25 +96,35 @@ export async function applyCreditsToAssignment(
     totalApplied = Math.round((totalApplied + toApply) * 100) / 100;
 
     const newRemaining = Math.round((creditRemaining - toApply) * 100) / 100;
-    await prisma.feeCredit.update({
-      where: { id: credit.id },
-      data: {
-        remainingAmount: newRemaining,
-        status: newRemaining <= 0 ? 'EXHAUSTED' : 'ACTIVE',
-      },
-    });
+    if (newRemaining <= 0) {
+      exhaustedIds.push(credit.id);
+    } else {
+      ops.push(prisma.feeCredit.update({
+        where: { id: credit.id },
+        data: { remainingAmount: newRemaining },
+      }));
+    }
   }
 
   if (totalApplied > 0) {
+    // Batch exhaust fully-used credits in one op
+    if (exhaustedIds.length > 0) {
+      ops.push(prisma.feeCredit.updateMany({
+        where: { id: { in: exhaustedIds } },
+        data: { remainingAmount: 0, status: 'EXHAUSTED' },
+      }));
+    }
+
     const newBalance = Math.max(0, Math.round((balanceAmount - totalApplied) * 100) / 100);
-    await prisma.feeAssignment.update({
+    ops.push(prisma.feeAssignment.update({
       where: { id: assignmentId },
       data: {
         paidAmount: { increment: totalApplied },
         balanceAmount: newBalance,
         status: newBalance <= 0 ? 'PAID' : 'PARTIAL',
       },
-    });
+    }));
+    await prisma.$transaction(ops);
   }
 
   return totalApplied;

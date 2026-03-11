@@ -42,14 +42,16 @@ export function FamilyChildrenSummary(props: Props) {
             </span>
           </div>
           {mode === 'dual' && (
-            <div className="grid grid-cols-[1fr_auto_auto_auto] gap-1 text-xs text-muted-foreground items-center">
-              <span className="font-semibold">Month</span>
-              <span className="font-semibold text-center w-20">Balance</span>
-              <span className="font-semibold text-center w-24">Payment</span>
-              <span className="font-semibold text-center w-24">Discount</span>
+            <div className="overflow-x-auto -mx-1 px-1">
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-1 text-xs text-muted-foreground items-center min-w-[340px]">
+                <span className="font-semibold">Month</span>
+                <span className="font-semibold text-center w-16 sm:w-20">Balance</span>
+                <span className="font-semibold text-center w-20 sm:w-24">Payment</span>
+                <span className="font-semibold text-center w-20 sm:w-24">Discount</span>
               {child.assignments.map((a) => (
                 <AssignmentDualRow key={a.assignmentId} assignment={a} props={props as DualInputProps} />
               ))}
+              </div>
             </div>
           )}
           {mode === 'single' && (
@@ -93,11 +95,11 @@ function AssignmentDualRow({ assignment: a, props }: {
       <Input type="number" min={0} max={a.balanceAmount} placeholder="0"
         value={props.paymentAmounts[a.assignmentId] ?? ''}
         onChange={(e) => props.onPaymentChange(a.assignmentId, e.target.value)}
-        className="h-7 w-24 font-mono text-xs" disabled={props.disabled} />
+        className="h-7 w-20 sm:w-24 font-mono text-xs" disabled={props.disabled} />
       <Input type="number" min={0} max={a.balanceAmount} placeholder="0"
         value={props.discountAmounts[a.assignmentId] ?? ''}
         onChange={(e) => props.onDiscountChange(a.assignmentId, e.target.value)}
-        className="h-7 w-24 font-mono text-xs text-green-700" disabled={props.disabled} />
+        className="h-7 w-20 sm:w-24 font-mono text-xs text-green-700" disabled={props.disabled} />
     </>
   );
 }

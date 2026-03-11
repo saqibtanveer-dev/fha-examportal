@@ -73,6 +73,28 @@ export const generateFeesAction = safeAction(
     });
     const existingSet = new Set(existingAssignments.map((a) => a.studentProfileId));
 
+    // Frequency guard: ONE_TIME/ANNUAL/TERM structures should only generate once per session
+    const nonMonthlyStructureIds = structures
+      .filter((s) => s.category.frequency !== 'MONTHLY')
+      .map((s) => s.id);
+
+    const nonMonthlyAssigned = new Set<string>();
+    if (nonMonthlyStructureIds.length > 0) {
+      const existingNonMonthly = await prisma.feeLineItem.findMany({
+        where: {
+          feeStructureId: { in: nonMonthlyStructureIds },
+          feeAssignment: { academicSessionId, status: { not: 'CANCELLED' } },
+        },
+        select: {
+          feeStructureId: true,
+          feeAssignment: { select: { studentProfileId: true } },
+        },
+      });
+      for (const li of existingNonMonthly) {
+        nonMonthlyAssigned.add(`${li.feeAssignment.studentProfileId}:${li.feeStructureId}`);
+      }
+    }
+
     const dueDateObj = new Date(dueDate + 'T00:00:00.000Z');
     let generated = 0;
     let skipped = 0;
@@ -101,7 +123,18 @@ export const generateFeesAction = safeAction(
         continue;
       }
 
-      const totalAmount = applicable.reduce(
+      // Filter out non-monthly structures already assigned this session
+      const filteredApplicable = applicable.filter((s) => {
+        if (s.category.frequency === 'MONTHLY') return true;
+        return !nonMonthlyAssigned.has(`${student.id}:${s.id}`);
+      });
+
+      if (filteredApplicable.length === 0) {
+        skipped++;
+        continue;
+      }
+
+      const totalAmount = filteredApplicable.reduce(
         (sum, s) => sum + Number(s.amount), 0,
       );
 
@@ -113,7 +146,7 @@ export const generateFeesAction = safeAction(
         balanceAmount: totalAmount,
         dueDate: dueDateObj,
         generatedById: session.user.id,
-        lineItems: applicable.map((s) => ({
+        lineItems: filteredApplicable.map((s) => ({
           feeStructureId: s.id,
           categoryName: s.category.name,
           amount: Number(s.amount),
@@ -121,9 +154,9 @@ export const generateFeesAction = safeAction(
       });
     }
 
-    // Process in small batches to avoid Neon serverless timeout.
+    // Process in batches to avoid Neon serverless timeout.
     // Each create is atomic (Prisma wraps nested writes in an implicit transaction).
-    const BATCH_SIZE = 10;
+    const BATCH_SIZE = 50;
     for (let i = 0; i < toCreate.length; i += BATCH_SIZE) {
       const batch = toCreate.slice(i, i + BATCH_SIZE);
       const results = await Promise.allSettled(
@@ -249,7 +282,8 @@ export const applyLateFeesAction = safeAction(
       if (overdueAssignments.length === 0) break;
       cursor = overdueAssignments[overdueAssignments.length - 1]!.id;
 
-      const updates: Promise<unknown>[] = [];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updates: any[] = [];
       for (const a of overdueAssignments) {
         const daysLate = Math.floor(
           (today.getTime() - a.dueDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -279,7 +313,7 @@ export const applyLateFeesAction = safeAction(
       }
 
       if (updates.length > 0) {
-        await Promise.allSettled(updates);
+        await prisma.$transaction(updates);
       }
 
       if (overdueAssignments.length < PAGE_SIZE) break;

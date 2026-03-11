@@ -56,7 +56,8 @@ export const recordPaymentAction = safeAction(
     const newBalance = Math.max(0, Number(assignment.totalAmount) - newPaid);
     const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL';
 
-    await prisma.$transaction([
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ops: any[] = [
       prisma.feePayment.create({
         data: {
           feeAssignmentId,
@@ -75,11 +76,11 @@ export const recordPaymentAction = safeAction(
           status: newStatus,
         },
       }),
-    ]);
+    ];
 
-    // Create advance credit for excess payment
+    // Overpayment credit INSIDE transaction for atomicity
     if (excessAmount > 0) {
-      await prisma.feeCredit.create({
+      ops.push(prisma.feeCredit.create({
         data: {
           studentProfileId: assignment.studentProfileId,
           academicSessionId,
@@ -89,8 +90,10 @@ export const recordPaymentAction = safeAction(
           referenceNumber: receiptNumber,
           createdById: session.user.id,
         },
-      }).catch((err) => logger.error({ err }, 'Failed to create advance credit'));
+      }));
     }
+
+    await prisma.$transaction(ops);
 
     createAuditLog(session.user.id, 'RECORD_FEE_PAYMENT', 'FEE_PAYMENT', receiptNumber, {
       feeAssignmentId,
@@ -178,10 +181,23 @@ export const reversePaymentAction = safeAction(
     const paymentAmount = Number(payment.amount);
     const assignment = payment.feeAssignment;
     const newPaid = Math.max(0, Number(assignment.paidAmount) - paymentAmount);
-    const newBalance = Number(assignment.totalAmount) - newPaid - Number(assignment.discountAmount);
-    const newStatus = newPaid <= 0 ? 'PENDING' : 'PARTIAL';
+    const totalDiscount = Number(assignment.discountAmount);
+    const newBalance = Math.max(0, Number(assignment.totalAmount) - newPaid - totalDiscount);
 
-    await prisma.$transaction([
+    // Determine correct status after reversal
+    let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'WAIVED';
+    if (newPaid <= 0 && totalDiscount >= Number(assignment.totalAmount)) {
+      newStatus = 'WAIVED'; // fully covered by discount
+    } else if (newPaid <= 0 && totalDiscount <= 0) {
+      newStatus = 'PENDING';
+    } else if (newBalance <= 0) {
+      newStatus = 'PAID';
+    } else {
+      newStatus = newPaid > 0 ? 'PARTIAL' : 'PENDING';
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ops: any[] = [
       prisma.feePayment.update({
         where: { id: paymentId },
         data: {
@@ -199,7 +215,20 @@ export const reversePaymentAction = safeAction(
           status: newStatus,
         },
       }),
-    ]);
+    ];
+
+    // Void any FeeCredits created from this payment's receipt (overpayment credits)
+    if (payment.receiptNumber) {
+      ops.push(prisma.feeCredit.updateMany({
+        where: {
+          referenceNumber: payment.receiptNumber,
+          status: 'ACTIVE',
+        },
+        data: { status: 'REFUNDED', remainingAmount: 0 },
+      }));
+    }
+
+    await prisma.$transaction(ops);
 
     createAuditLog(session.user.id, 'REVERSE_FEE_PAYMENT', 'FEE_PAYMENT', paymentId, {
       amount: paymentAmount,

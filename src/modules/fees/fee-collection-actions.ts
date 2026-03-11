@@ -87,19 +87,19 @@ export const collectStudentFeeAction = safeAction(
       data: { paidAmount: newPaid, balanceAmount: finalBalance, discountAmount: newDiscount, status: newStatus },
     }));
 
-    await prisma.$transaction(ops);
-
-    // Create advance credit for excess
+    // Overpayment credit INSIDE transaction for atomicity
     if (excessPayment > 0) {
-      await prisma.feeCredit.create({
+      ops.push(prisma.feeCredit.create({
         data: {
           studentProfileId: assignment.studentProfileId, academicSessionId,
           amount: excessPayment, remainingAmount: excessPayment,
           reason: `Overpayment credit from receipt ${receiptNumber}`,
           referenceNumber: receiptNumber, createdById: session.user.id,
         },
-      }).catch((err: unknown) => logger.error({ err }, 'Failed to create advance credit'));
+      }));
     }
+
+    await prisma.$transaction(ops);
 
     createAuditLog(session.user.id, 'COLLECT_STUDENT_FEE', 'FEE_PAYMENT', feeAssignmentId, {
       paymentAmount: effectivePayment, discountAmount: effectiveDiscount,
@@ -163,6 +163,13 @@ export const collectFamilyFeeAction = safeAction(
       ? await generateFamilyReceiptNumber(settings?.familyReceiptPrefix ?? 'FMRC')
       : undefined;
 
+    // Pre-generate ALL child receipt numbers to avoid race conditions inside the loop
+    const paymentItems = activeItems.filter((i) => i.paymentAmount > 0);
+    const childReceipts: string[] = [];
+    for (const _ of paymentItems) {
+      childReceipts.push(await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP'));
+    }
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const ops: any[] = [];
     let totalPayment = 0;
@@ -182,6 +189,7 @@ export const collectFamilyFeeAction = safeAction(
     }
 
     // Process each item
+    let receiptIdx = 0;
     for (const item of activeItems) {
       const a = aMap.get(item.feeAssignmentId)!;
       const balance = Number(a.balanceAmount);
@@ -199,11 +207,10 @@ export const collectFamilyFeeAction = safeAction(
       }
 
       if (effPayment > 0) {
-        const childReceipt = await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP');
         ops.push(prisma.feePayment.create({
           data: {
             feeAssignmentId: item.feeAssignmentId, familyPaymentId,
-            amount: effPayment, paymentMethod, referenceNumber, receiptNumber: childReceipt,
+            amount: effPayment, paymentMethod, referenceNumber, receiptNumber: childReceipts[receiptIdx++]!,
             recordedById: session.user.id,
           },
         }));

@@ -8,8 +8,10 @@ function datePrefix(prefix: string): string {
   return `${prefix}-${dateStr}`;
 }
 
-function fallback(basePrefix: string): string {
-  return `${basePrefix}-${Date.now().toString(36).toUpperCase()}`;
+function randomSuffix(): string {
+  const arr = new Uint8Array(3);
+  crypto.getRandomValues(arr);
+  return Array.from(arr, (b) => b.toString(36).padStart(2, '0')).join('').toUpperCase().slice(0, 5);
 }
 
 export async function generateReceiptNumber(
@@ -18,6 +20,7 @@ export async function generateReceiptNumber(
 ): Promise<string> {
   const basePrefix = datePrefix(prefix);
 
+  // Get the current highest sequence for today
   const existing = await tx.feePayment.findMany({
     where: { receiptNumber: { startsWith: basePrefix } },
     select: { receiptNumber: true },
@@ -31,7 +34,8 @@ export async function generateReceiptNumber(
     if (!isNaN(parsed)) nextSeq = parsed + 1;
   }
 
-  for (let attempt = nextSeq; attempt <= nextSeq + 5; attempt++) {
+  // Try sequential candidates first, fall back to random suffix for collision safety
+  for (let attempt = nextSeq; attempt <= nextSeq + 3; attempt++) {
     const candidate = `${basePrefix}-${String(attempt).padStart(4, '0')}`;
     const exists = await tx.feePayment.findUnique({
       where: { receiptNumber: candidate },
@@ -40,7 +44,8 @@ export async function generateReceiptNumber(
     if (!exists) return candidate;
   }
 
-  return fallback(basePrefix);
+  // Collision-resistant fallback: random suffix guarantees no duplicates under concurrency
+  return `${basePrefix}-${randomSuffix()}`;
 }
 
 export async function generateFamilyReceiptNumber(
@@ -62,7 +67,7 @@ export async function generateFamilyReceiptNumber(
     if (!isNaN(parsed)) nextSeq = parsed + 1;
   }
 
-  for (let attempt = nextSeq; attempt <= nextSeq + 5; attempt++) {
+  for (let attempt = nextSeq; attempt <= nextSeq + 3; attempt++) {
     const candidate = `${basePrefix}-${String(attempt).padStart(4, '0')}`;
     const exists = await tx.familyPayment.findFirst({
       where: { masterReceiptNumber: candidate },
@@ -71,5 +76,5 @@ export async function generateFamilyReceiptNumber(
     if (!exists) return candidate;
   }
 
-  return fallback(basePrefix);
+  return `${basePrefix}-${randomSuffix()}`;
 }

@@ -81,7 +81,7 @@ export async function findStructuresForClass(
 
 // ── Fee Assignments ──
 export async function findStudentAssignments(
-  studentProfileId: string, academicSessionId: string, month?: string,
+  studentProfileId: string, academicSessionId: string, month?: string, limit = 36,
 ) {
   return prisma.feeAssignment.findMany({
     where: {
@@ -95,6 +95,7 @@ export async function findStudentAssignments(
       studentProfile: { select: studentProfileSelect },
     },
     orderBy: [{ generatedForMonth: 'asc' }, { dueDate: 'asc' }],
+    take: limit,
   });
 }
 
@@ -108,6 +109,7 @@ export async function findAssignmentById(id: string) {
         where: { status: 'COMPLETED' },
         orderBy: { paidAt: 'desc' },
         select: paymentSelect,
+        take: 50,
       },
       discounts: {
         select: {
@@ -117,6 +119,7 @@ export async function findAssignmentById(id: string) {
           createdAt: true,
           appliedBy: { select: { firstName: true, lastName: true } },
         },
+        take: 50,
       },
     },
   });
@@ -222,6 +225,7 @@ export async function findFamilyPaymentById(id: string) {
             },
           },
         },
+        take: 100,
       },
     },
   });

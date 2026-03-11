@@ -151,6 +151,7 @@ export async function getStudentWiseSummary(
         },
       },
     },
+    take: 5000,
   });
 
   // Group by student
@@ -218,11 +219,12 @@ export async function getStudentWiseSummary(
 export async function getDefaulterList(
   academicSessionId: string,
   classId?: string,
+  limit = 500,
 ) {
   return prisma.feeAssignment.findMany({
     where: {
       academicSessionId,
-      status: { in: ['OVERDUE', 'PENDING'] },
+      status: { in: ['OVERDUE', 'PENDING', 'PARTIAL'] },
       balanceAmount: { gt: 0 },
       dueDate: { lt: new Date() },
       ...(classId ? { studentProfile: { classId } } : {}),
@@ -242,6 +244,7 @@ export async function getDefaulterList(
       { studentProfile: { class: { grade: 'asc' } } },
       { dueDate: 'asc' },
     ],
+    take: limit,
   });
 }
 
