@@ -1,8 +1,19 @@
 import { TIME_FORMAT_REGEX } from './datesheet.constants';
 
 // Use loose types to accept both Prisma (Date) and serialized (string) forms
-type AnyEntry = { examDate: Date | string; classId: string; [key: string]: unknown };
+type AnyEntry = { examDate: Date | string; classId: string; sectionId: string; [key: string]: unknown };
 type AnyDutyWithEntry = { entry: { examDate: Date | string; [key: string]: unknown }; [key: string]: unknown };
+
+/** Build composite key for class-section */
+export function classSectionKey(classId: string, sectionId: string): string {
+  return `${classId}::${sectionId}`;
+}
+
+/** Parse composite key back to classId and sectionId */
+export function parseClassSectionKey(key: string): { classId: string; sectionId: string } {
+  const [classId, sectionId] = key.split('::');
+  return { classId, sectionId };
+}
 
 /** Validate HH:mm format */
 export function isValidTime(time: string): boolean {
@@ -57,24 +68,25 @@ export function extractExamDates<T extends AnyEntry>(entries: T[]): string[] {
   return [...dateSet].sort();
 }
 
-/** Build grid[dateISO][classId] from flat entries — supports multiple entries per slot */
+/** Build grid[dateISO][classId::sectionId] from flat entries — section-level granularity */
 export function buildDatesheetGrid<T extends AnyEntry>(
   entries: T[],
   dates: string[],
-  classes: { id: string }[],
+  classSections: { classId: string; sectionId: string }[],
 ): Record<string, Record<string, T[]>> {
   const grid: Record<string, Record<string, T[]>> = {};
   for (const date of dates) {
     grid[date] = {};
-    for (const cls of classes) grid[date][cls.id] = [];
+    for (const cs of classSections) grid[date][classSectionKey(cs.classId, cs.sectionId)] = [];
   }
   for (const entry of entries) {
     const iso = typeof entry.examDate === 'string' ? entry.examDate.slice(0, 10) : new Date(entry.examDate).toISOString().slice(0, 10);
     const dateSlots = grid[iso];
     if (dateSlots) {
-      const list = dateSlots[entry.classId] ?? [];
+      const key = classSectionKey(entry.classId, entry.sectionId);
+      const list = dateSlots[key] ?? [];
       list.push(entry);
-      dateSlots[entry.classId] = list;
+      dateSlots[key] = list;
     }
   }
   return grid;

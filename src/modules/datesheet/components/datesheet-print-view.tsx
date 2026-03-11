@@ -66,7 +66,7 @@ export const DatesheetPrintView = forwardRef<HTMLDivElement, Props>(
                   )}
                   <TableCell className="border">{entry.subject.name}</TableCell>
                   <TableCell className="border">
-                    {entry.class.name}{entry.section ? ` (${entry.section.name})` : ''}
+                    {entry.class.name} ({entry.section.name})
                   </TableCell>
                   <TableCell className="border whitespace-nowrap">{formatTimeRange(entry.startTime, entry.endTime)}</TableCell>
                   <TableCell className="border">{entry.room || '—'}</TableCell>

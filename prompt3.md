@@ -2,9 +2,13 @@ is whole project ko brutally deeply analyze kro
 
 ----
 
-aisa krna hy k iss me na jab ham datesheet bnaty hain to wo class wise bnaty hy jab k ik same class k different sections ki datesheet different ho sakti hy like class 10 A ka math jab k class 10 B ka eng ka ho sakta hy 
-lakin usually same hi hota hy dono ka paper lakin phir b duty staff room ya different hi hota hy
-iss issue ko brutally deeply analyz kro 
+yar ikk issue hy iss project me 
+scene ya hota hy k ik class me prny waly student aur same section me b hon un me sab students almost sari classes ik sath hi laty hain same way me same teacher sy lakin kuch case hota hy like kuch bio k students hoty hain aur kuch computer k to wo same time pr different rooms me different teachers sy prty hain
+aur jab classes 11, 12 ki bat ain to whan to ya issues aur b aaty hain 
+iss issue ko brutally deeply analyze kro 
+aur bai sirf .md files k form me solution plan krna plan and implemetation directory me code nhi krna aur mjy b btata k kia solution ho ga 
+ya kam production grade pr analyze kro brutally deeply
+iss issue ko professional aur reliable way me solve krna hy 
 
 ----
 

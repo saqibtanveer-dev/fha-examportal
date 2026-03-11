@@ -146,12 +146,12 @@ export const fetchPublishedDatesheetForChildAction = safeFetchAction(async (
   return serialize(data);
 });
 
-// ── Class entries read for specific datesheet ──
+// ── Class-section entries read for specific datesheet ──
 
 export const fetchDatesheetEntriesByClassAction = safeFetchAction(async (
   datesheetId: string,
   classId: string,
-  sectionId?: string,
+  sectionId: string,
 ) => {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER', 'STUDENT', 'FAMILY');
   const data = await listEntriesByClass(datesheetId, classId, sectionId);

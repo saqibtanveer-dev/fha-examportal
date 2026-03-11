@@ -31,7 +31,7 @@ export type DatesheetEntryWithRelations = Pick<
   'id' | 'datesheetId' | 'classId' | 'sectionId' | 'subjectId' | 'examDate' | 'startTime' | 'endTime' | 'room' | 'instructions' | 'totalMarks'
 > & {
   class: Pick<Class, 'id' | 'name' | 'grade'>;
-  section: Pick<Section, 'id' | 'name'> | null;
+  section: Pick<Section, 'id' | 'name'>;
   subject: Pick<Subject, 'id' | 'name' | 'code'>;
   duties: DatesheetDutyWithTeacher[];
 };

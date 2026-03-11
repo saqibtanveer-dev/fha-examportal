@@ -2,34 +2,42 @@
 
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Users } from 'lucide-react';
-import { formatExamDate, formatTimeRange } from '../datesheet.utils';
+import { formatExamDate, formatTimeRange, classSectionKey } from '../datesheet.utils';
 import type { DeepSerialize } from '@/utils/serialize';
 import type { DatesheetEntryWithRelations } from '../datesheet.types';
 
 type SerializedEntry = DeepSerialize<DatesheetEntryWithRelations>;
 
+type ClassSection = {
+  classId: string;
+  className: string;
+  sectionId: string;
+  sectionName: string;
+};
+
 type Props = {
   entries: SerializedEntry[];
   dates: string[];
-  classes: { id: string; name: string }[];
-  onCellClick?: (date: string, classId: string, entry: SerializedEntry | null) => void;
+  classSections: ClassSection[];
+  onCellClick?: (date: string, classId: string, sectionId: string, entry: SerializedEntry | null) => void;
   onDutyClick?: (entry: SerializedEntry) => void;
   showDuties?: boolean;
   readOnly?: boolean;
 };
 
-export function DatesheetGrid({ entries, dates, classes, onCellClick, onDutyClick, showDuties = true, readOnly = false }: Props) {
-  const grid = buildGrid(entries, dates, classes);
+export function DatesheetGrid({
+  entries, dates, classSections, onCellClick, onDutyClick, showDuties = true, readOnly = false,
+}: Props) {
+  const grid = buildGrid(entries, dates, classSections);
 
   return (
     <div className="overflow-x-auto rounded-md border">
       <table className="w-full border-collapse text-sm">
         <thead>
           <tr className="bg-muted/50">
-            <th className="sticky left-0 z-10 bg-muted/50 border-b border-r px-3 py-2 text-left font-medium min-w-30">
-              Class
+            <th className="sticky left-0 z-10 bg-muted/50 border-b border-r px-3 py-2 text-left font-medium min-w-36">
+              Class / Section
             </th>
             {dates.map((date) => (
               <th key={date} className="border-b border-r px-3 py-2 text-center font-medium min-w-40">
@@ -39,46 +47,57 @@ export function DatesheetGrid({ entries, dates, classes, onCellClick, onDutyClic
           </tr>
         </thead>
         <tbody>
-          {classes.map((cls) => (
-            <tr key={cls.id} className="hover:bg-muted/30">
-              <td className="sticky left-0 z-10 bg-background border-b border-r px-3 py-2 font-medium">
-                {cls.name}
-              </td>
-              {dates.map((date) => {
-                const cellEntries = grid[date]?.[cls.id] ?? [];
-                return (
-                  <td
-                    key={`${date}-${cls.id}`}
-                    className={cn(
-                      'border-b border-r px-2 py-1.5 align-top transition-colors',
-                      !readOnly && 'cursor-pointer hover:bg-accent/50',
-                      cellEntries.length > 0 && 'bg-primary/5',
-                    )}
-                    onClick={() => !readOnly && onCellClick?.(date, cls.id, cellEntries[0] ?? null)}
-                  >
-                    {cellEntries.length > 0 ? (
-                      <div className="space-y-1">
-                        {cellEntries.map((entry) => (
-                          <CellContent key={entry.id} entry={entry} showDuties={showDuties} onDutyClick={onDutyClick} />
-                        ))}
-                      </div>
-                    ) : (
-                      !readOnly && (
-                        <span className="text-muted-foreground text-xs">+ Add</span>
-                      )
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
-          ))}
+          {classSections.map((cs) => {
+            const key = classSectionKey(cs.classId, cs.sectionId);
+            return (
+              <tr key={key} className="hover:bg-muted/30">
+                <td className="sticky left-0 z-10 bg-background border-b border-r px-3 py-2 font-medium">
+                  <span>{cs.className}</span>
+                  <span className="text-muted-foreground ml-1">({cs.sectionName})</span>
+                </td>
+                {dates.map((date) => {
+                  const cellEntries = grid[date]?.[key] ?? [];
+                  return (
+                    <td
+                      key={`${date}-${key}`}
+                      className={cn(
+                        'border-b border-r px-2 py-1.5 align-top transition-colors',
+                        !readOnly && 'cursor-pointer hover:bg-accent/50',
+                        cellEntries.length > 0 && 'bg-primary/5',
+                      )}
+                      onClick={() => !readOnly && onCellClick?.(date, cs.classId, cs.sectionId, cellEntries[0] ?? null)}
+                    >
+                      {cellEntries.length > 0 ? (
+                        <div className="space-y-1">
+                          {cellEntries.map((entry) => (
+                            <GridCellContent
+                              key={entry.id}
+                              entry={entry}
+                              showDuties={showDuties}
+                              onDutyClick={onDutyClick}
+                            />
+                          ))}
+                        </div>
+                      ) : (
+                        !readOnly && <span className="text-muted-foreground text-xs">+ Add</span>
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>
   );
 }
 
-function CellContent({ entry, showDuties, onDutyClick }: { entry: SerializedEntry; showDuties: boolean; onDutyClick?: (entry: SerializedEntry) => void }) {
+function GridCellContent({ entry, showDuties, onDutyClick }: {
+  entry: SerializedEntry;
+  showDuties: boolean;
+  onDutyClick?: (entry: SerializedEntry) => void;
+}) {
   return (
     <div className="space-y-0.5">
       <div className="font-medium text-xs">{entry.subject.name}</div>
@@ -123,20 +142,23 @@ function CellContent({ entry, showDuties, onDutyClick }: { entry: SerializedEntr
 function buildGrid(
   entries: SerializedEntry[],
   dates: string[],
-  classes: { id: string }[],
+  classSections: ClassSection[],
 ): Record<string, Record<string, SerializedEntry[]>> {
   const grid: Record<string, Record<string, SerializedEntry[]>> = {};
   for (const date of dates) {
     grid[date] = {};
-    for (const cls of classes) grid[date][cls.id] = [];
+    for (const cs of classSections) {
+      grid[date][classSectionKey(cs.classId, cs.sectionId)] = [];
+    }
   }
   for (const entry of entries) {
     const iso = typeof entry.examDate === 'string' ? entry.examDate.slice(0, 10) : '';
     const dateSlots = grid[iso];
     if (dateSlots) {
-      const list = dateSlots[entry.classId] ?? [];
+      const key = classSectionKey(entry.classId, entry.sectionId);
+      const list = dateSlots[key] ?? [];
       list.push(entry);
-      dateSlots[entry.classId] = list;
+      dateSlots[key] = list;
     }
   }
   return grid;

@@ -45,6 +45,7 @@ export function DatesheetClassView({ title, entries, className }: Props) {
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Subject</TableHead>
+              <TableHead>Section</TableHead>
               <TableHead>Time</TableHead>
               <TableHead>Room</TableHead>
               <TableHead>Total Marks</TableHead>
@@ -61,6 +62,7 @@ export function DatesheetClassView({ title, entries, className }: Props) {
                     </TableCell>
                   )}
                   <TableCell>{entry.subject.name}</TableCell>
+                  <TableCell>{entry.section.name}</TableCell>
                   <TableCell className="whitespace-nowrap">{formatTimeRange(entry.startTime, entry.endTime)}</TableCell>
                   <TableCell>{entry.room || '—'}</TableCell>
                   <TableCell>{entry.totalMarks ?? '—'}</TableCell>

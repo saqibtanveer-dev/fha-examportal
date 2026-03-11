@@ -84,12 +84,12 @@ export async function listEntriesByDatesheet(datesheetId: string) {
   });
 }
 
-export async function listEntriesByClass(datesheetId: string, classId: string, sectionId?: string) {
+export async function listEntriesByClass(datesheetId: string, classId: string, sectionId: string) {
   return prisma.datesheetEntry.findMany({
     where: {
       datesheetId,
       classId,
-      ...(sectionId ? { OR: [{ sectionId }, { sectionId: null }] } : {}),
+      sectionId,
     },
     include: entryInclude,
     orderBy: [{ examDate: 'asc' }, { startTime: 'asc' }],
@@ -103,11 +103,11 @@ export async function getEntryById(id: string) {
   });
 }
 
-/** Check for time overlap on same class + date within a datesheet */
+/** Check for time overlap on same section + date within a datesheet */
 export async function hasEntryConflict(
   datesheetId: string,
   classId: string,
-  sectionId: string | null,
+  sectionId: string,
   examDate: Date,
   startTime: string,
   endTime: string,
@@ -117,9 +117,9 @@ export async function hasEntryConflict(
     where: {
       datesheetId,
       classId,
+      sectionId,
       examDate,
       ...(excludeId ? { id: { not: excludeId } } : {}),
-      ...(sectionId ? { OR: [{ sectionId }, { sectionId: null }] } : {}),
     },
     select: { id: true, startTime: true, endTime: true },
   });
@@ -193,7 +193,7 @@ export async function hasTeacherDutyConflict(
 
 export async function getPublishedDatesheetForClass(
   classId: string,
-  sectionId: string | null,
+  sectionId: string,
   academicSessionId: string,
 ) {
   return prisma.datesheet.findMany({
@@ -205,7 +205,7 @@ export async function getPublishedDatesheetForClass(
       entries: {
         where: {
           classId,
-          ...(sectionId ? { OR: [{ sectionId }, { sectionId: null }] } : {}),
+          sectionId,
         },
         include: entryInclude,
         orderBy: [{ examDate: 'asc' }, { startTime: 'asc' }],

@@ -38,7 +38,7 @@ export type UpdateDatesheetInput = z.infer<typeof updateDatesheetSchema>;
 export const createDatesheetEntrySchema = z.object({
   datesheetId: z.string().uuid('Invalid datesheet'),
   classId: z.string().uuid('Invalid class'),
-  sectionId: z.string().uuid('Invalid section').nullable().optional(),
+  sectionId: z.string().uuid('Invalid section'),
   subjectId: z.string().uuid('Invalid subject'),
   examDate: z.string().min(1, 'Exam date is required'),
   startTime: z.string().regex(TIME_FORMAT_REGEX, 'Invalid time format. Use HH:mm'),
@@ -46,6 +46,7 @@ export const createDatesheetEntrySchema = z.object({
   room: z.string().max(100).optional(),
   instructions: z.string().max(500).optional(),
   totalMarks: z.number().positive().optional(),
+  applyToAllSections: z.boolean().optional(),
 });
 
 export type CreateDatesheetEntryInput = z.infer<typeof createDatesheetEntrySchema>;
@@ -66,13 +67,13 @@ export const bulkCreateEntriesSchema = z.object({
   datesheetId: z.string().uuid(),
   entries: z.array(z.object({
     classId: z.string().uuid(),
-    sectionId: z.string().uuid().nullable().optional(),
+    sectionId: z.string().uuid(),
     subjectId: z.string().uuid(),
     examDate: z.string().min(1),
     startTime: z.string().regex(TIME_FORMAT_REGEX),
     endTime: z.string().regex(TIME_FORMAT_REGEX),
     room: z.string().max(100).optional(),
-  })).min(1, 'At least one entry is required').max(100),
+  })).min(1, 'At least one entry is required').max(500),
 });
 
 export type BulkCreateEntriesInput = z.infer<typeof bulkCreateEntriesSchema>;

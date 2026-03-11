@@ -50,16 +50,53 @@ export const createDatesheetEntryAction = safeAction(
       return actionError('Exam date must be within the datesheet date range');
     }
 
+    // If "apply to all sections", expand to all sections of the class
+    if (data.applyToAllSections) {
+      const sections = await prisma.section.findMany({
+        where: { classId: data.classId, isActive: true },
+        select: { id: true },
+      });
+      if (sections.length === 0) return actionError('No active sections found for this class');
+
+      for (const sec of sections) {
+        const conflict = await hasEntryConflict(
+          data.datesheetId, data.classId, sec.id, examDate, data.startTime, data.endTime,
+        );
+        if (conflict) return actionError(`Time conflict for section in this class on this date`);
+      }
+
+      const rows = sections.map((sec) => ({
+        datesheetId: data.datesheetId,
+        classId: data.classId,
+        sectionId: sec.id,
+        subjectId: data.subjectId,
+        examDate,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        room: data.room,
+        instructions: data.instructions,
+        totalMarks: data.totalMarks,
+      }));
+
+      const result = await prisma.datesheetEntry.createMany({ data: rows, skipDuplicates: true });
+      createAuditLog(session.user.id, 'CREATE_DATESHEET_ENTRIES', 'DATESHEET', data.datesheetId, {
+        count: result.count,
+      }).catch(() => {});
+      revalidatePaths();
+      return actionSuccess({ id: data.datesheetId });
+    }
+
+    // Single section entry
     const conflict = await hasEntryConflict(
-      data.datesheetId, data.classId, data.sectionId ?? null, examDate, data.startTime, data.endTime,
+      data.datesheetId, data.classId, data.sectionId, examDate, data.startTime, data.endTime,
     );
-    if (conflict) return actionError('Time conflict: this class already has an exam at this time on this date');
+    if (conflict) return actionError('Time conflict: this section already has an exam at this time on this date');
 
     const entry = await prisma.datesheetEntry.create({
       data: {
         datesheetId: data.datesheetId,
         classId: data.classId,
-        sectionId: data.sectionId ?? null,
+        sectionId: data.sectionId,
         subjectId: data.subjectId,
         examDate,
         startTime: data.startTime,
@@ -180,17 +217,17 @@ export const bulkCreateDatesheetEntriesAction = safeAction(
         return actionError(`Entry ${i + 1}: Exam date must be within the datesheet date range`);
       }
       const conflict = await hasEntryConflict(
-        data.datesheetId, e.classId, e.sectionId ?? null, examDate, e.startTime, e.endTime,
+        data.datesheetId, e.classId, e.sectionId, examDate, e.startTime, e.endTime,
       );
       if (conflict) {
-        return actionError(`Entry ${i + 1}: Time conflict for this class on this date`);
+        return actionError(`Entry ${i + 1}: Time conflict for this section on this date`);
       }
     }
 
     const rows = data.entries.map((e) => ({
       datesheetId: data.datesheetId,
       classId: e.classId,
-      sectionId: e.sectionId ?? null,
+      sectionId: e.sectionId,
       subjectId: e.subjectId,
       examDate: new Date(e.examDate),
       startTime: e.startTime,

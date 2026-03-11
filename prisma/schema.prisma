@@ -1579,7 +1579,7 @@ model DatesheetEntry {
   id           String   @id @default(uuid())
   datesheetId  String
   classId      String
-  sectionId    String?
+  sectionId    String
   subjectId    String
   examDate     DateTime @db.Date
   startTime    String   // HH:mm format
@@ -1592,15 +1592,16 @@ model DatesheetEntry {
 
   datesheet Datesheet @relation(fields: [datesheetId], references: [id], onDelete: Cascade)
   class     Class     @relation(fields: [classId], references: [id])
-  section   Section?  @relation(fields: [sectionId], references: [id])
+  section   Section   @relation(fields: [sectionId], references: [id])
   subject   Subject   @relation(fields: [subjectId], references: [id])
   duties    DatesheetDuty[]
 
-  @@unique([datesheetId, classId, sectionId, subjectId])
+  @@unique([datesheetId, classId, sectionId, subjectId, examDate])
   @@index([datesheetId])
   @@index([classId, sectionId])
   @@index([examDate])
   @@index([subjectId])
+  @@index([sectionId])
 }
 
 model DatesheetDuty {

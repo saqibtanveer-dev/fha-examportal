@@ -16,7 +16,7 @@ type DutyItem = {
     room: string | null;
     subject: { name: string };
     class: { name: string };
-    section: { name: string } | null;
+    section: { name: string };
   };
 };
 
@@ -68,8 +68,7 @@ export function TeacherDutyView({ duties, title = 'My Exam Duties', className }:
                   <div className="flex-1 space-y-0.5">
                     <div className="font-medium text-sm">{d.entry.subject.name}</div>
                     <div className="text-muted-foreground text-xs">
-                      {d.entry.class.name}
-                      {d.entry.section && ` — ${d.entry.section.name}`}
+                      {d.entry.class.name} — {d.entry.section.name}
                     </div>
                     <div className="text-muted-foreground text-xs">
                       {formatTimeRange(d.entry.startTime, d.entry.endTime)}

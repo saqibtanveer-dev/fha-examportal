@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -32,6 +33,7 @@ type Props = {
   datesheetId: string;
   prefilledDate?: string;
   prefilledClassId?: string;
+  prefilledSectionId?: string;
   entry?: SerializedEntry | null;
   classes: RefClass[];
   subjects: RefSubject[];
@@ -39,7 +41,7 @@ type Props = {
   onCreate: (data: {
     datesheetId: string;
     classId: string;
-    sectionId?: string | null;
+    sectionId: string;
     subjectId: string;
     examDate: string;
     startTime: string;
@@ -47,6 +49,7 @@ type Props = {
     room?: string;
     instructions?: string;
     totalMarks?: number;
+    applyToAllSections?: boolean;
   }) => void;
   onUpdate: (id: string, data: Record<string, unknown>) => void;
   onDelete: (id: string) => void;
@@ -55,11 +58,12 @@ type Props = {
 };
 
 export function DatesheetEntryForm({
-  open, onClose, datesheetId, prefilledDate, prefilledClassId, entry,
+  open, onClose, datesheetId, prefilledDate, prefilledClassId, prefilledSectionId, entry,
   classes, subjects, subjectClassLinks, onCreate, onUpdate, onDelete, onManageDuties, isPending,
 }: Props) {
   const [classId, setClassId] = useState('');
   const [sectionId, setSectionId] = useState('');
+  const [applyToAll, setApplyToAll] = useState(false);
   const [subjectId, setSubjectId] = useState('');
   const [examDate, setExamDate] = useState('');
   const [startTime, setStartTime] = useState('09:00');
@@ -73,7 +77,8 @@ export function DatesheetEntryForm({
   useEffect(() => {
     if (entry) {
       setClassId(entry.classId);
-      setSectionId(entry.sectionId ?? '');
+      setSectionId(entry.sectionId);
+      setApplyToAll(false);
       setSubjectId(entry.subjectId);
       setExamDate(typeof entry.examDate === 'string' ? entry.examDate.slice(0, 10) : '');
       setStartTime(entry.startTime);
@@ -83,7 +88,8 @@ export function DatesheetEntryForm({
       setTotalMarks(entry.totalMarks ? String(Number(entry.totalMarks)) : '');
     } else {
       setClassId(prefilledClassId ?? '');
-      setSectionId('');
+      setSectionId(prefilledSectionId ?? '');
+      setApplyToAll(false);
       setSubjectId('');
       setExamDate(prefilledDate ?? '');
       setStartTime('09:00');
@@ -92,7 +98,7 @@ export function DatesheetEntryForm({
       setInstructions('');
       setTotalMarks('');
     }
-  }, [entry, prefilledDate, prefilledClassId, open]);
+  }, [entry, prefilledDate, prefilledClassId, prefilledSectionId, open]);
 
   const selectedClass = classes.find((c) => c.id === classId);
   const sections = selectedClass?.sections ?? [];
@@ -117,7 +123,7 @@ export function DatesheetEntryForm({
       onCreate({
         datesheetId,
         classId,
-        sectionId: sectionId || null,
+        sectionId,
         subjectId,
         examDate,
         startTime,
@@ -125,11 +131,12 @@ export function DatesheetEntryForm({
         room: room || undefined,
         instructions: instructions || undefined,
         totalMarks: totalMarks ? Number(totalMarks) : undefined,
+        applyToAllSections: applyToAll || undefined,
       });
     }
   };
 
-  const isValid = classId && subjectId && examDate && startTime && endTime;
+  const isValid = classId && (applyToAll || sectionId) && subjectId && examDate && startTime && endTime;
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -149,11 +156,26 @@ export function DatesheetEntryForm({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Section (optional)</Label>
-              <Select value={sectionId || '__all__'} onValueChange={(v) => setSectionId(v === '__all__' ? '' : v)}>
-                <SelectTrigger><SelectValue placeholder="All sections" /></SelectTrigger>
+              <Label>Section</Label>
+              {!isEditing && sections.length > 1 && (
+                <div className="flex items-center gap-2 mb-1">
+                  <Checkbox
+                    id="applyToAll"
+                    checked={applyToAll}
+                    onCheckedChange={(v) => setApplyToAll(v === true)}
+                  />
+                  <label htmlFor="applyToAll" className="text-xs text-muted-foreground cursor-pointer">
+                    Apply to all sections
+                  </label>
+                </div>
+              )}
+              <Select
+                value={sectionId}
+                onValueChange={setSectionId}
+                disabled={isEditing || applyToAll}
+              >
+                <SelectTrigger><SelectValue placeholder={applyToAll ? 'All sections' : 'Select section'} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All Sections</SelectItem>
                   {sections.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                 </SelectContent>
               </Select>

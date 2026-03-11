@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useReferenceStore } from '@/stores';
 import { PageHeader, SkeletonPage, EmptyState } from '@/components/shared';
@@ -47,21 +47,33 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
   const [selectedEntry, setSelectedEntry] = useState<SerializedEntry | null>(null);
   const [prefilledDate, setPrefilledDate] = useState<string | undefined>();
   const [prefilledClassId, setPrefilledClassId] = useState<string | undefined>();
+  const [prefilledSectionId, setPrefilledSectionId] = useState<string | undefined>();
   const [dutyFormOpen, setDutyFormOpen] = useState(false);
   const [dutyEntry, setDutyEntry] = useState<SerializedEntry | null>(null);
+
+  // Build flat class-section list for grid rows
+  const classSections = useMemo(() =>
+    classes.flatMap((cls) =>
+      cls.sections.map((sec) => ({
+        classId: cls.id,
+        className: cls.name,
+        sectionId: sec.id,
+        sectionName: sec.name,
+      }))
+    ), [classes]);
 
   if (isLoading) return <SkeletonPage />;
   if (!datesheet) return <EmptyState title="Not Found" description="Datesheet not found." />;
 
   const entryList: SerializedEntry[] = (entries ?? datesheet.entries ?? []) as SerializedEntry[];
   const isDraft = datesheet.status === 'DRAFT';
-
   const dates = extractExamDates(entryList);
 
-  function handleCellClick(date: string, classId: string, entry: SerializedEntry | null) {
+  function handleCellClick(date: string, classId: string, sectionId: string, entry: SerializedEntry | null) {
     if (!isDraft) return;
     setPrefilledDate(date);
     setPrefilledClassId(classId);
+    setPrefilledSectionId(sectionId);
     setSelectedEntry(entry);
     setEntryFormOpen(true);
   }
@@ -70,6 +82,14 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
     if (!isDraft) return;
     setDutyEntry(entry);
     setDutyFormOpen(true);
+  }
+
+  function openNewEntryForm() {
+    setSelectedEntry(null);
+    setPrefilledDate(undefined);
+    setPrefilledClassId(undefined);
+    setPrefilledSectionId(undefined);
+    setEntryFormOpen(true);
   }
 
   return (
@@ -124,14 +144,14 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
             <DatesheetGrid
               entries={entryList}
               dates={dates}
-              classes={classes}
+              classSections={classSections}
               onCellClick={isDraft ? handleCellClick : undefined}
               onDutyClick={isDraft ? handleDutyClick : undefined}
               readOnly={!isDraft}
             />
           )}
           {isDraft && (
-            <Button variant="outline" className="mt-3" onClick={() => { setSelectedEntry(null); setPrefilledDate(undefined); setPrefilledClassId(undefined); setEntryFormOpen(true); }}>
+            <Button variant="outline" className="mt-3" onClick={openNewEntryForm}>
               + Add Entry
             </Button>
           )}
@@ -154,6 +174,7 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
           datesheetId={datesheetId}
           prefilledDate={prefilledDate}
           prefilledClassId={prefilledClassId}
+          prefilledSectionId={prefilledSectionId}
           entry={selectedEntry}
           classes={classes}
           subjects={subjects}
