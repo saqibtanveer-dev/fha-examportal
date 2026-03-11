@@ -111,6 +111,7 @@ export function TimetableEntryForm({
           periodSlotId,
           dayOfWeek,
           academicSessionId,
+          isElectiveSlot: false,
           room: room || undefined,
         });
         if (result.success) {
