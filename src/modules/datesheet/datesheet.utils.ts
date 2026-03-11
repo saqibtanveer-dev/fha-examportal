@@ -11,7 +11,7 @@ export function classSectionKey(classId: string, sectionId: string): string {
 
 /** Parse composite key back to classId and sectionId */
 export function parseClassSectionKey(key: string): { classId: string; sectionId: string } {
-  const [classId, sectionId] = key.split('::');
+  const [classId = '', sectionId = ''] = key.split('::');
   return { classId, sectionId };
 }
 
