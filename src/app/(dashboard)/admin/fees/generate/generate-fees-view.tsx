@@ -16,7 +16,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/shared';
 import { Spinner } from '@/components/shared';
-import { generateFeesAction, applyLateFeesAction } from '@/modules/fees/fee-generation-actions';
+import { generateFeesAction } from '@/modules/fees/fee-generation-actions';
+import { applyLateFeesAction } from '@/modules/fees/fee-management-actions';
 import { toast } from 'sonner';
 import { AlertTriangle, Zap } from 'lucide-react';
 

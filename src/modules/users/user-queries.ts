@@ -16,6 +16,7 @@ export type UserWithProfile = Prisma.UserGetPayload<{
           include: {
             subject: { select: { id: true; name: true; code: true } };
             class: { select: { id: true; name: true } };
+            section: { select: { id: true; name: true } };
           };
         };
       };
@@ -74,6 +75,7 @@ export async function listUsers(params: PaginationParams, filters: UserListFilte
               include: {
                 subject: { select: { id: true, name: true, code: true } },
                 class: { select: { id: true, name: true } },
+                section: { select: { id: true, name: true } },
               },
             },
           },
@@ -117,6 +119,7 @@ export async function getUserById(id: string): Promise<UserWithProfile | null> {
             include: {
               subject: { select: { id: true, name: true, code: true } },
               class: { select: { id: true, name: true } },
+              section: { select: { id: true, name: true } },
             },
           },
         },

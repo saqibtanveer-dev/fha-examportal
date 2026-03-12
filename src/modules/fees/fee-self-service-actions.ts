@@ -76,6 +76,22 @@ export const fetchMyFeesAction = safeFetchAction(async () => {
   return serialize(await findStudentAssignments(profile.id, sessionId));
 });
 
+// ── Student Credit Balance ──
+export const fetchMyCreditBalanceAction = safeFetchAction(async () => {
+  const session = await requireRole('STUDENT');
+  const profile = await prisma.studentProfile.findFirst({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+  if (!profile) return 0;
+
+  const credits = await prisma.feeCredit.findMany({
+    where: { studentProfileId: profile.id, status: 'ACTIVE', remainingAmount: { gt: 0 } },
+    select: { remainingAmount: true },
+  });
+  return credits.reduce((sum, c) => sum + Number(c.remainingAmount), 0);
+});
+
 // ── Family Self-Service ──
 export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
   const session = await requireRole('FAMILY');

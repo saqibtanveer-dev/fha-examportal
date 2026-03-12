@@ -27,5 +27,4 @@ ya sara system proper mobile friendly aur mobile first ho aur sari device sizes 
 
 brutally deeply ya system large students k lia like 1000+ k lia kam krna chahya is ko production grade pr brutally deeply analyze kor production ready kro 
 
-abi sirf plan kro planning and implementation directory me code generate nhi krna 
  

@@ -11,12 +11,12 @@ import {
 import {
   FeeStatusBadge, formatCurrency, formatMonth,
 } from '@/modules/fees/components/fee-status-badge';
-import { DollarSign, CheckCircle, Clock } from 'lucide-react';
+import { DollarSign, CheckCircle, Clock, Wallet } from 'lucide-react';
 import type { SerializedFeeAssignment } from '@/modules/fees/fee.types';
 
-type Props = { fees: SerializedFeeAssignment[] };
+type Props = { fees: SerializedFeeAssignment[]; creditBalance?: number };
 
-export function StudentFeesView({ fees }: Props) {
+export function StudentFeesView({ fees, creditBalance = 0 }: Props) {
   const totalDue = fees.reduce((s, f) => s + f.totalAmount, 0);
   const totalPaid = fees.reduce((s, f) => s + f.paidAmount, 0);
   const totalBalance = fees.reduce((s, f) => s + f.balanceAmount, 0);
@@ -72,6 +72,20 @@ export function StudentFeesView({ fees }: Props) {
               </CardContent>
             </Card>
           </div>
+
+          {creditBalance > 0 && (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900 dark:bg-green-950">
+              <Wallet className="h-5 w-5 text-green-600" />
+              <div>
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">
+                  Available Credit: <span className="font-mono">{formatCurrency(creditBalance)}</span>
+                </p>
+                <p className="text-xs text-green-600/80 dark:text-green-500/80">
+                  This credit will be automatically applied to your next fee.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Fee Details - Accordion per month */}
           <Card>

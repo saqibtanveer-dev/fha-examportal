@@ -18,6 +18,9 @@ import {
   getCurrentAcademicSessionId,
 } from './fee-queries';
 import {
+  findAllStudentDiscounts,
+} from './student-discount-queries';
+import {
   getFeeOverview,
   getClassWiseSummary,
   getSectionWiseSummary,
@@ -216,4 +219,25 @@ export const fetchCollectionReportAction = safeFetchAction(
   },
 );
 
+// ── Student Permanent Discounts ──
+export const fetchStudentDiscountsAction = safeFetchAction(
+  async (studentProfileId: string) => {
+    await requireRole('ADMIN', 'PRINCIPAL');
+    const sessionId = await getCurrentAcademicSessionId();
+    if (!sessionId) return [];
+    return serialize(await findAllStudentDiscounts(studentProfileId, sessionId));
+  },
+);
 
+// ── Student Credits (advance payments) ──
+export const fetchStudentCreditsAction = safeFetchAction(
+  async (studentProfileId: string) => {
+    await requireRole('ADMIN', 'PRINCIPAL');
+    const credits = await prisma.feeCredit.findMany({
+      where: { studentProfileId, status: 'ACTIVE', remainingAmount: { gt: 0 } },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, amount: true, remainingAmount: true, reason: true, status: true, createdAt: true },
+    });
+    return serialize(credits);
+  },
+);

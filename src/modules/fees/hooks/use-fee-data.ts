@@ -9,6 +9,7 @@ import {
 import {
   fetchMyFeesAction,
   fetchFamilyChildrenWithFeesAction,
+  fetchMyCreditBalanceAction,
 } from '../fee-self-service-actions';
 
 // ── Student's own fees ──
@@ -17,6 +18,16 @@ export function useMyFees(enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.fees.all, 'my-fees'],
     queryFn: () => fetchMyFeesAction(),
+    enabled,
+  });
+}
+
+// ── Student credit balance ──
+
+export function useMyCreditBalance(enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.fees.all, 'my-credit-balance'],
+    queryFn: () => fetchMyCreditBalanceAction(),
     enabled,
   });
 }

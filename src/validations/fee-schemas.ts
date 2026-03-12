@@ -228,3 +228,47 @@ export const recordCustomFamilyPaymentSchema = z.object({
 });
 
 export type RecordCustomFamilyPaymentInput = z.infer<typeof recordCustomFamilyPaymentSchema>;
+
+// ============================================
+// STUDENT-LEVEL PERMANENT DISCOUNT
+// ============================================
+
+const studentDiscountTypeEnum = z.enum(['FLAT', 'PERCENTAGE']);
+
+export const createStudentFeeDiscountSchema = z.object({
+  studentProfileId: z.string().uuid('Invalid student'),
+  discountType: studentDiscountTypeEnum,
+  value: z.number().positive('Discount value must be positive'),
+  reason: z.string().min(3, 'Reason required').max(500),
+  feeCategoryId: z.string().uuid().optional(), // null = all categories
+  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD').optional(),
+}).refine(
+  (d) => d.discountType !== 'PERCENTAGE' || d.value <= 100,
+  { message: 'Percentage cannot exceed 100', path: ['value'] },
+);
+
+export type CreateStudentFeeDiscountInput = z.infer<typeof createStudentFeeDiscountSchema>;
+
+export const updateStudentFeeDiscountSchema = z.object({
+  id: z.string().uuid('Invalid discount'),
+  value: z.number().positive('Discount value must be positive').optional(),
+  reason: z.string().min(3).max(500).optional(),
+  isActive: z.boolean().optional(),
+  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional().nullable(),
+});
+
+export type UpdateStudentFeeDiscountInput = z.infer<typeof updateStudentFeeDiscountSchema>;
+
+// ============================================
+// ADVANCE PAYMENT (explicit advance — no assignment needed)
+// ============================================
+
+export const recordAdvancePaymentSchema = z.object({
+  studentProfileId: z.string().uuid('Invalid student'),
+  familyProfileId: z.string().uuid().optional(),
+  amount: z.number().positive('Amount must be positive'),
+  reason: z.string().max(500).optional(),
+  referenceNumber: z.string().max(100).optional(),
+});
+
+export type RecordAdvancePaymentInput = z.infer<typeof recordAdvancePaymentSchema>;

@@ -108,6 +108,7 @@ export const ROUTES = {
     FEES_GENERATE: '/admin/fees/generate',
     FEES_COLLECT: '/admin/fees/collect',
     FEES_REPORTS: '/admin/fees/reports',
+    FEES_DISCOUNTS: '/admin/fees/discounts',
     AUDIT_LOG: '/admin/audit-log',
     REPORTS: '/admin/reports',
   },

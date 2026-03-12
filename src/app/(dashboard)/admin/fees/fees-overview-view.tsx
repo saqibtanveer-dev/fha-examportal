@@ -24,6 +24,7 @@ import {
   CreditCard,
   BarChart3,
   Cog,
+  Tag,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
 import { FeeSettingsDialog } from '@/modules/fees/components/fee-settings-dialog';
@@ -53,6 +54,11 @@ export function FeesOverviewView({ overview, classSummary, settings }: Props) {
             <Button variant="outline" asChild>
               <Link href={ROUTES.ADMIN.FEES_STRUCTURES}>
                 <Settings className="mr-2 h-4 w-4" />Structures
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href={ROUTES.ADMIN.FEES_DISCOUNTS}>
+                <Tag className="mr-2 h-4 w-4" />Discounts
               </Link>
             </Button>
             <Button asChild>

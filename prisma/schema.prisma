@@ -271,6 +271,7 @@ model User {
   paymentsRecorded         FeePayment[]     @relation("PaymentRecordedBy")
   familyPaymentsRecorded   FamilyPayment[]  @relation("FamilyPaymentRecordedBy")
   creditsCreated           FeeCredit[]      @relation("CreditCreatedBy")
+  studentDiscountsCreated  StudentFeeDiscount[] @relation("StudentDiscountCreatedBy")
 
   @@index([role])
   @@index([isActive])
@@ -314,6 +315,7 @@ model StudentProfile {
   // Fee relations
   feeAssignments     FeeAssignment[]
   feeCredits         FeeCredit[]
+  feeDiscountsApplied StudentFeeDiscount[]
 
   @@index([classId])
   @@index([sectionId])
@@ -834,6 +836,7 @@ model AcademicSession {
   feeAssignments    FeeAssignment[]
   feeSettings       FeeSettings?
   feeCredits        FeeCredit[]
+  studentFeeDiscounts StudentFeeDiscount[]
   electiveSlotGroups ElectiveSlotGroup[]
 
   @@index([isCurrent])
@@ -1710,7 +1713,8 @@ model FeeCategory {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
 
-  structures FeeStructure[]
+  structures       FeeStructure[]
+  studentDiscounts StudentFeeDiscount[]
 
   @@index([isActive])
   @@index([frequency])
@@ -1898,6 +1902,42 @@ enum CreditStatus {
   ACTIVE
   EXHAUSTED
   REFUNDED
+}
+
+// ── Permanent student-level fee discount (negotiated at admission time) ──
+// This is a RECURRING discount: when fees are generated, this discount is
+// auto-applied to each new FeeAssignment. e.g. "Parent bargained Rs. 500 off"
+// or "Staff child — 100% tuition waiver". Tracks who approved, reason, and
+// optional category-level granularity.
+
+enum StudentDiscountType {
+  FLAT          // Fixed amount off per month (e.g. Rs. 500 off)
+  PERCENTAGE    // Percentage off (e.g. 10% off total)
+}
+
+model StudentFeeDiscount {
+  id                String              @id @default(uuid())
+  studentProfileId  String
+  academicSessionId String
+  discountType      StudentDiscountType
+  value             Decimal             @db.Decimal(12, 2) // amount for FLAT, percentage for PERCENTAGE
+  reason            String              // e.g. "Admission negotiation", "Staff child", "Scholarship 50%"
+  feeCategoryId     String?             // null = applies to ALL categories, set = only this category
+  isActive          Boolean             @default(true)
+  validFrom         DateTime            @default(now())
+  validUntil        DateTime?           // null = no expiry (permanent for the session)
+  approvedById      String              // admin/principal who approved
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  studentProfile  StudentProfile  @relation(fields: [studentProfileId], references: [id])
+  academicSession AcademicSession @relation(fields: [academicSessionId], references: [id])
+  feeCategory     FeeCategory?    @relation(fields: [feeCategoryId], references: [id])
+  approvedBy      User            @relation("StudentDiscountCreatedBy", fields: [approvedById], references: [id])
+
+  @@unique([studentProfileId, academicSessionId, feeCategoryId])
+  @@index([studentProfileId, academicSessionId, isActive])
+  @@index([academicSessionId])
 }
 
 // ============================================

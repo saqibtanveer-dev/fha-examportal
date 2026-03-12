@@ -49,7 +49,8 @@ vi.mock('@/modules/fees/fee-queries', () => ({
 }));
 
 import { prisma } from '@/lib/prisma';
-import { generateFeesAction, cancelAssignmentAction } from '../fee-generation-actions';
+import { generateFeesAction } from '../fee-generation-actions';
+import { cancelAssignmentAction } from '../fee-management-actions';
 
 // ── Typed mock accessor ──
 

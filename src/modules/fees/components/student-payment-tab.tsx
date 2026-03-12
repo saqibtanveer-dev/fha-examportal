@@ -16,16 +16,16 @@ import { Spinner } from '@/components/shared';
 import { FeeStatusBadge, formatCurrency, formatMonth } from './fee-status-badge';
 import { StudentSearchCombobox } from './student-search-combobox';
 import { PaymentHistoryDialog } from './payment-history-dialog';
-import { fetchPendingAssignmentsAction } from '@/modules/fees/fee-fetch-actions';
+import { StudentDiscountDialog } from './student-discount-dialog';
+import { AdvancePaymentDialog } from './advance-payment-dialog';
+import { fetchPendingAssignmentsAction, fetchStudentCreditsAction } from '@/modules/fees/fee-fetch-actions';
 import { collectStudentFeeAction } from '@/modules/fees/fee-collection-actions';
 import { toast } from 'sonner';
-import { Receipt } from 'lucide-react';
+import { Receipt, Tag, Wallet } from 'lucide-react';
 import type { SerializedFeeAssignment } from '@/modules/fees/fee.types';
 
-const PAYMENT_METHODS = [
-  { value: 'CASH', label: 'Cash' }, { value: 'BANK_TRANSFER', label: 'Bank Transfer' },
-  { value: 'ONLINE', label: 'Online' }, { value: 'CHEQUE', label: 'Cheque' },
-];
+const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'ONLINE', 'CHEQUE'] as const;
+const METHOD_LABELS: Record<string, string> = { CASH: 'Cash', BANK_TRANSFER: 'Bank Transfer', ONLINE: 'Online', CHEQUE: 'Cheque' };
 
 export function StudentPaymentTab() {
   const [isPending, startTransition] = useTransition();
@@ -36,17 +36,26 @@ export function StudentPaymentTab() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
-  const [method, setMethod] = useState('CASH');
-  const [reference, setReference] = useState('');
+  const [method, setMethod] = useState('CASH');  const [reference, setReference] = useState('');
   const [historyAssignmentId, setHistoryAssignmentId] = useState<string | null>(null);
+  const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
+  const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+  const [creditBalance, setCreditBalance] = useState(0);
   const invalidate = useInvalidateCache();
 
   function loadAssignments(profileId: string) {
     startTransition(async () => {
       try {
-        const result = await fetchPendingAssignmentsAction(profileId);
-        setAssignments(result ?? []);
-        if (!result || result.length === 0) toast.info('No pending fees found');
+        const [assignmentResult, creditResult] = await Promise.all([
+          fetchPendingAssignmentsAction(profileId),
+          fetchStudentCreditsAction(profileId),
+        ]);
+        setAssignments(assignmentResult ?? []);
+        const totalCredit = (creditResult ?? []).reduce(
+          (sum: number, c: { remainingAmount: number }) => sum + Number(c.remainingAmount), 0,
+        );
+        setCreditBalance(totalCredit);
+        if (!assignmentResult || assignmentResult.length === 0) toast.info('No pending fees found');
       } catch { toast.error('Student not found or no access'); }
     });
   }
@@ -108,8 +117,32 @@ export function StudentPaymentTab() {
               setAssignments([]); resetForm();
               loadAssignments(s.studentProfileId);
             }}
-            onClear={() => { setStudentId(''); setStudentLabel(''); setAssignments([]); resetForm(); }}
+            onClear={() => { setStudentId(''); setStudentLabel(''); setAssignments([]); resetForm(); setCreditBalance(0); }}
           />
+
+          {/* ── Student Actions: Discounts & Advance Payment ── */}
+          {studentId && (
+            <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setDiscountDialogOpen(true)} disabled={isPending}>
+                  <Tag className="mr-1 h-3.5 w-3.5" /> Manage Discounts
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setAdvanceDialogOpen(true)} disabled={isPending}>
+                  <Wallet className="mr-1 h-3.5 w-3.5" /> Record Advance Payment
+                </Button>
+              </div>
+              {creditBalance > 0 && (
+                <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm dark:border-green-900 dark:bg-green-950">
+                  <Wallet className="h-4 w-4 text-green-600" />
+                  <span className="text-green-700 dark:text-green-400">
+                    Available Credit: <span className="font-mono font-semibold">{formatCurrency(creditBalance)}</span>
+                    {' '}(auto-applies to new fees)
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           {assignments.length > 0 && (
             <>
               {/* ── Mobile Card View ── */}
@@ -207,7 +240,7 @@ export function StudentPaymentTab() {
                   <Label>Method</Label>
                   <Select value={method} onValueChange={setMethod} disabled={isPending}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
+                    <SelectContent>{PAYMENT_METHODS.map((m) => <SelectItem key={m} value={m}>{METHOD_LABELS[m]}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1">
@@ -244,6 +277,24 @@ export function StudentPaymentTab() {
       </Card>
 
       <PaymentHistoryDialog assignmentId={historyAssignmentId} onClose={() => setHistoryAssignmentId(null)} />
+
+      {studentId && (
+        <>
+          <StudentDiscountDialog
+            open={discountDialogOpen}
+            onClose={() => setDiscountDialogOpen(false)}
+            studentProfileId={studentId}
+            studentName={studentLabel}
+          />
+          <AdvancePaymentDialog
+            open={advanceDialogOpen}
+            onClose={() => setAdvanceDialogOpen(false)}
+            studentProfileId={studentId}
+            studentName={studentLabel}
+            onSuccess={() => loadAssignments(studentId)}
+          />
+        </>
+      )}
     </div>
   );
 }

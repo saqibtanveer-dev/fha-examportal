@@ -204,10 +204,10 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
                     teacherProfileId={user.teacherProfile.id}
                     teacherName={user.email}
                     currentAssignments={
-                      user.teacherProfile.teacherSubjects?.filter((ts: any) => ts.class && ts.subject).map((ts: any) => ({
+                      user.teacherProfile.teacherSubjects?.filter((ts: any) => ts.class && ts.subject && ts.section).map((ts: any) => ({
                         subjectId: ts.subject.id,
                         classId: ts.class.id,
-                        sectionId: ts.section?.id ?? '',
+                        sectionId: ts.section.id,
                         subject: {
                           id: ts.subject.id,
                           name: ts.subject.name,
@@ -217,7 +217,7 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
                           id: ts.class.id,
                           name: ts.class.name,
                         },
-                        section: ts.section ? { id: ts.section.id, name: ts.section.name } : undefined,
+                        section: { id: ts.section.id, name: ts.section.name },
                       })) ?? []
                     }
                     allSubjects={allSubjects}

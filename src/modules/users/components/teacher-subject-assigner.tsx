@@ -103,10 +103,12 @@ export function TeacherSubjectAssigner({
 
   function handleSave() {
     startTransition(async () => {
-      const assignments = Array.from(selectedKeys).map((key) => {
-        const [subjectId, classId, sectionId] = key.split(':');
-        return { subjectId: subjectId!, classId: classId!, sectionId: sectionId! };
-      });
+      const assignments = Array.from(selectedKeys)
+        .map((key) => {
+          const [subjectId, classId, sectionId] = key.split(':');
+          return { subjectId: subjectId!, classId: classId!, sectionId: sectionId! };
+        })
+        .filter((a) => a.subjectId && a.classId && a.sectionId);
 
       const result = await bulkAssignTeacherSubjectsAction({
         teacherId: teacherProfileId,
