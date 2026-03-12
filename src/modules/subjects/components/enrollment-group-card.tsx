@@ -7,8 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Spinner } from '@/components/shared';
 import { StudentEnrollmentTable } from './student-enrollment-table';
-import { fetchUnassignedStudentsAction } from '@/modules/subjects/enrollment-actions';
-import { ChevronDown, ChevronUp, Users, Zap } from 'lucide-react';
+import { EnrolledStudentsTable } from './enrolled-students-table';
+import {
+  fetchUnassignedStudentsAction,
+  fetchEnrolledStudentsForGroupAction,
+} from '@/modules/subjects/enrollment-actions';
+import { ChevronDown, ChevronUp, Users, UserPlus, Zap } from 'lucide-react';
 
 type SubjectInfo = { id: string; name: string; code: string; enrolledCount: number };
 type ElectiveGroup = { groupName: string; subjects: SubjectInfo[] };
@@ -23,10 +27,14 @@ type Props = {
 
 export function EnrollmentGroupCard({ group, classId, sectionId, sessionId, onRefresh }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [activeTab, setActiveTab] = useState<'enrolled' | 'unassigned'>('enrolled');
   const [unassigned, setUnassigned] = useState<
     { id: string; rollNumber: string | null; user: { firstName: string; lastName: string } }[]
   >([]);
-  const [unassignedLoading, setUnassignedLoading] = useState(false);
+  const [enrolled, setEnrolled] = useState<
+    { studentId: string; rollNumber: string | null; firstName: string; lastName: string; subjectId: string; subjectName: string }[]
+  >([]);
+  const [isLoadingData, setIsLoadingData] = useState(false);
 
   const totalEnrolled = group.subjects.reduce((sum, s) => sum + s.enrolledCount, 0);
 
@@ -34,33 +42,37 @@ export function EnrollmentGroupCard({ group, classId, sectionId, sessionId, onRe
   useEffect(() => {
     if (sectionId) {
       setExpanded(true);
-      loadUnassigned();
+      loadStudents();
     } else {
       setExpanded(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sectionId]);
 
-  async function loadUnassigned() {
+  async function loadStudents() {
     if (!sectionId) return;
-    setUnassignedLoading(true);
+    setIsLoadingData(true);
     try {
-      const data = await fetchUnassignedStudentsAction(classId, sectionId, group.groupName, sessionId);
-      setUnassigned(data);
+      const [unassignedData, enrolledData] = await Promise.all([
+        fetchUnassignedStudentsAction(classId, sectionId, group.groupName, sessionId),
+        fetchEnrolledStudentsForGroupAction(classId, sectionId, group.groupName, sessionId),
+      ]);
+      setUnassigned(unassignedData);
+      setEnrolled(enrolledData);
     } finally {
-      setUnassignedLoading(false);
+      setIsLoadingData(false);
     }
   }
 
   async function handleToggle() {
     if (expanded) { setExpanded(false); return; }
     setExpanded(true);
-    if (sectionId) await loadUnassigned();
+    if (sectionId) await loadStudents();
   }
 
   async function handleRefresh() {
     onRefresh();
-    if (sectionId) await loadUnassigned();
+    if (sectionId) await loadStudents();
   }
 
   return (
@@ -104,16 +116,56 @@ export function EnrollmentGroupCard({ group, classId, sectionId, sessionId, onRe
               <p className="text-sm text-muted-foreground text-center py-4">
                 👆 Select a section above to see and assign students.
               </p>
-            ) : unassignedLoading ? (
+            ) : isLoadingData ? (
               <div className="flex justify-center py-4"><Spinner size="md" /></div>
             ) : (
-              <StudentEnrollmentTable
-                subjects={group.subjects}
-                unassignedStudents={unassigned}
-                classId={classId}
-                sessionId={sessionId}
-                onRefresh={handleRefresh}
-              />
+              <>
+                {/* Tabs: Enrolled / Unassigned */}
+                <div className="flex gap-1 rounded-lg bg-muted p-1">
+                  <button
+                    type="button"
+                    className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      activeTab === 'enrolled'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    onClick={() => setActiveTab('enrolled')}
+                  >
+                    <Users className="h-3 w-3" />
+                    Enrolled ({enrolled.length})
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      activeTab === 'unassigned'
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    onClick={() => setActiveTab('unassigned')}
+                  >
+                    <UserPlus className="h-3 w-3" />
+                    Unassigned ({unassigned.length})
+                  </button>
+                </div>
+
+                {activeTab === 'enrolled' ? (
+                  <EnrolledStudentsTable
+                    subjects={group.subjects}
+                    enrolledStudents={enrolled}
+                    classId={classId}
+                    sessionId={sessionId}
+                    onRefresh={handleRefresh}
+                  />
+                ) : (
+                  <StudentEnrollmentTable
+                    subjects={group.subjects}
+                    unassignedStudents={unassigned}
+                    classId={classId}
+                    sessionId={sessionId}
+                    onRefresh={handleRefresh}
+                  />
+                )}
+              </>
             )}
           </div>
         )}

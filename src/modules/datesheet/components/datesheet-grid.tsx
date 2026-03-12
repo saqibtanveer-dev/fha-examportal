@@ -21,13 +21,14 @@ type Props = {
   dates: string[];
   classSections: ClassSection[];
   onCellClick?: (date: string, classId: string, sectionId: string, entry: SerializedEntry | null) => void;
+  onEntryClick?: (entry: SerializedEntry) => void;
   onDutyClick?: (entry: SerializedEntry) => void;
   showDuties?: boolean;
   readOnly?: boolean;
 };
 
 export function DatesheetGrid({
-  entries, dates, classSections, onCellClick, onDutyClick, showDuties = true, readOnly = false,
+  entries, dates, classSections, onCellClick, onEntryClick, onDutyClick, showDuties = true, readOnly = false,
 }: Props) {
   const grid = buildGrid(entries, dates, classSections);
 
@@ -65,7 +66,16 @@ export function DatesheetGrid({
                         !readOnly && 'cursor-pointer hover:bg-accent/50',
                         cellEntries.length > 0 && 'bg-primary/5',
                       )}
-                      onClick={() => !readOnly && onCellClick?.(date, cs.classId, cs.sectionId, cellEntries[0] ?? null)}
+                      onClick={() => {
+                        if (readOnly) return;
+                        if (cellEntries.length === 1 && onEntryClick) {
+                          onEntryClick(cellEntries[0]!);
+                        } else if (cellEntries.length === 1) {
+                          onCellClick?.(date, cs.classId, cs.sectionId, cellEntries[0]!);
+                        } else {
+                          onCellClick?.(date, cs.classId, cs.sectionId, null);
+                        }
+                      }}
                     >
                       {cellEntries.length > 0 ? (
                         <div className="space-y-1">
@@ -75,6 +85,7 @@ export function DatesheetGrid({
                               entry={entry}
                               showDuties={showDuties}
                               onDutyClick={onDutyClick}
+                              onEntryClick={!readOnly && cellEntries.length > 1 ? onEntryClick : undefined}
                             />
                           ))}
                         </div>
@@ -93,14 +104,20 @@ export function DatesheetGrid({
   );
 }
 
-function GridCellContent({ entry, showDuties, onDutyClick }: {
+function GridCellContent({ entry, showDuties, onDutyClick, onEntryClick }: {
   entry: SerializedEntry;
   showDuties: boolean;
   onDutyClick?: (entry: SerializedEntry) => void;
+  onEntryClick?: (entry: SerializedEntry) => void;
 }) {
   return (
-    <div className="space-y-0.5">
-      <div className="font-medium text-xs">{entry.subject.name}</div>
+    <div
+      className={cn(
+        'space-y-0.5',
+        onEntryClick && 'rounded px-1 py-0.5 hover:bg-accent cursor-pointer hover:ring-1 hover:ring-primary/30',
+      )}
+      onClick={onEntryClick ? (e) => { e.stopPropagation(); onEntryClick(entry); } : undefined}
+    >      <div className="font-medium text-xs">{entry.subject.name}</div>
       <div className="text-muted-foreground text-xs">{formatTimeRange(entry.startTime, entry.endTime)}</div>
       {entry.room && <div className="text-muted-foreground text-xs">Room: {entry.room}</div>}
       {entry.totalMarks && (

@@ -185,3 +185,49 @@ export async function getUnassignedStudentsForElectiveGroup(
 
   return sectionStudents.filter((s) => !enrolledSet.has(s.id));
 }
+
+/**
+ * Get currently enrolled students for an elective group in a specific section.
+ * Returns each student with their current subject assignment.
+ */
+export async function getEnrolledStudentsForElectiveGroup(
+  classId: string,
+  sectionId: string,
+  electiveGroupName: string,
+  academicSessionId: string,
+) {
+  const groupSubjects = await prisma.subjectClassLink.findMany({
+    where: { classId, electiveGroupName, isElective: true, isActive: true },
+    select: { subjectId: true, subject: { select: { id: true, name: true, code: true } } },
+  });
+  const subjectIds = groupSubjects.map((s) => s.subjectId);
+
+  const enrollments = await prisma.studentSubjectEnrollment.findMany({
+    where: {
+      subjectId: { in: subjectIds },
+      academicSessionId,
+      isActive: true,
+      studentProfile: { sectionId, status: 'ACTIVE' },
+    },
+    select: {
+      subjectId: true,
+      studentProfile: {
+        select: {
+          id: true,
+          rollNumber: true,
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+    },
+    orderBy: { studentProfile: { rollNumber: 'asc' } },
+  });
+
+  return enrollments.map((e) => ({
+    studentId: e.studentProfile.id,
+    rollNumber: e.studentProfile.rollNumber,
+    firstName: e.studentProfile.user.firstName,
+    lastName: e.studentProfile.user.lastName,
+    subjectId: e.subjectId,
+    subjectName: groupSubjects.find((s) => s.subjectId === e.subjectId)?.subject.name ?? '',
+  }));
+}

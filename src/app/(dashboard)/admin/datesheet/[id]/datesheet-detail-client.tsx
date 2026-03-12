@@ -78,6 +78,15 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
     setEntryFormOpen(true);
   }
 
+  function handleEntryClick(entry: SerializedEntry) {
+    if (!isDraft) return;
+    setPrefilledDate(typeof entry.examDate === 'string' ? entry.examDate.slice(0, 10) : '');
+    setPrefilledClassId(entry.classId);
+    setPrefilledSectionId(entry.sectionId);
+    setSelectedEntry(entry);
+    setEntryFormOpen(true);
+  }
+
   function handleDutyClick(entry: SerializedEntry) {
     if (!isDraft) return;
     setDutyEntry(entry);
@@ -146,6 +155,7 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
               dates={dates}
               classSections={classSections}
               onCellClick={isDraft ? handleCellClick : undefined}
+              onEntryClick={isDraft ? handleEntryClick : undefined}
               onDutyClick={isDraft ? handleDutyClick : undefined}
               readOnly={!isDraft}
             />

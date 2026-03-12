@@ -103,7 +103,8 @@ export async function getEntryById(id: string) {
   });
 }
 
-/** Check for time overlap on same section + date within a datesheet */
+/** Check for time overlap on same section + date within a datesheet.
+ *  Elective subjects from the same group are allowed to share a time slot. */
 export async function hasEntryConflict(
   datesheetId: string,
   classId: string,
@@ -112,6 +113,7 @@ export async function hasEntryConflict(
   startTime: string,
   endTime: string,
   excludeId?: string,
+  subjectId?: string,
 ): Promise<boolean> {
   const entries = await prisma.datesheetEntry.findMany({
     where: {
@@ -121,10 +123,46 @@ export async function hasEntryConflict(
       examDate,
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
-    select: { id: true, startTime: true, endTime: true },
+    select: { id: true, startTime: true, endTime: true, subjectId: true },
   });
+
   const { doTimesOverlap } = await import('./datesheet.utils');
-  return entries.some((e) => doTimesOverlap(startTime, endTime, e.startTime, e.endTime));
+  const overlapping = entries.filter((e) => doTimesOverlap(startTime, endTime, e.startTime, e.endTime));
+  if (overlapping.length === 0) return false;
+
+  // If no subjectId provided, can't check elective status — treat as conflict
+  if (!subjectId) return true;
+
+  // Check if the new subject is elective for this class
+  const newLink = await prisma.subjectClassLink.findUnique({
+    where: { subjectId_classId: { subjectId, classId } },
+    select: { isElective: true, electiveGroupName: true },
+  });
+
+  // Non-elective subject always conflicts with any overlap
+  if (!newLink?.isElective || !newLink.electiveGroupName) return true;
+
+  // For elective subjects, only conflict with entries from different groups or non-electives
+  const overlappingSubjectIds = [...new Set(overlapping.map((e) => e.subjectId))];
+  const existingLinks = await prisma.subjectClassLink.findMany({
+    where: {
+      classId,
+      subjectId: { in: overlappingSubjectIds },
+    },
+    select: { subjectId: true, isElective: true, electiveGroupName: true },
+  });
+
+  const linkMap = new Map(existingLinks.map((l) => [l.subjectId, l]));
+
+  for (const entry of overlapping) {
+    const entryLink = linkMap.get(entry.subjectId);
+    // Conflict if existing entry is not elective or from a different group
+    if (!entryLink?.isElective || entryLink.electiveGroupName !== newLink.electiveGroupName) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 // ============================================

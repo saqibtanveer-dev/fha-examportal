@@ -62,8 +62,15 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
   function handleCellClick(dayOfWeek: DayOfWeek, periodSlotId: string, cell: TimetableGridCell) {
     setSelectedDay(dayOfWeek);
     setSelectedPeriodSlotId(periodSlotId);
-    // For regular cells, pass the entry; for empty/elective, pass null to create new
+    // For regular cells pass the entry, for empty/elective td-click open create mode
     setSelectedEntry(cell.type === 'regular' ? cell.entry : null);
+    setEntryFormOpen(true);
+  }
+
+  function handleEntryClick(entry: TimetableEntryWithRelations) {
+    setSelectedDay(entry.dayOfWeek);
+    setSelectedPeriodSlotId(entry.periodSlot.id);
+    setSelectedEntry(entry);
     setEntryFormOpen(true);
   }
 
@@ -112,6 +119,7 @@ export function TimetableView({ periodSlots, classes, currentSessionId }: Props)
               periodSlots={effectivePeriodSlots}
               grid={grid}
               onCellClick={handleCellClick}
+              onEntryClick={handleEntryClick}
             />
           )}
         </TabsContent>

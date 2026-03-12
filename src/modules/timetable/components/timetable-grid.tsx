@@ -5,16 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { ORDERED_DAYS, DAY_SHORT_LABELS } from '../timetable.constants';
 import { formatTimeRange } from '../timetable.utils';
-import type { PeriodSlotListItem, TimetableGridCell } from '../timetable.types';
+import type { PeriodSlotListItem, TimetableGridCell, TimetableEntryWithRelations } from '../timetable.types';
 
 type Props = {
   periodSlots: PeriodSlotListItem[];
   grid: Record<string, Record<string, TimetableGridCell>>;
   onCellClick?: (dayOfWeek: DayOfWeek, periodSlotId: string, cell: TimetableGridCell) => void;
+  onEntryClick?: (entry: TimetableEntryWithRelations) => void;
   compact?: boolean;
 };
 
-export function TimetableGrid({ periodSlots, grid, onCellClick, compact = false }: Props) {
+export function TimetableGrid({ periodSlots, grid, onCellClick, onEntryClick, compact = false }: Props) {
   const activePeriods = periodSlots.filter((p) => p.isActive).sort((a, b) => a.sortOrder - b.sortOrder);
 
   return (
@@ -66,7 +67,7 @@ export function TimetableGrid({ periodSlots, grid, onCellClick, compact = false 
                     )}
                     onClick={() => onCellClick?.(day, slot.id, cell)}
                   >
-                    <CellContent cell={cell} compact={compact} />
+                    <CellContent cell={cell} compact={compact} onEntryClick={onEntryClick} />
                   </td>
                 );
               })}
@@ -78,7 +79,7 @@ export function TimetableGrid({ periodSlots, grid, onCellClick, compact = false 
   );
 }
 
-function CellContent({ cell, compact }: { cell: TimetableGridCell; compact: boolean }) {
+function CellContent({ cell, compact, onEntryClick }: { cell: TimetableGridCell; compact: boolean; onEntryClick?: (entry: TimetableEntryWithRelations) => void }) {
   if (cell.type === 'empty') {
     return <span className="text-xs text-muted-foreground/50">—</span>;
   }
@@ -106,7 +107,19 @@ function CellContent({ cell, compact }: { cell: TimetableGridCell; compact: bool
         <Badge variant="secondary" className="text-[8px] mb-0.5">Elective</Badge>
       )}
       {cell.entries.map((entry) => (
-        <div key={entry.id} className="rounded bg-accent/50 px-1 py-0.5">
+        <div
+          key={entry.id}
+          className={cn(
+            'rounded bg-accent/50 px-1 py-0.5',
+            onEntryClick && 'hover:bg-accent cursor-pointer hover:ring-1 hover:ring-primary/30',
+          )}
+          onClick={(e) => {
+            if (onEntryClick) {
+              e.stopPropagation();
+              onEntryClick(entry);
+            }
+          }}
+        >
           <div className="font-medium text-[10px] truncate" title={entry.subject.name}>
             {entry.subject.code}
           </div>

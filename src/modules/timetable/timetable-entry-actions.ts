@@ -17,6 +17,7 @@ import {
 } from '@/validations/timetable-schemas';
 import { hasTeacherConflict } from './timetable-queries';
 import { isSubjectElectiveForClass } from '@/lib/enrollment-helpers';
+import { findOrCreateElectiveGroup, cleanupOrphanedGroup } from './timetable-elective-helpers';
 
 function revalidateTimetablePaths() {
   revalidatePath('/admin/timetable');
@@ -80,33 +81,9 @@ export const createTimetableEntryAction = safeAction(
     let electiveSlotGroupId: string | undefined;
 
     if (isElective) {
-      // Find or create ElectiveSlotGroup for this slot
-      const existingGroup = await prisma.electiveSlotGroup.findUnique({
-        where: {
-          classId_sectionId_periodSlotId_dayOfWeek_academicSessionId: {
-            classId: data.classId,
-            sectionId: data.sectionId,
-            periodSlotId: data.periodSlotId,
-            dayOfWeek: data.dayOfWeek,
-            academicSessionId: data.academicSessionId,
-          },
-        },
-      });
-
-      if (existingGroup) {
-        electiveSlotGroupId = existingGroup.id;
-      } else {
-        const newGroup = await prisma.electiveSlotGroup.create({
-          data: {
-            classId: data.classId,
-            sectionId: data.sectionId,
-            periodSlotId: data.periodSlotId,
-            dayOfWeek: data.dayOfWeek,
-            academicSessionId: data.academicSessionId,
-          },
-        });
-        electiveSlotGroupId = newGroup.id;
-      }
+      electiveSlotGroupId = await findOrCreateElectiveGroup(
+        data.classId, data.sectionId, data.periodSlotId, data.dayOfWeek, data.academicSessionId,
+      );
     }
 
     const entry = await prisma.timetableEntry.create({
@@ -151,7 +128,56 @@ export const updateTimetableEntryAction = safeAction(
       if (conflict) return actionError('Teacher is already assigned to another class in this period');
     }
 
-    await prisma.timetableEntry.update({ where: { id }, data });
+    // If subject is changing, re-check elective status and update group membership
+    let electiveUpdates: Record<string, unknown> = {};
+    if (data.subjectId && data.subjectId !== existing.subjectId) {
+      const newIsElective = await isSubjectElectiveForClass(data.subjectId, existing.classId);
+      const wasElective = existing.isElectiveSlot;
+
+      if (newIsElective !== wasElective) {
+        // Elective status changed — validate no type mixing in the slot
+        const siblings = await prisma.timetableEntry.findMany({
+          where: {
+            classId: existing.classId,
+            sectionId: existing.sectionId,
+            periodSlotId: existing.periodSlotId,
+            dayOfWeek: existing.dayOfWeek,
+            academicSessionId: existing.academicSessionId,
+            isActive: true,
+            id: { not: id },
+          },
+        });
+
+        if (siblings.length > 0) {
+          const siblingHasElective = siblings.some((s) => s.isElectiveSlot);
+          const siblingHasRegular = siblings.some((s) => !s.isElectiveSlot);
+
+          if (newIsElective && siblingHasRegular) {
+            return actionError('Cannot change to elective — this period has a regular subject.');
+          }
+          if (!newIsElective && siblingHasElective) {
+            return actionError('Cannot change to regular — this period is an elective block.');
+          }
+        }
+      }
+
+      if (newIsElective) {
+        const groupId = await findOrCreateElectiveGroup(
+          existing.classId, existing.sectionId, existing.periodSlotId, existing.dayOfWeek, existing.academicSessionId,
+        );
+        electiveUpdates = { isElectiveSlot: true, electiveSlotGroupId: groupId };
+      } else {
+        electiveUpdates = { isElectiveSlot: false, electiveSlotGroupId: null };
+      }
+    }
+
+    await prisma.timetableEntry.update({ where: { id }, data: { ...data, ...electiveUpdates } });
+
+    // Clean up orphaned group from old membership
+    if (electiveUpdates.electiveSlotGroupId === null && existing.electiveSlotGroupId) {
+      await cleanupOrphanedGroup(existing.electiveSlotGroupId);
+    }
+
     createAuditLog(session.user.id, 'UPDATE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id, data).catch(() => {});
     revalidateTimetablePaths();
     return actionSuccess();
@@ -176,14 +202,7 @@ export const deleteTimetableEntryAction = safeAction(
 
     // Clean up empty ElectiveSlotGroup if this was the last entry
     if (existing.electiveSlotGroupId) {
-      const remainingEntries = await prisma.timetableEntry.count({
-        where: { electiveSlotGroupId: existing.electiveSlotGroupId },
-      });
-      if (remainingEntries === 0) {
-        await prisma.electiveSlotGroup.delete({
-          where: { id: existing.electiveSlotGroupId },
-        });
-      }
+      await cleanupOrphanedGroup(existing.electiveSlotGroupId);
     }
 
     createAuditLog(session.user.id, 'DELETE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id).catch(() => {});

@@ -32,6 +32,14 @@ const unenrollStudentSchema = z.object({
   academicSessionId: z.string().uuid(),
 });
 
+const changeEnrollmentSchema = z.object({
+  studentProfileId: z.string().uuid(),
+  oldSubjectId: z.string().uuid(),
+  newSubjectId: z.string().uuid(),
+  classId: z.string().uuid(),
+  academicSessionId: z.string().uuid(),
+});
+
 // ── Actions ──
 
 function revalidateEnrollmentPaths() {
@@ -180,6 +188,78 @@ export const unenrollStudentFromSubjectAction = safeAction(
   },
 );
 
+/** Change a student's elective enrollment from one subject to another (atomic) */
+export const changeStudentEnrollmentAction = safeAction(
+  async function changeStudentEnrollment(
+    input: z.infer<typeof changeEnrollmentSchema>,
+  ): Promise<ActionResult> {
+    const session = await requireRole('ADMIN');
+
+    const parsed = changeEnrollmentSchema.safeParse(input);
+    if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
+
+    const data = parsed.data;
+
+    if (data.oldSubjectId === data.newSubjectId) {
+      return actionError('New subject is the same as the current one');
+    }
+
+    // Verify the new subject-class link exists and is elective
+    const newLink = await prisma.subjectClassLink.findUnique({
+      where: { subjectId_classId: { subjectId: data.newSubjectId, classId: data.classId } },
+      select: { isElective: true, electiveGroupName: true },
+    });
+    if (!newLink?.isElective) return actionError('New subject is not an elective for this class');
+
+    // Verify old subject is in the same elective group
+    const oldLink = await prisma.subjectClassLink.findUnique({
+      where: { subjectId_classId: { subjectId: data.oldSubjectId, classId: data.classId } },
+      select: { isElective: true, electiveGroupName: true },
+    });
+    if (!oldLink?.isElective) return actionError('Old subject is not an elective for this class');
+    if (oldLink.electiveGroupName !== newLink.electiveGroupName) {
+      return actionError('Subjects are not in the same elective group');
+    }
+
+    // Atomic: deactivate old enrollment + create/activate new enrollment
+    await prisma.$transaction([
+      prisma.studentSubjectEnrollment.updateMany({
+        where: {
+          studentProfileId: data.studentProfileId,
+          subjectId: data.oldSubjectId,
+          academicSessionId: data.academicSessionId,
+          isActive: true,
+        },
+        data: { isActive: false },
+      }),
+      prisma.studentSubjectEnrollment.upsert({
+        where: {
+          studentProfileId_subjectId_academicSessionId: {
+            studentProfileId: data.studentProfileId,
+            subjectId: data.newSubjectId,
+            academicSessionId: data.academicSessionId,
+          },
+        },
+        update: { isActive: true },
+        create: {
+          studentProfileId: data.studentProfileId,
+          subjectId: data.newSubjectId,
+          classId: data.classId,
+          academicSessionId: data.academicSessionId,
+        },
+      }),
+    ]);
+
+    createAuditLog(session.user.id, 'CHANGE_STUDENT_ENROLLMENT', 'STUDENT_SUBJECT_ENROLLMENT', data.studentProfileId, {
+      oldSubjectId: data.oldSubjectId,
+      newSubjectId: data.newSubjectId,
+      classId: data.classId,
+    }).catch(() => {});
+    revalidateEnrollmentPaths();
+    return actionSuccess();
+  },
+);
+
 /** Fetch enrollments for a class/subject/session (for UI) */
 export const fetchEnrollmentsBySubjectAction = safeFetchAction(async (
   subjectId: string,
@@ -228,4 +308,17 @@ export const fetchUnassignedStudentsAction = safeFetchAction(async (
 
   const { getUnassignedStudentsForElectiveGroup } = await import('./enrollment-queries');
   return getUnassignedStudentsForElectiveGroup(classId, sectionId, electiveGroupName, academicSessionId);
+});
+
+/** Fetch enrolled students for an elective group in a section */
+export const fetchEnrolledStudentsForGroupAction = safeFetchAction(async (
+  classId: string,
+  sectionId: string,
+  electiveGroupName: string,
+  academicSessionId: string,
+) => {
+  await requireRole('ADMIN');
+
+  const { getEnrolledStudentsForElectiveGroup } = await import('./enrollment-queries');
+  return getEnrolledStudentsForElectiveGroup(classId, sectionId, electiveGroupName, academicSessionId);
 });

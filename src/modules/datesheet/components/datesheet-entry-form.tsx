@@ -20,7 +20,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { Trash2, Users } from 'lucide-react';
+import { Trash2, Users, Zap } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import type { RefClass, RefSubjectClassLink, RefSubject } from '@/stores/reference-store';
 import type { DeepSerialize } from '@/utils/serialize';
 import type { DatesheetEntryWithRelations } from '../datesheet.types';
@@ -102,10 +103,14 @@ export function DatesheetEntryForm({
 
   const selectedClass = classes.find((c) => c.id === classId);
   const sections = selectedClass?.sections ?? [];
-  const availableSubjectIds = subjectClassLinks
-    .filter((l) => l.classId === classId)
-    .map((l) => l.subjectId);
+  const classLinks = subjectClassLinks.filter((l) => l.classId === classId);
+  const availableSubjectIds = classLinks.map((l) => l.subjectId);
   const filteredSubjects = subjects.filter((s) => availableSubjectIds.includes(s.id));
+
+  // Check if selected subject is elective
+  const selectedSubjectLink = subjectId
+    ? classLinks.find((l) => l.subjectId === subjectId)
+    : null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -187,9 +192,22 @@ export function DatesheetEntryForm({
             <Select value={subjectId} onValueChange={setSubjectId}>
               <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
               <SelectContent>
-                {filteredSubjects.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.code})</SelectItem>)}
+                {filteredSubjects.map((s) => {
+                  const link = classLinks.find((l) => l.subjectId === s.id);
+                  return (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name} ({s.code}){link?.isElective ? ' ⚡' : ''}
+                    </SelectItem>
+                  );
+                })}
               </SelectContent>
             </Select>
+            {selectedSubjectLink?.isElective && (
+              <Badge variant="outline" className="mt-1 gap-1 text-xs">
+                <Zap className="h-3 w-3 text-amber-500" />
+                Elective{selectedSubjectLink.electiveGroupName ? ` — ${selectedSubjectLink.electiveGroupName}` : ''}
+              </Badge>
+            )}
           </div>
 
           <div className="grid grid-cols-3 gap-4">

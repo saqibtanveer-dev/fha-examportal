@@ -61,6 +61,7 @@ export const createDatesheetEntryAction = safeAction(
       for (const sec of sections) {
         const conflict = await hasEntryConflict(
           data.datesheetId, data.classId, sec.id, examDate, data.startTime, data.endTime,
+          undefined, data.subjectId,
         );
         if (conflict) return actionError(`Time conflict for section in this class on this date`);
       }
@@ -89,6 +90,7 @@ export const createDatesheetEntryAction = safeAction(
     // Single section entry
     const conflict = await hasEntryConflict(
       data.datesheetId, data.classId, data.sectionId, examDate, data.startTime, data.endTime,
+      undefined, data.subjectId,
     );
     if (conflict) return actionError('Time conflict: this section already has an exam at this time on this date');
 
@@ -147,8 +149,10 @@ export const updateDatesheetEntryAction = safeAction(
     // Check for time conflicts when time or date is being changed
     if (data.examDate || data.startTime || data.endTime) {
       const examDate = data.examDate ? new Date(data.examDate) : existing.examDate;
+      const effectiveSubjectId = data.subjectId ?? existing.subjectId;
       const conflict = await hasEntryConflict(
         existing.datesheetId, existing.classId, existing.sectionId, examDate, startTime, endTime, id,
+        effectiveSubjectId,
       );
       if (conflict) return actionError('Time conflict: this class already has an exam at this time on this date');
     }
@@ -218,6 +222,7 @@ export const bulkCreateDatesheetEntriesAction = safeAction(
       }
       const conflict = await hasEntryConflict(
         data.datesheetId, e.classId, e.sectionId, examDate, e.startTime, e.endTime,
+        undefined, e.subjectId,
       );
       if (conflict) {
         return actionError(`Entry ${i + 1}: Time conflict for this section on this date`);
