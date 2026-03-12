@@ -34,17 +34,45 @@ export const createStudentFeeDiscountAction = safeAction(
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return actionError('No active academic session');
 
-    // Verify student exists
+    // Verify student exists and get their class for fee validation
     const student = await prisma.studentProfile.findUnique({
       where: { id: studentProfileId },
-      select: { id: true, user: { select: { firstName: true, lastName: true } } },
+      select: { id: true, classId: true, user: { select: { firstName: true, lastName: true } } },
     });
     if (!student) return actionError('Student not found');
+    if (!student.classId) return actionError('Student has no class assigned');
 
     // Verify category if specified
     if (feeCategoryId) {
       const cat = await prisma.feeCategory.findUnique({ where: { id: feeCategoryId }, select: { id: true } });
       if (!cat) return actionError('Fee category not found');
+    }
+
+    // Validate FLAT discount doesn't exceed the actual fee amount
+    if (discountType === 'FLAT') {
+      const structures = await prisma.feeStructure.findMany({
+        where: {
+          academicSessionId,
+          classId: student.classId,
+          isActive: true,
+          ...(feeCategoryId ? { categoryId: feeCategoryId } : {}),
+        },
+        select: { amount: true, categoryId: true },
+      });
+
+      if (structures.length === 0) {
+        return actionError('No fee structures found for this student\'s class. Configure fees first.');
+      }
+
+      const maxFee = feeCategoryId
+        ? Number(structures[0]?.amount ?? 0)
+        : structures.reduce((sum, s) => sum + Number(s.amount), 0);
+
+      if (value > maxFee) {
+        return actionError(
+          `Discount Rs. ${value} exceeds the ${feeCategoryId ? 'category' : 'total monthly'} fee of Rs. ${maxFee}. Maximum allowed: Rs. ${maxFee}.`,
+        );
+      }
     }
 
     // Check for duplicate (same student + session + category)
@@ -105,13 +133,36 @@ export const updateStudentFeeDiscountAction = safeAction(
 
     const existing = await prisma.studentFeeDiscount.findUnique({
       where: { id },
-      select: { id: true, discountType: true },
+      select: {
+        id: true, discountType: true, feeCategoryId: true,
+        studentProfile: { select: { classId: true } },
+        academicSessionId: true,
+      },
     });
     if (!existing) return actionError('Discount not found');
 
     // Validate percentage cap
     if (value !== undefined && existing.discountType === 'PERCENTAGE' && value > 100) {
       return actionError('Percentage cannot exceed 100');
+    }
+
+    // Validate FLAT value doesn't exceed fee
+    if (value !== undefined && existing.discountType === 'FLAT' && existing.studentProfile.classId) {
+      const structures = await prisma.feeStructure.findMany({
+        where: {
+          academicSessionId: existing.academicSessionId,
+          classId: existing.studentProfile.classId,
+          isActive: true,
+          ...(existing.feeCategoryId ? { categoryId: existing.feeCategoryId } : {}),
+        },
+        select: { amount: true },
+      });
+      const maxFee = existing.feeCategoryId
+        ? Number(structures[0]?.amount ?? 0)
+        : structures.reduce((sum, s) => sum + Number(s.amount), 0);
+      if (value > maxFee) {
+        return actionError(`Discount Rs. ${value} exceeds the fee of Rs. ${maxFee}.`);
+      }
     }
 
     await prisma.studentFeeDiscount.update({

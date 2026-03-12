@@ -18,10 +18,11 @@ import { StudentSearchCombobox } from './student-search-combobox';
 import { PaymentHistoryDialog } from './payment-history-dialog';
 import { StudentDiscountDialog } from './student-discount-dialog';
 import { AdvancePaymentDialog } from './advance-payment-dialog';
+import { StudentLedgerDialog } from './student-ledger-dialog';
 import { fetchPendingAssignmentsAction, fetchStudentCreditsAction } from '@/modules/fees/fee-fetch-actions';
 import { collectStudentFeeAction } from '@/modules/fees/fee-collection-actions';
 import { toast } from 'sonner';
-import { Receipt, Tag, Wallet } from 'lucide-react';
+import { History, Receipt, Tag, Wallet } from 'lucide-react';
 import type { SerializedFeeAssignment } from '@/modules/fees/fee.types';
 
 const PAYMENT_METHODS = ['CASH', 'BANK_TRANSFER', 'ONLINE', 'CHEQUE'] as const;
@@ -40,6 +41,7 @@ export function StudentPaymentTab() {
   const [historyAssignmentId, setHistoryAssignmentId] = useState<string | null>(null);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
+  const [ledgerOpen, setLedgerOpen] = useState(false);
   const [creditBalance, setCreditBalance] = useState(0);
   const invalidate = useInvalidateCache();
 
@@ -129,6 +131,9 @@ export function StudentPaymentTab() {
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setAdvanceDialogOpen(true)} disabled={isPending}>
                   <Wallet className="mr-1 h-3.5 w-3.5" /> Record Advance Payment
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setLedgerOpen(true)} disabled={isPending}>
+                  <History className="mr-1 h-3.5 w-3.5" /> Payment Ledger
                 </Button>
               </div>
               {creditBalance > 0 && (
@@ -292,6 +297,12 @@ export function StudentPaymentTab() {
             studentProfileId={studentId}
             studentName={studentLabel}
             onSuccess={() => loadAssignments(studentId)}
+          />
+          <StudentLedgerDialog
+            open={ledgerOpen}
+            onClose={() => setLedgerOpen(false)}
+            studentProfileId={studentId}
+            studentName={studentLabel}
           />
         </>
       )}

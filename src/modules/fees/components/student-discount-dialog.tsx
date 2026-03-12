@@ -15,7 +15,7 @@ import { Spinner } from '@/components/shared';
 import { toast } from 'sonner';
 import { Trash2, Plus } from 'lucide-react';
 import { formatCurrency } from './fee-status-badge';
-import { fetchStudentDiscountsAction, fetchFeeCategoriesAction } from '@/modules/fees/fee-fetch-actions';
+import { fetchStudentDiscountsAction, fetchFeeCategoriesAction, fetchStudentFeeAmountsAction } from '@/modules/fees/fee-fetch-actions';
 import {
   createStudentFeeDiscountAction,
   updateStudentFeeDiscountAction,
@@ -36,6 +36,7 @@ type DiscountRecord = {
 };
 
 type Category = { id: string; name: string };
+type FeeAmounts = { total: number; categories: { id: string; name: string; amount: number }[] };
 
 type Props = {
   open: boolean;
@@ -48,6 +49,7 @@ export function StudentDiscountDialog({ open, onClose, studentProfileId, student
   const [isPending, startTransition] = useTransition();
   const [discounts, setDiscounts] = useState<DiscountRecord[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [feeAmounts, setFeeAmounts] = useState<FeeAmounts>({ total: 0, categories: [] });
   const [showForm, setShowForm] = useState(false);
 
   // New discount form
@@ -66,12 +68,14 @@ export function StudentDiscountDialog({ open, onClose, studentProfileId, student
 
   function loadData() {
     startTransition(async () => {
-      const [discountData, categoryData] = await Promise.all([
+      const [discountData, categoryData, feeData] = await Promise.all([
         fetchStudentDiscountsAction(studentProfileId),
         fetchFeeCategoriesAction(true),
+        fetchStudentFeeAmountsAction(studentProfileId),
       ]);
       setDiscounts((discountData ?? []) as DiscountRecord[]);
       setCategories((categoryData ?? []).map((c: { id: string; name: string }) => ({ id: c.id, name: c.name })));
+      if (feeData) setFeeAmounts(feeData as FeeAmounts);
     });
   }
 
@@ -89,6 +93,17 @@ export function StudentDiscountDialog({ open, onClose, studentProfileId, student
     if (numValue <= 0) { toast.error('Enter a positive discount value'); return; }
     if (!reason || reason.length < 3) { toast.error('Reason required (min 3 chars)'); return; }
     if (discountType === 'PERCENTAGE' && numValue > 100) { toast.error('Percentage cannot exceed 100'); return; }
+
+    // Validate FLAT discount against actual fee
+    if (discountType === 'FLAT') {
+      const maxFee = categoryId !== 'all'
+        ? (feeAmounts.categories.find((c) => c.id === categoryId)?.amount ?? 0)
+        : feeAmounts.total;
+      if (maxFee > 0 && numValue > maxFee) {
+        toast.error(`Discount Rs. ${numValue} exceeds the fee of Rs. ${maxFee}`);
+        return;
+      }
+    }
 
     startTransition(async () => {
       const result = await createStudentFeeDiscountAction({
@@ -199,6 +214,15 @@ export function StudentDiscountDialog({ open, onClose, studentProfileId, student
           </Button>
         ) : (
           <div className="space-y-3 rounded-lg border bg-muted/30 p-4">
+            {/* Fee context for the admin */}
+            {feeAmounts.total > 0 && (
+              <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900 px-3 py-2 text-xs text-blue-700 dark:text-blue-400">
+                <p className="font-medium mb-1">Monthly Fee: {formatCurrency(feeAmounts.total)}</p>
+                {feeAmounts.categories.map((c) => (
+                  <span key={c.id} className="mr-3">{c.name}: {formatCurrency(c.amount)}</span>
+                ))}
+              </div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>Type</Label>
@@ -213,7 +237,10 @@ export function StudentDiscountDialog({ open, onClose, studentProfileId, student
               <div className="space-y-1">
                 <Label>{discountType === 'FLAT' ? 'Amount (Rs.)' : 'Percentage (%)'}</Label>
                 <Input
-                  type="number" min={0} max={discountType === 'PERCENTAGE' ? 100 : undefined}
+                  type="number" min={0}
+                  max={discountType === 'PERCENTAGE' ? 100 : (categoryId !== 'all'
+                    ? (feeAmounts.categories.find((c) => c.id === categoryId)?.amount ?? undefined)
+                    : (feeAmounts.total || undefined))}
                   value={value} onChange={(e) => setValue(e.target.value)}
                   placeholder={discountType === 'FLAT' ? 'e.g. 500' : 'e.g. 10'}
                 />
