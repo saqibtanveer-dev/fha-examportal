@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import type { DayOfWeek } from '@prisma/client';
+import { isSharedElectiveDeliveryCompatible } from './timetable-shared-delivery';
 
 // ============================================
 // PERIOD SLOT QUERIES
@@ -233,23 +234,60 @@ export async function getTimetableEntryBySlotAndSubject(
   });
 }
 
-/** Check if a teacher is already assigned to another class in the same period */
+type TeacherConflictCheckInput = {
+  teacherProfileId: string;
+  classId: string;
+  sectionId: string;
+  subjectId: string;
+  periodSlotId: string;
+  dayOfWeek: DayOfWeek;
+  academicSessionId: string;
+  room?: string;
+  isElectiveSlot: boolean;
+  excludeEntryId?: string;
+};
+
+type TimetableReader = {
+  timetableEntry: {
+    findMany: typeof prisma.timetableEntry.findMany;
+  };
+};
+
+/**
+ * Check whether assigning a teacher to a slot conflicts with existing assignments.
+ * Same teacher can share an elective delivery across sections when class, subject and room match.
+ */
 export async function hasTeacherConflict(
-  teacherProfileId: string,
-  periodSlotId: string,
-  dayOfWeek: DayOfWeek,
-  academicSessionId: string,
-  excludeEntryId?: string,
+  input: TeacherConflictCheckInput,
+  db: TimetableReader = prisma,
 ): Promise<boolean> {
-  const conflict = await prisma.timetableEntry.findFirst({
+  const assignmentsAtSlot = await db.timetableEntry.findMany({
     where: {
-      teacherProfileId,
-      periodSlotId,
-      dayOfWeek,
-      academicSessionId,
+      teacherProfileId: input.teacherProfileId,
+      periodSlotId: input.periodSlotId,
+      dayOfWeek: input.dayOfWeek,
+      academicSessionId: input.academicSessionId,
       isActive: true,
-      ...(excludeEntryId ? { id: { not: excludeEntryId } } : {}),
+      ...(input.excludeEntryId ? { id: { not: input.excludeEntryId } } : {}),
+    },
+    select: {
+      classId: true,
+      sectionId: true,
+      subjectId: true,
+      room: true,
+      isElectiveSlot: true,
     },
   });
-  return conflict !== null;
+
+  if (assignmentsAtSlot.length === 0) return false;
+
+  const candidate = {
+    classId: input.classId,
+    sectionId: input.sectionId,
+    subjectId: input.subjectId,
+    room: input.room,
+    isElectiveSlot: input.isElectiveSlot,
+  };
+
+  return assignmentsAtSlot.some((existing) => !isSharedElectiveDeliveryCompatible(existing, candidate));
 }

@@ -203,28 +203,6 @@ export async function listDutiesByTeacher(teacherProfileId: string, datesheetId:
   });
 }
 
-/** Check teacher duty time conflict on same date */
-export async function hasTeacherDutyConflict(
-  teacherProfileId: string,
-  examDate: Date,
-  startTime: string,
-  endTime: string,
-  excludeEntryId?: string,
-): Promise<boolean> {
-  const duties = await prisma.datesheetDuty.findMany({
-    where: {
-      teacherProfileId,
-      datesheetEntry: {
-        examDate,
-        ...(excludeEntryId ? { id: { not: excludeEntryId } } : {}),
-      },
-    },
-    select: { datesheetEntry: { select: { startTime: true, endTime: true } } },
-  });
-  const { doTimesOverlap } = await import('./datesheet.utils');
-  return duties.some((d) => doTimesOverlap(startTime, endTime, d.datesheetEntry.startTime, d.datesheetEntry.endTime));
-}
-
 // ============================================
 // DASHBOARD / SUMMARY QUERIES
 // ============================================

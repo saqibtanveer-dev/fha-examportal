@@ -203,10 +203,15 @@ export function DatesheetEntryForm({
               </SelectContent>
             </Select>
             {selectedSubjectLink?.isElective && (
-              <Badge variant="outline" className="mt-1 gap-1 text-xs">
-                <Zap className="h-3 w-3 text-amber-500" />
-                Elective{selectedSubjectLink.electiveGroupName ? ` — ${selectedSubjectLink.electiveGroupName}` : ''}
-              </Badge>
+              <div className="mt-1 space-y-1">
+                <Badge variant="outline" className="gap-1 text-xs">
+                  <Zap className="h-3 w-3 text-amber-500" />
+                  Elective{selectedSubjectLink.electiveGroupName ? ` — ${selectedSubjectLink.electiveGroupName}` : ''}
+                </Badge>
+                <p className="text-[11px] text-muted-foreground">
+                  For merged elective exams across sections, keep the same time and room in each section entry.
+                </p>
+              </div>
             )}
           </div>
 
