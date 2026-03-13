@@ -1,12 +1,119 @@
 is whole project ko brutally deeply analyze kro
 ----
-ik senior developer, senior architect, senior designer, senior nextjs expert ki tra kam kro 
-ik senior level frontend expert developer kia kam kro 
-----
 kisi file me 300 line sy zyada ka code na ho proper code modularity ho 
-in chizon ka khyal rakhan zrori hy 
-maintainability
-scalability
+----
+ik senior level backend expert developer kia kam kro 
+ik senior level database expert developer kia kam kro 
+ik senior level server expert developer kia kam kro 
+ik senior level security expert developer kia kam kro 
+ik senior level performance expert developer kia kam kro 
+ik senior level scalability expert developer kia kam kro 
+ik senior level maintainability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik senior level stability expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro 
+ik senior level production grade expert developer kia kam kro 
+ik senior level production readiness expert developer kia kam kro 
+ik senior level high users handling expert developer kia kam kro 
+ik senior level high users performance expert developer kia kam kro 
+ik senior level horizontal scalling expert developer kia kam kro 
+ik
 reliability
 production grade 
 production readiness

@@ -21,6 +21,8 @@ import {
   Heart,
   CalendarRange,
   Wallet,
+  FileText,
+  MessageSquare,
   type LucideIcon,
 } from 'lucide-react';
 import { ROUTES } from '@/lib/constants';
@@ -64,9 +66,19 @@ export const adminNavigation: NavGroup[] = [
     ],
   },
   {
+    title: 'Reports',
+    items: [
+      { label: 'Analytics', href: ROUTES.ADMIN.REPORTS, icon: BarChart3 },
+      { label: 'Result Terms', href: ROUTES.ADMIN.REPORTS_RESULT_TERMS, icon: ClipboardList },
+      { label: 'Consolidation', href: ROUTES.ADMIN.REPORTS_CONSOLIDATION, icon: TrendingUp },
+      { label: 'DMC Generator', href: ROUTES.ADMIN.REPORTS_DMC, icon: FileText },
+      { label: 'Class Gazette', href: ROUTES.ADMIN.REPORTS_GAZETTE, icon: ScrollText },
+      { label: 'Student Remarks', href: ROUTES.ADMIN.REPORTS_REMARKS, icon: MessageSquare },
+    ],
+  },
+  {
     title: 'System',
     items: [
-      { label: 'Reports', href: ROUTES.ADMIN.REPORTS, icon: BarChart3 },
       { label: 'Notifications', href: ROUTES.ADMIN.NOTIFICATIONS, icon: Bell },
       { label: 'Audit Logs', href: ROUTES.ADMIN.AUDIT_LOG, icon: ScrollText },
       { label: 'Settings', href: ROUTES.ADMIN.SETTINGS, icon: Settings },
@@ -149,6 +161,7 @@ export const studentNavigation: NavGroup[] = [
     items: [
       { label: 'My Exams', href: ROUTES.STUDENT.EXAMS, icon: ClipboardList },
       { label: 'My Results', href: ROUTES.STUDENT.RESULTS, icon: BarChart3 },
+      { label: 'My Reports / DMC', href: '/student/reports', icon: FileText },
     ],
   },
   {
@@ -181,6 +194,7 @@ export const familyNavigation: NavGroup[] = [
     items: [
       { label: 'Attendance', href: ROUTES.FAMILY.ATTENDANCE, icon: CalendarCheck },
       { label: 'Exams & Results', href: ROUTES.FAMILY.RESULTS, icon: BarChart3 },
+      { label: 'Report Cards / DMC', href: '/family/reports', icon: FileText },
       { label: 'Timetable', href: ROUTES.FAMILY.TIMETABLE, icon: Clock },
       { label: 'Datesheet', href: ROUTES.FAMILY.DATESHEET, icon: CalendarRange },
       { label: 'Diary', href: ROUTES.FAMILY.DIARY, icon: BookOpenText },

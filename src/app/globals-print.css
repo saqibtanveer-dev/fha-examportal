@@ -1,0 +1,145 @@
+/* ============================================
+   PRINT STYLESHEET — Report System
+   Included globally, active only in @media print
+   ============================================ */
+
+@media print {
+  /* Hide all dashboard chrome */
+  nav,
+  aside,
+  header,
+  footer,
+  .no-print,
+  [data-sidebar],
+  [data-nav],
+  [role="navigation"],
+  [role="banner"],
+  [role="complementary"] {
+    display: none !important;
+  }
+
+  /* Reset page */
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html,
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* A4 Portrait by default */
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm;
+  }
+
+  @page :first {
+    margin-top: 10mm;
+  }
+
+  /* A4 Landscape for gazette */
+  .page-landscape {
+    page: gazette;
+  }
+
+  @page gazette {
+    size: A4 landscape;
+    margin: 10mm 8mm;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-before: always;
+    break-before: page;
+  }
+
+  .no-break {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Print-specific table styles */
+  .print-table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #000 !important;
+    padding: 3px 6px !important;
+    font-size: 9pt;
+  }
+
+  .print-table thead tr {
+    background-color: #e5e7eb !important;
+  }
+
+  .print-table tfoot tr {
+    background-color: #e5e7eb !important;
+    font-weight: bold;
+  }
+
+  /* Print page container */
+  .print-page {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+  }
+
+  /* School header */
+  .print-header {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  /* Signature block */
+  .print-signatures {
+    margin-top: 32px;
+  }
+
+  /* Remove box shadows, rounded borders for print */
+  .rounded-md,
+  .rounded-lg,
+  .shadow,
+  .shadow-sm,
+  .shadow-md {
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* Ensure text is black for print */
+  .text-muted-foreground {
+    color: #374151 !important;
+  }
+
+  /* Badge styles in print */
+  .badge,
+  [class*="badge"] {
+    border: 1px solid currentColor !important;
+    background: transparent !important;
+  }
+
+  /* Gazette landscape table font */
+  .gazette-table th,
+  .gazette-table td {
+    font-size: 8pt !important;
+    padding: 2px 4px !important;
+  }
+
+  /* Ensure buttons are hidden in print */
+  button,
+  [role="button"],
+  .no-print {
+    display: none !important;
+  }
+}

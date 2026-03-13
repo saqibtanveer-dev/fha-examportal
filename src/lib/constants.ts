@@ -111,6 +111,11 @@ export const ROUTES = {
     FEES_DISCOUNTS: '/admin/fees/discounts',
     AUDIT_LOG: '/admin/audit-log',
     REPORTS: '/admin/reports',
+    REPORTS_RESULT_TERMS: '/admin/reports/result-terms',
+    REPORTS_CONSOLIDATION: '/admin/reports/consolidation',
+    REPORTS_DMC: '/admin/reports/dmc',
+    REPORTS_GAZETTE: '/admin/reports/gazette',
+    REPORTS_REMARKS: '/admin/reports/remarks',
   },
   PRINCIPAL: {
     TEACHERS: '/principal/teachers',

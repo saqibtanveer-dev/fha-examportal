@@ -184,6 +184,13 @@ enum DatesheetStatus {
   ARCHIVED
 }
 
+enum AggregateMode {
+  SINGLE    // Exactly one exam per subject expected
+  AVERAGE   // Average all linked exams
+  BEST_OF   // Best N of M (uses bestOfCount)
+  SUM       // Sum all
+}
+
 // ============================================
 // ATTENDANCE & TIMETABLE ENUMS
 // ============================================
@@ -272,6 +279,10 @@ model User {
   familyPaymentsRecorded   FamilyPayment[]  @relation("FamilyPaymentRecordedBy")
   creditsCreated           FeeCredit[]      @relation("CreditCreatedBy")
   studentDiscountsCreated  StudentFeeDiscount[] @relation("StudentDiscountCreatedBy")
+
+  // Report/Consolidated result relations
+  consolidatedResults          ConsolidatedResult[]
+  consolidatedStudentSummaries ConsolidatedStudentSummary[]
 
   @@index([role])
   @@index([isActive])
@@ -419,6 +430,7 @@ model Subject {
   diaryEntries      DiaryEntry[]
   datesheetEntries  DatesheetEntry[]
   studentSubjectEnrollments StudentSubjectEnrollment[]
+  consolidatedResults ConsolidatedResult[]
 
   @@index([departmentId])
 }
@@ -495,6 +507,7 @@ model Class {
   studentSubjectEnrollments StudentSubjectEnrollment[]
   feeStructures        FeeStructure[]
   electiveSlotGroups   ElectiveSlotGroup[]
+  resultTerms          ResultTerm[]
 
   @@index([grade])
 }
@@ -647,6 +660,7 @@ model Exam {
   examClassAssignments ExamClassAssignment[]
   examSessions         ExamSession[]
   examResults          ExamResult[]
+  resultExamLinks      ResultExamLink[]
 
   @@index([subjectId])
   @@index([createdById])
@@ -837,6 +851,7 @@ model AcademicSession {
   feeSettings       FeeSettings?
   feeCredits        FeeCredit[]
   studentFeeDiscounts StudentFeeDiscount[]
+  resultTerms       ResultTerm[]
   electiveSlotGroups ElectiveSlotGroup[]
 
   @@index([isCurrent])
@@ -895,6 +910,14 @@ model SchoolSettings {
   academicYear String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+
+  // Report branding
+  reportHeaderText    String?  // Custom text below school name on reports
+  principalName       String?  // For signature blocks
+  examControllerName  String?  // For signature blocks
+  reportFooterText    String?  // Custom disclaimer/footer on reports
+  signatureImageUrl   String?  // Principal's digital signature
+  passingPercentage   Decimal  @default(33) // Minimum percentage to pass
 }
 
 model AuditLog {
@@ -1964,4 +1987,148 @@ model StudentSubjectEnrollment {
   @@index([studentProfileId, academicSessionId])
   @@index([classId, subjectId, academicSessionId])
   @@index([subjectId])
+}
+
+// ============================================
+// REPORT & CONSOLIDATED RESULT SYSTEM
+// ============================================
+
+model ResultTerm {
+  id                String   @id @default(uuid())
+  name              String
+  academicSessionId String
+  classId           String
+  description       String?
+  isActive          Boolean  @default(true)
+  isPublished       Boolean  @default(false)
+  isComputing       Boolean  @default(false) // Lock to prevent concurrent computation
+  publishedAt       DateTime?
+  computedAt        DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  academicSession         AcademicSession            @relation(fields: [academicSessionId], references: [id])
+  class                   Class                      @relation(fields: [classId], references: [id])
+  examGroups              ResultExamGroup[]
+  consolidatedResults     ConsolidatedResult[]
+  consolidatedSummaries   ConsolidatedStudentSummary[]
+
+  @@unique([name, academicSessionId, classId])
+  @@index([academicSessionId])
+  @@index([classId])
+  @@index([isPublished])
+  @@index([isActive])
+}
+
+model ResultExamGroup {
+  id             String        @id @default(uuid())
+  resultTermId   String
+  name           String
+  weight         Decimal       @db.Decimal(5, 2) // percentage weight e.g. 30.00
+  aggregateMode  AggregateMode @default(SINGLE)
+  bestOfCount    Int?          // Only used when aggregateMode = BEST_OF
+  sortOrder      Int
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  resultTerm ResultTerm       @relation(fields: [resultTermId], references: [id], onDelete: Cascade)
+  examLinks  ResultExamLink[]
+
+  @@unique([resultTermId, sortOrder])
+  @@unique([resultTermId, name])
+  @@index([resultTermId])
+}
+
+model ResultExamLink {
+  id          String   @id @default(uuid())
+  examGroupId String
+  examId      String
+  createdAt   DateTime @default(now())
+
+  examGroup ResultExamGroup @relation(fields: [examGroupId], references: [id], onDelete: Cascade)
+  exam      Exam            @relation(fields: [examId], references: [id])
+
+  @@unique([examGroupId, examId])
+  @@index([examGroupId])
+  @@index([examId])
+}
+
+model ConsolidatedResult {
+  id            String   @id @default(uuid())
+  resultTermId  String
+  studentId     String   // User.id
+  subjectId     String
+
+  // Per-group breakdown (JSON for flexibility)
+  // Array of { groupId, groupName, obtained, total, percentage, status }
+  groupScores   Json
+
+  // Consolidated scores
+  totalMarks    Decimal  @db.Decimal(10, 2)
+  obtainedMarks Decimal  @db.Decimal(10, 2)
+  percentage    Decimal  @db.Decimal(5, 2)
+  grade         String?
+  isPassed      Boolean
+  isStale       Boolean  @default(false) // true = needs recomputation
+
+  // Rankings
+  rankInClass   Int?
+  rankInSection Int?
+
+  computedAt    DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  resultTerm ResultTerm @relation(fields: [resultTermId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id])
+  subject    Subject    @relation(fields: [subjectId], references: [id])
+
+  @@unique([resultTermId, studentId, subjectId])
+  @@index([resultTermId, studentId])
+  @@index([resultTermId, subjectId])
+  @@index([resultTermId, rankInClass])
+  @@index([resultTermId, rankInSection])
+  @@index([isStale])
+}
+
+model ConsolidatedStudentSummary {
+  id            String   @id @default(uuid())
+  resultTermId  String
+  studentId     String   // User.id
+  sectionId     String   // Student's section at time of computation
+
+  totalSubjects       Int
+  passedSubjects      Int
+  failedSubjects      Int
+
+  grandTotalMarks     Decimal  @db.Decimal(10, 2)
+  grandObtainedMarks  Decimal  @db.Decimal(10, 2)
+  overallPercentage   Decimal  @db.Decimal(5, 2)
+  overallGrade        String?
+  isOverallPassed     Boolean
+
+  rankInClass         Int?
+  rankInSection       Int?
+
+  // Attendance for the period
+  attendancePercentage Decimal? @db.Decimal(5, 2)
+  totalDays            Int?
+  presentDays          Int?
+
+  // Remarks
+  classTeacherRemarks  String?  @db.Text
+  principalRemarks     String?  @db.Text
+
+  isStale              Boolean  @default(false)
+  computedAt           DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  resultTerm ResultTerm @relation(fields: [resultTermId], references: [id], onDelete: Cascade)
+  student    User       @relation(fields: [studentId], references: [id])
+
+  @@unique([resultTermId, studentId])
+  @@index([resultTermId, rankInClass])
+  @@index([resultTermId, rankInSection])
+  @@index([resultTermId, overallPercentage])
+  @@index([resultTermId, sectionId])
+  @@index([isStale])
 }

@@ -36,6 +36,29 @@ export async function getAuthSession() {
 }
 
 /**
+ * Assert that a TEACHER user is assigned to a specific class (via TeacherSubject).
+ * Throws if no assignment exists. Skips check for ADMIN/PRINCIPAL roles.
+ */
+export async function assertTeacherClassAccess(
+  userId: string,
+  role: string,
+  classId: string,
+): Promise<void> {
+  if (role === 'ADMIN' || role === 'PRINCIPAL') return;
+  if (role !== 'TEACHER') throw new Error('Access denied');
+
+  const assignment = await prisma.teacherSubject.findFirst({
+    where: {
+      teacher: { userId },
+      classId,
+    },
+  });
+  if (!assignment) {
+    throw new Error('You are not assigned to this class.');
+  }
+}
+
+/**
  * Assert that a FAMILY user is linked to a specific student.
  * Throws if the link doesn't exist or is inactive.
  */
