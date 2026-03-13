@@ -6,13 +6,18 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient() {
-  // Use Neon serverless adapter in production for proper connection pooling
-  if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
+  // Always use the Neon serverless adapter — avoids P1001 TCP cold-start drops
+  // in both dev and production. Standard TCP Prisma loses connection when Neon
+  // suspends idle compute; the HTTP-based Neon adapter reconnects transparently.
+  if (process.env.DATABASE_URL) {
     const adapter = new PrismaNeon({ connectionString: process.env.DATABASE_URL });
-    return new PrismaClient({ adapter, log: ['error'] });
+    return new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV !== 'production' ? ['query', 'error', 'warn'] : ['error'],
+    });
   }
 
-  // Development: standard PrismaClient with query logging
+  // Fallback for local Postgres (no DATABASE_URL set)
   return new PrismaClient({
     log: ['query', 'error', 'warn'],
   });

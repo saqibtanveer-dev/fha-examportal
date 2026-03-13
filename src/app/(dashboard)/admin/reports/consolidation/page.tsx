@@ -8,7 +8,12 @@ export const metadata = { title: 'Run Consolidation' };
 export default async function ConsolidationPage() {
   await requireRole('ADMIN', 'PRINCIPAL');
 
-  const terms = await listResultTerms({ isActive: true });
+  let terms: Awaited<ReturnType<typeof listResultTerms>> = [];
+  try {
+    terms = await listResultTerms({ isActive: true });
+  } catch {
+    // DB temporarily unreachable — render with empty state
+  }
 
   return (
     <div className="space-y-6">

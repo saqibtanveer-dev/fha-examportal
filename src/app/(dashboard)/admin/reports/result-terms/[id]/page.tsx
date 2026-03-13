@@ -12,10 +12,17 @@ export default async function ResultTermDetailPage({ params }: Props) {
   await requireRole('ADMIN', 'PRINCIPAL');
   const { id } = await params;
 
-  const [term, availableExams] = await Promise.all([
-    getResultTermWithGroups(id),
-    getAvailableExamsForTerm(id),
-  ]);
+  let term: Awaited<ReturnType<typeof getResultTermWithGroups>> = null;
+  let availableExams: Awaited<ReturnType<typeof getAvailableExamsForTerm>> = [];
+  try {
+    [term, availableExams] = await Promise.all([
+      getResultTermWithGroups(id),
+      getAvailableExamsForTerm(id),
+    ]);
+  } catch {
+    // DB temporarily unreachable — treat as not found
+    notFound();
+  }
 
   if (!term) notFound();
 

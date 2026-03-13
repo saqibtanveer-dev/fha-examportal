@@ -6,7 +6,13 @@ import { RemarksEntryClient } from '@/modules/reports/components/screens/remarks
 
 export default async function RemarksEntryPage() {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
-  const terms = await listResultTerms({ isActive: true });
+
+  let terms: Awaited<ReturnType<typeof listResultTerms>> = [];
+  try {
+    terms = await listResultTerms({ isActive: true });
+  } catch {
+    // DB temporarily unreachable — render with empty state
+  }
 
   return (
     <div className="space-y-6">

@@ -108,7 +108,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
         </div>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 px-2 py-4">
+        <ScrollArea className="flex-1 h-0 px-2 py-4">
           <SidebarNav navigation={navigation} collapsed={collapsed} pathname={pathname} />
         </ScrollArea>
 
@@ -135,7 +135,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
               <span className="text-lg font-bold">{APP_NAME}</span>
             </SheetTitle>
           </SheetHeader>
-          <ScrollArea className="flex-1 px-2 py-4">
+          <ScrollArea className="h-[calc(100vh-5rem)] px-2 py-4">
             <SidebarNav
               navigation={navigation}
               collapsed={false}

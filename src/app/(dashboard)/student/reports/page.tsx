@@ -7,7 +7,13 @@ export const metadata = { title: 'My Reports' };
 
 export default async function StudentReportsPage() {
   const session = await requireRole('STUDENT');
-  const terms = await getPublishedResultTermsForStudentAction(session.user.id);
+
+  let terms: Awaited<ReturnType<typeof getPublishedResultTermsForStudentAction>> = [];
+  try {
+    terms = await getPublishedResultTermsForStudentAction(session.user.id);
+  } catch {
+    // DB temporarily unreachable — client component will show empty state
+  }
 
   return (
     <div className="space-y-6">

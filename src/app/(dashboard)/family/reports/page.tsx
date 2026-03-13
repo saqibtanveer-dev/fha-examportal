@@ -30,7 +30,13 @@ async function getChildren(userId: string) {
 
 export default async function FamilyReportsPage() {
   const session = await requireRole('FAMILY');
-  const children = await getChildren(session.user.id);
+
+  let children: Awaited<ReturnType<typeof getChildren>> = [];
+  try {
+    children = await getChildren(session.user.id);
+  } catch {
+    // DB temporarily unreachable — client component will show empty state
+  }
 
   return (
     <div className="space-y-6">

@@ -48,16 +48,22 @@ const reportSections = [
   },
 ];
 
+const OVERVIEW_FALLBACK = {
+  totalStudents: 0, totalTeachers: 0, totalExams: 0, totalResults: 0,
+  totalDepartments: 0, totalSubjects: 0, overallPassRate: 0, overallAvgPercentage: 0,
+};
+
 export default async function AdminReportsPage() {
   await requireRole('ADMIN');
 
+  // Use individual .catch() fallbacks — a P1001 on one query must not crash the whole page
   const [overview, departments, subjects, recentExams, gradeDistribution] =
     await Promise.all([
-      getSystemOverview(),
-      getDepartmentPerformance(),
-      getSubjectPerformance(),
-      getRecentExamSummaries(),
-      getGradeDistribution(),
+      getSystemOverview().catch(() => OVERVIEW_FALLBACK),
+      getDepartmentPerformance().catch(() => [] as Awaited<ReturnType<typeof getDepartmentPerformance>>),
+      getSubjectPerformance().catch(() => [] as Awaited<ReturnType<typeof getSubjectPerformance>>),
+      getRecentExamSummaries().catch(() => [] as Awaited<ReturnType<typeof getRecentExamSummaries>>),
+      getGradeDistribution().catch(() => [] as Awaited<ReturnType<typeof getGradeDistribution>>),
     ]);
 
   return (

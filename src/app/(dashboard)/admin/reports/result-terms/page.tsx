@@ -22,9 +22,17 @@ async function getPageData() {
   return { terms, sessions, classes };
 }
 
+const PAGE_DATA_FALLBACK = { terms: [], sessions: [], classes: [] } as Awaited<ReturnType<typeof getPageData>>;
+
 export default async function ResultTermsPage() {
   await requireRole('ADMIN', 'PRINCIPAL');
-  const data = await getPageData();
+
+  let data = PAGE_DATA_FALLBACK;
+  try {
+    data = await getPageData();
+  } catch {
+    // DB temporarily unreachable — render with empty state
+  }
 
   return (
     <div className="space-y-6">

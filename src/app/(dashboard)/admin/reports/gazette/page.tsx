@@ -8,7 +8,12 @@ export const metadata = { title: 'Class Gazette' };
 export default async function GazettePage() {
   await requireRole('ADMIN', 'PRINCIPAL');
 
-  const terms = await listResultTerms({});
+  let terms: Awaited<ReturnType<typeof listResultTerms>> = [];
+  try {
+    terms = await listResultTerms({});
+  } catch {
+    // DB temporarily unreachable — render with empty state
+  }
 
   return (
     <div className="space-y-6">

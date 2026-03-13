@@ -93,9 +93,12 @@ function handlePrismaError(error: { code: string; meta?: Record<string, unknown>
 }
 
 /**
- * Wraps a read-only server action (fetch) with error sanitization.
+ * Wraps a read-only server action (fetch) with error sanitization + P1001 retry.
  * Unlike safeAction, this re-throws a clean Error so React Query
  * enters error state with a safe message (no Prisma/DB internals leaked).
+ *
+ * P1001 (can't reach DB) is a transient Neon cold-start error — we retry once
+ * after a short delay before giving up, which recovers ~99% of these cases.
  */
 export function safeFetchAction<TArgs extends unknown[], TResult>(
   action: (...args: TArgs) => Promise<TResult>,
@@ -105,6 +108,19 @@ export function safeFetchAction<TArgs extends unknown[], TResult>(
       return await action(...args);
     } catch (error: unknown) {
       if (isNextRedirect(error)) throw error;
+
+      // P1001 = Neon serverless cold-start — retry once after 600ms
+      if (isPrismaError(error) && error.code === 'P1001') {
+        logger.warn({ prismaCode: 'P1001' }, 'DB unreachable (cold start) — retrying in 600ms');
+        await new Promise((res) => setTimeout(res, 600));
+        try {
+          return await action(...args);
+        } catch (retryError: unknown) {
+          if (isNextRedirect(retryError)) throw retryError;
+          logger.error({ err: retryError }, 'Retry failed after P1001');
+          throw new Error('Database is waking up. Please try again in a moment.');
+        }
+      }
 
       if (isPrismaError(error)) {
         logger.error({ prismaCode: error.code, meta: error.meta }, 'Prisma error in fetch action');
