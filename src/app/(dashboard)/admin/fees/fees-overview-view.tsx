@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/page-header';
+import { HeaderActionBar } from '@/components/shared/header-action-bar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Table,
@@ -45,31 +45,26 @@ export function FeesOverviewView({ overview, classSummary, settings }: Props) {
         description="Overview of fee collection across the school"
         breadcrumbs={[{ label: 'Admin', href: '/admin' }, { label: 'Fees' }]}
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" asChild>
-              <Link href={ROUTES.ADMIN.FEES_CATEGORIES}>
-                <Layers className="mr-2 h-4 w-4" />Categories
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={ROUTES.ADMIN.FEES_STRUCTURES}>
-                <Settings className="mr-2 h-4 w-4" />Structures
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link href={ROUTES.ADMIN.FEES_DISCOUNTS}>
-                <Tag className="mr-2 h-4 w-4" />Discounts
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href={ROUTES.ADMIN.FEES_COLLECT}>
-                <CreditCard className="mr-2 h-4 w-4" />Collect Fees
-              </Link>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
-              <Cog className="h-4 w-4" />
-            </Button>
-          </div>
+          <HeaderActionBar
+            primary={{
+              label: 'Collect Fees',
+              href: ROUTES.ADMIN.FEES_COLLECT,
+              icon: CreditCard,
+              variant: 'default',
+            }}
+            secondary={{
+              label: 'Generate Fees',
+              href: ROUTES.ADMIN.FEES_GENERATE,
+              icon: Layers,
+              variant: 'outline',
+            }}
+            overflow={[
+              { label: 'Categories', href: ROUTES.ADMIN.FEES_CATEGORIES, icon: Layers },
+              { label: 'Structures', href: ROUTES.ADMIN.FEES_STRUCTURES, icon: Settings },
+              { label: 'Discounts', href: ROUTES.ADMIN.FEES_DISCOUNTS, icon: Tag },
+              { label: 'Settings', onClick: () => setSettingsOpen(true), icon: Cog },
+            ]}
+          />
         }
       />
 

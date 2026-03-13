@@ -64,6 +64,7 @@ export const queryKeys = {
   classes: {
     all: ['classes'] as const,
     active: () => [...queryKeys.classes.all, 'active'] as const,
+    forSelect: () => [...queryKeys.classes.all, 'for-select'] as const,
     detail: (id: string) => [...queryKeys.classes.all, 'detail', id] as const,
   },
 
@@ -71,6 +72,7 @@ export const queryKeys = {
   academicSessions: {
     all: ['academic-sessions'] as const,
     list: () => [...queryKeys.academicSessions.all, 'list'] as const,
+    forSelect: () => [...queryKeys.academicSessions.all, 'for-select'] as const,
     current: () => [...queryKeys.academicSessions.all, 'current'] as const,
   },
 
@@ -125,6 +127,7 @@ export const queryKeys = {
   // ── Student-specific ──
   student: {
     all: ['student'] as const,
+    profile: () => [...queryKeys.student.all, 'profile'] as const,
     exams: () => [...queryKeys.student.all, 'exams'] as const,
     results: () => [...queryKeys.student.all, 'results'] as const,
   },

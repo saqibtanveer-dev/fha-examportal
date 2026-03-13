@@ -6,6 +6,7 @@ import { CampaignsView } from './campaigns-view';
 import { useQuery } from '@tanstack/react-query';
 import { fetchClassesAction } from '@/modules/classes/class-fetch-actions';
 import { fetchAcademicSessionsForSelectAction } from '@/modules/academic-sessions/session-fetch-actions';
+import { queryKeys } from '@/lib/query-keys';
 
 export function CampaignsPageClient() {
   const { data, isLoading } = useCampaignsQuery(
@@ -14,12 +15,12 @@ export function CampaignsPageClient() {
   );
 
   const { data: classesRaw } = useQuery({
-    queryKey: ['classes-for-select'],
+    queryKey: queryKeys.classes.forSelect(),
     queryFn: fetchClassesAction,
   });
 
   const { data: sessionsRaw } = useQuery({
-    queryKey: ['academic-sessions-for-select'],
+    queryKey: queryKeys.academicSessions.forSelect(),
     queryFn: fetchAcademicSessionsForSelectAction,
   });
 

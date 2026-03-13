@@ -12,6 +12,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     studentProfile: { findMany: vi.fn().mockResolvedValue([]) },
     feeStructure: { findMany: vi.fn().mockResolvedValue([]) },
+    feeLineItem: { findMany: vi.fn().mockResolvedValue([]) },
     feeAssignment: {
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
@@ -48,6 +49,14 @@ vi.mock('@/modules/fees/fee-queries', () => ({
   }),
 }));
 
+vi.mock('@/modules/fees/student-discount-queries', () => ({
+  findActiveDiscountsForStudents: vi.fn().mockResolvedValue([]),
+  computeDiscountForLineItems: vi.fn().mockReturnValue({
+    totalDiscount: 0,
+    breakdown: [],
+  }),
+}));
+
 import { prisma } from '@/lib/prisma';
 import { generateFeesAction } from '../fee-generation-actions';
 import { cancelAssignmentAction } from '../fee-management-actions';
@@ -57,6 +66,7 @@ import { cancelAssignmentAction } from '../fee-management-actions';
 const mockPrisma = prisma as unknown as {
   studentProfile: { findMany: ReturnType<typeof vi.fn> };
   feeStructure: { findMany: ReturnType<typeof vi.fn> };
+  feeLineItem: { findMany: ReturnType<typeof vi.fn> };
   feeAssignment: {
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
@@ -71,6 +81,7 @@ beforeEach(() => {
   mockGetSessionId.mockResolvedValue('session-001');
   mockPrisma.studentProfile.findMany.mockResolvedValue([]);
   mockPrisma.feeStructure.findMany.mockResolvedValue([]);
+  mockPrisma.feeLineItem.findMany.mockResolvedValue([]);
   mockPrisma.feeAssignment.findMany.mockResolvedValue([]);
   mockPrisma.feeAssignment.findUnique.mockResolvedValue(null);
   mockPrisma.feeAssignment.create.mockResolvedValue({ id: 'fa-001' });

@@ -3,11 +3,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { SkeletonPage } from '@/components/shared';
 import { fetchMyStudentProfileAction } from '@/modules/attendance/attendance-fetch-actions';
+import { queryKeys } from '@/lib/query-keys';
 import { StudentTimetableView } from './timetable-view';
 
 export function StudentTimetableClient() {
   const { data: profile, isLoading } = useQuery({
-    queryKey: ['my-student-profile'],
+    queryKey: queryKeys.student.profile(),
     queryFn: () => fetchMyStudentProfileAction(),
   });
 

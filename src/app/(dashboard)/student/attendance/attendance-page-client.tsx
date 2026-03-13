@@ -1,13 +1,14 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { SkeletonPage, Spinner } from '@/components/shared';
+import { SkeletonPage } from '@/components/shared';
 import { fetchMyStudentProfileAction } from '@/modules/attendance/attendance-fetch-actions';
+import { queryKeys } from '@/lib/query-keys';
 import { StudentAttendanceView } from './attendance-view';
 
 export function StudentAttendanceClient() {
   const { data: profile, isLoading } = useQuery({
-    queryKey: ['my-student-profile'],
+    queryKey: queryKeys.student.profile(),
     queryFn: () => fetchMyStudentProfileAction(),
   });
 

@@ -36,7 +36,7 @@ type ReferenceActions = {
   invalidate: () => void;
 };
 
-const STALE_TIME = 2 * 60 * 1000; // 2 minutes — match React Query staleTime
+const STALE_TIME = 5 * 60 * 1000; // 5 minutes — aligned with React Query staleTime default
 
 const initialState: ReferenceState = {
   subjects: [],
