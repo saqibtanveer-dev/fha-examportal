@@ -12,7 +12,7 @@ export function DmcPrintTemplate({ dmc }: Props) {
   return (
     <PrintLayout school={school} title="Detailed Marks Certificate" showSignatures>
       {/* Meta Info Row */}
-      <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs sm:text-sm mb-4">
         <div className="flex gap-2">
           <span className="font-semibold w-36 shrink-0">Academic Session:</span>
           <span>{academicSession}</span>
@@ -32,7 +32,7 @@ export function DmcPrintTemplate({ dmc }: Props) {
       </div>
 
       {/* Student Info Box */}
-      <div className="border border-black p-3 mb-4 grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
+      <div className="dmc-student-info border border-black p-2 sm:p-3 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1 text-xs sm:text-sm">
         <div className="flex gap-2">
           <span className="font-semibold w-32 shrink-0">Student Name:</span>
           <span className="font-bold">{student.name}</span>
@@ -66,7 +66,8 @@ export function DmcPrintTemplate({ dmc }: Props) {
       </div>
 
       {/* Marks Table */}
-      <table className="w-full border-collapse text-sm print-table mb-4">
+      <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+      <table className="w-full border-collapse text-xs sm:text-sm print-table mb-4">
         <thead>
           <tr className="bg-gray-100">
             <th className="border border-black px-2 py-1.5 text-left w-6">#</th>
@@ -135,23 +136,24 @@ export function DmcPrintTemplate({ dmc }: Props) {
           </tr>
         </tfoot>
       </table>
+      </div>
 
       {/* Summary Row */}
-      <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+      <div className="dmc-summary-section grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs sm:text-sm mb-4">
         <div className="space-y-1">
           <div className="flex gap-2">
-            <span className="font-semibold w-40 shrink-0">Subjects Passed:</span>
+            <span className="font-semibold w-32 sm:w-40 shrink-0">Subjects Passed:</span>
             <span>{summary.passedSubjects} / {summary.totalSubjects}</span>
           </div>
           {summary.rankInSection && (
             <div className="flex gap-2">
-              <span className="font-semibold w-40 shrink-0">Rank in Section:</span>
+              <span className="font-semibold w-32 sm:w-40 shrink-0">Rank in Section:</span>
               <span>{summary.rankInSection} / {summary.totalStudentsInSection}</span>
             </div>
           )}
           {summary.rankInClass && (
             <div className="flex gap-2">
-              <span className="font-semibold w-40 shrink-0">Rank in Class:</span>
+              <span className="font-semibold w-32 sm:w-40 shrink-0">Rank in Class:</span>
               <span>{summary.rankInClass} / {summary.totalStudentsInClass}</span>
             </div>
           )}
@@ -159,7 +161,7 @@ export function DmcPrintTemplate({ dmc }: Props) {
         {attendance && (
           <div className="space-y-1">
             <div className="flex gap-2">
-              <span className="font-semibold w-40 shrink-0">Attendance:</span>
+              <span className="font-semibold w-32 sm:w-40 shrink-0">Attendance:</span>
               <span>
                 {attendance.presentDays}/{attendance.totalDays} days ({attendance.percentage.toFixed(1)}%)
               </span>
@@ -170,7 +172,7 @@ export function DmcPrintTemplate({ dmc }: Props) {
 
       {/* Remarks */}
       {(classTeacherRemarks || principalRemarks) && (
-        <div className="grid grid-cols-2 gap-4 text-sm mb-4 border-t pt-3">
+        <div className="dmc-summary-section grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs sm:text-sm mb-4 border-t pt-3">
           {classTeacherRemarks && (
             <div>
               <span className="font-semibold block mb-1">Class Teacher Remarks:</span>

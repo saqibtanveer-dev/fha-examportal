@@ -2,14 +2,14 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, SaveAll } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { updateStudentRemarksAction } from '@/modules/reports/actions/consolidation-actions';
+import { updateStudentRemarksAction, batchUpdateStudentRemarksAction } from '@/modules/reports/actions/consolidation-actions';
 import { getSectionsForClassAction, getSectionStudentsForDmcAction } from '@/modules/reports/actions/result-term-fetch-actions';
 import type { ResultTermSummary } from '@/modules/reports/queries/result-term-queries';
 
@@ -35,6 +35,7 @@ export function RemarksEntryClient({ terms }: Props) {
   const [students, setStudents] = useState<StudentRow[]>([]);
   const [remarks, setRemarks] = useState<Record<string, { teacher: string; principal: string }>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [isBatchSaving, setIsBatchSaving] = useState(false);
 
   const selectedTerm = terms.find((t) => t.id === selectedTermId);
   const computedTerms = terms.filter((t) => t._count.consolidatedResults > 0);
@@ -89,6 +90,39 @@ export function RemarksEntryClient({ terms }: Props) {
     }));
   }
 
+  function handleBatchSave() {
+    const remarksToSave = Object.entries(remarks)
+      .filter(([, r]) => r.teacher.trim() || r.principal.trim())
+      .map(([studentId, r]) => ({
+        studentId,
+        classTeacherRemarks: r.teacher || null,
+        principalRemarks: r.principal || null,
+      }));
+
+    if (remarksToSave.length === 0) {
+      toast.error('No remarks to save — enter remarks for at least one student');
+      return;
+    }
+
+    setIsBatchSaving(true);
+    startTransition(async () => {
+      const res = await batchUpdateStudentRemarksAction({
+        resultTermId: selectedTermId,
+        remarks: remarksToSave,
+      });
+      if (res.success) {
+        toast.success(`Remarks saved for ${res.data?.updated ?? remarksToSave.length} students`);
+      } else {
+        toast.error(res.error ?? 'Failed to save remarks');
+      }
+      setIsBatchSaving(false);
+    });
+  }
+
+  const filledRemarksCount = Object.values(remarks).filter(
+    (r) => r.teacher.trim() || r.principal.trim(),
+  ).length;
+
   return (
     <div className="space-y-6">
       <Card>
@@ -131,9 +165,22 @@ export function RemarksEntryClient({ terms }: Props) {
 
       {students.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-semibold text-sm">
-            {students.length} students — add class teacher &amp; principal remarks
-          </h3>
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <h3 className="font-semibold text-sm">
+              {students.length} students — add class teacher &amp; principal remarks
+            </h3>
+            <Button
+              onClick={handleBatchSave}
+              disabled={isPending || isBatchSaving || filledRemarksCount === 0}
+              size="sm"
+            >
+              {isBatchSaving ? (
+                <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving All...</>
+              ) : (
+                <><SaveAll className="mr-1.5 h-3.5 w-3.5" /> Save All ({filledRemarksCount})</>
+              )}
+            </Button>
+          </div>
           {students.map((s) => (
             <Card key={s.studentId}>
               <CardContent className="py-4 space-y-3">

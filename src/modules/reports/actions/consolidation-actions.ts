@@ -11,8 +11,10 @@ import { computeConsolidatedResults } from '../engine/consolidation-engine';
 import {
   computeConsolidatedSchema,
   studentRemarksSchema,
+  batchStudentRemarksSchema,
   type ComputeConsolidatedInput,
   type StudentRemarksInput,
+  type BatchStudentRemarksInput,
 } from '@/validations/result-term-schemas';
 
 const REPORTS_PATH = '/admin/reports';
@@ -159,6 +161,47 @@ export const updateStudentRemarksAction = safeAction(
 
     revalidatePath(`${REPORTS_PATH}/dmc`);
     return actionSuccess();
+  },
+);
+
+// ============================================
+// Batch Save Student Remarks (efficient for 50+ students)
+// ============================================
+
+export const batchUpdateStudentRemarksAction = safeAction(
+  async function batchUpdateStudentRemarksAction(
+    input: BatchStudentRemarksInput,
+  ): Promise<ActionResult<{ updated: number }>> {
+    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+
+    const parsed = batchStudentRemarksSchema.safeParse(input);
+    if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Invalid input');
+
+    const { resultTermId, remarks } = parsed.data;
+
+    // Verify term exists
+    const term = await prisma.resultTerm.findUnique({ where: { id: resultTermId }, select: { id: true } });
+    if (!term) return actionError('Result term not found');
+
+    // Batch update in a single transaction
+    let updated = 0;
+    await prisma.$transaction(
+      remarks
+        .filter((r) => r.classTeacherRemarks || r.principalRemarks)
+        .map((r) => {
+          updated++;
+          return prisma.consolidatedStudentSummary.update({
+            where: { resultTermId_studentId: { resultTermId, studentId: r.studentId } },
+            data: {
+              ...(r.classTeacherRemarks !== undefined && { classTeacherRemarks: r.classTeacherRemarks }),
+              ...(r.principalRemarks !== undefined && { principalRemarks: r.principalRemarks }),
+            },
+          });
+        }),
+    );
+
+    revalidatePath(`${REPORTS_PATH}/dmc`);
+    return actionSuccess({ updated });
   },
 );
 

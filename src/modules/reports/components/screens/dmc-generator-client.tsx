@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, FileText, Users, ChevronRight } from 'lucide-react';
+import { Printer, FileText, Users, ChevronRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -108,7 +108,7 @@ export function DmcGeneratorClient({ terms }: Props) {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Result Term</Label>
               <Select value={termId} onValueChange={handleTermChange}>
@@ -138,7 +138,7 @@ export function DmcGeneratorClient({ terms }: Props) {
             <div className="flex items-end gap-2">
               <Button
                 variant="outline"
-                className="flex-1"
+                className="w-full sm:flex-1"
                 disabled={!sectionId || isPending || !students.length}
                 onClick={handleBatchLoad}
               >
@@ -150,29 +150,29 @@ export function DmcGeneratorClient({ terms }: Props) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-[280px_1fr]">
-        {/* Student List */}
-        <div className="space-y-2">
-          {students.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Select a section to see students</p>
-          ) : (
-            students.map((s) => (
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
+        {/* Student List — horizontal scroll on mobile, vertical on desktop */}
+        {students.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Select a section to see students</p>
+        ) : (
+          <div className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-x-visible lg:pb-0 lg:max-h-[70vh] lg:overflow-y-auto">
+            {students.map((s) => (
               <button
                 key={s.studentId}
-                className={`w-full text-left rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-accent ${
-                  selectedStudentId === s.studentId ? 'bg-accent border-primary' : ''
+                className={`shrink-0 w-56 lg:w-full text-left rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-accent active:bg-accent ${
+                  selectedStudentId === s.studentId ? 'bg-accent border-primary ring-1 ring-primary' : ''
                 }`}
                 onClick={() => handleLoadDmc(s.studentId)}
                 disabled={isPending}
               >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{s.name}</p>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{s.name}</p>
                     <p className="text-xs text-muted-foreground">
                       Roll #{s.rollNumber} · Rank {s.rankInSection ?? '—'}
                     </p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-right shrink-0">
                     <p className="font-semibold">{s.overallPercentage.toFixed(1)}%</p>
                     <Badge variant={s.isOverallPassed ? 'default' : 'destructive'} className="text-xs">
                       {s.overallGrade ?? (s.isOverallPassed ? 'Pass' : 'Fail')}
@@ -180,27 +180,28 @@ export function DmcGeneratorClient({ terms }: Props) {
                   </div>
                 </div>
               </button>
-            ))
-          )}
-        </div>
+            ))}
+          </div>
+        )}
 
         {/* DMC Preview */}
-        <div className="space-y-4">
+        <div className="space-y-4 min-w-0">
           {(dmcData || batchDmcs.length > 0) && (
-            <div className="flex items-center justify-between no-print">
-              <p className="text-sm text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 no-print">
+              <p className="text-sm text-muted-foreground truncate">
                 {mode === 'batch'
                   ? `${batchDmcs.length} DMCs loaded — will print all`
                   : 'Single DMC preview'}
               </p>
-              <Button onClick={handlePrint}>
+              <Button onClick={handlePrint} size="sm" className="shrink-0">
                 <Printer className="mr-2 h-4 w-4" /> Print
               </Button>
             </div>
           )}
 
           {isPending && (
-            <div className="flex items-center justify-center py-16 text-muted-foreground">
+            <div className="flex items-center justify-center py-12 sm:py-16 text-muted-foreground">
+              <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               Loading DMC data...
             </div>
           )}
@@ -222,7 +223,10 @@ export function DmcGeneratorClient({ terms }: Props) {
           {mode === 'batch' && batchDmcs.length > 0 && !isPending && (
             <div className="space-y-0">
               {batchDmcs.map((dmc, i) => (
-                <div key={dmc.student.rollNumber} className={i > 0 ? 'page-break' : ''}>
+                <div
+                  key={`${dmc.student.rollNumber}-${i}`}
+                  className={i > 0 ? 'page-break' : ''}
+                >
                   <DmcPrintTemplate dmc={dmc} />
                 </div>
               ))}

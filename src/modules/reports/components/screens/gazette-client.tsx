@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, TableIcon } from 'lucide-react';
+import { Printer, TableIcon, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -56,7 +56,7 @@ export function GazetteClient({ terms }: Props) {
       {/* Filters */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-3">
             <div className="space-y-1.5">
               <Label>Result Term</Label>
               <Select value={termId} onValueChange={handleTermChange}>
@@ -82,11 +82,11 @@ export function GazetteClient({ terms }: Props) {
               </Select>
             </div>
             <div className="flex items-end gap-2">
-              <Button onClick={handleLoad} disabled={!termId || !sectionId || isPending} className="flex-1">
-                {isPending ? 'Loading...' : 'Load Gazette'}
+              <Button onClick={handleLoad} disabled={!termId || !sectionId || isPending} className="w-full sm:flex-1">
+                {isPending ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading...</> : 'Load Gazette'}
               </Button>
               {gazetteData && (
-                <Button variant="outline" onClick={() => window.print()}>
+                <Button variant="outline" onClick={() => window.print()} className="shrink-0">
                   <Printer className="mr-2 h-4 w-4" /> Print
                 </Button>
               )}
@@ -97,7 +97,7 @@ export function GazetteClient({ terms }: Props) {
 
       {/* Summary Stats */}
       {gazetteData && (
-        <div className="no-print grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="no-print grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
           {[
             { label: 'Total Students', value: gazetteData.summary.totalStudents },
             { label: 'Passed', value: gazetteData.summary.passedStudents },
@@ -124,13 +124,16 @@ export function GazetteClient({ terms }: Props) {
       )}
 
       {isPending && (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <div className="flex items-center justify-center py-12 sm:py-16 text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Loading gazette data...
         </div>
       )}
 
       {gazetteData && !isPending && (
-        <GazettePrintTemplate gazette={gazetteData} />
+        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <GazettePrintTemplate gazette={gazetteData} />
+        </div>
       )}
     </div>
   );

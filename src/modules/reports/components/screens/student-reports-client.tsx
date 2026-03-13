@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, FileText, GraduationCap } from 'lucide-react';
+import { Printer, FileText, GraduationCap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -49,7 +49,7 @@ export function StudentReportsClient({ studentId, terms }: Props) {
   return (
     <div className="space-y-6">
       {/* Term Cards */}
-      <div className="no-print grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="no-print grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {terms.map((term) => (
           <Card
             key={term.id}
@@ -73,7 +73,8 @@ export function StudentReportsClient({ studentId, terms }: Props) {
 
       {/* DMC Preview */}
       {isPending && (
-        <div className="flex justify-center py-12 text-muted-foreground">
+        <div className="flex items-center justify-center py-10 sm:py-12 text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Loading your DMC...
         </div>
       )}

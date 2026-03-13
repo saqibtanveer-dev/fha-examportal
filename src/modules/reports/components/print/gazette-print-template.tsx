@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import type { GazetteData } from '../../types/report-types';
 import Image from 'next/image';
 
@@ -61,15 +62,15 @@ export function GazettePrintTemplate({ gazette }: Props) {
           </tr>
           <tr className="bg-gray-100">
             {subjects.map((subj) => (
-              <>
+              <React.Fragment key={`sub-${subj.id}`}>
                 {resultTerm.examGroups.map((g) => (
                   <th key={`${subj.id}-${g.id}`} className="border border-black px-0.5 py-0.5 text-[7pt] whitespace-nowrap">
                     {g.name}<br/><span className="font-normal">({g.weight}%)</span>
                   </th>
                 ))}
-                <th key={`${subj.id}-total`} className="border border-black px-0.5 py-0.5 text-[7pt]">Total</th>
-                <th key={`${subj.id}-grade`} className="border border-black px-0.5 py-0.5 text-[7pt]">Grd</th>
-              </>
+                <th className="border border-black px-0.5 py-0.5 text-[7pt]">Total</th>
+                <th className="border border-black px-0.5 py-0.5 text-[7pt]">Grd</th>
+              </React.Fragment>
             ))}
           </tr>
         </thead>
@@ -84,7 +85,7 @@ export function GazettePrintTemplate({ gazette }: Props) {
               {subjects.map((subj) => {
                 const sr = student.subjectMarks[subj.id];
                 return (
-                  <>
+                  <React.Fragment key={`${student.studentId}-${subj.id}`}>
                     {resultTerm.examGroups.map((g) => {
                       const gs = sr?.groupScores.find((s) => s.groupId === g.id);
                       return (
@@ -98,13 +99,13 @@ export function GazettePrintTemplate({ gazette }: Props) {
                         </td>
                       );
                     })}
-                    <td key={`${student.studentId}-${subj.id}-total`} className="border border-black px-0.5 py-0.5 text-[8pt] font-medium">
+                    <td className="border border-black px-0.5 py-0.5 text-[8pt] font-medium">
                       {sr ? `${sr.obtained?.toFixed(1) ?? 0}/${sr.total}` : '—'}
                     </td>
-                    <td key={`${student.studentId}-${subj.id}-grade`} className={`border border-black px-0.5 py-0.5 text-[8pt] font-semibold ${sr && !sr.isPassed ? 'text-red-700' : ''}`}>
+                    <td className={`border border-black px-0.5 py-0.5 text-[8pt] font-semibold ${sr && !sr.isPassed ? 'text-red-700' : ''}`}>
                       {sr?.grade ?? '—'}
                     </td>
-                  </>
+                  </React.Fragment>
                 );
               })}
               <td className="border border-black px-1 py-0.5 font-bold">
@@ -128,13 +129,13 @@ export function GazettePrintTemplate({ gazette }: Props) {
           <tr className="bg-gray-200 font-bold text-[8pt]">
             <td colSpan={3} className="border border-black px-1 py-1 text-right">Class Summary</td>
             {subjects.map((subj) => (
-              <>
+              <React.Fragment key={`sum-${subj.id}`}>
                 {resultTerm.examGroups.map((g) => (
                   <td key={`sum-${subj.id}-${g.id}`} className="border border-black px-0.5 py-0.5" />
                 ))}
-                <td key={`sum-${subj.id}-total`} className="border border-black px-0.5 py-0.5" />
-                <td key={`sum-${subj.id}-grade`} className="border border-black px-0.5 py-0.5" />
-              </>
+                <td className="border border-black px-0.5 py-0.5" />
+                <td className="border border-black px-0.5 py-0.5" />
+              </React.Fragment>
             ))}
             <td className="border border-black px-1 py-1" />
             <td className="border border-black px-1 py-1">{summary.avgPercentage.toFixed(1)}%</td>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, GraduationCap, FileText } from 'lucide-react';
+import { Printer, GraduationCap, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -82,7 +82,7 @@ export function FamilyReportsClient({ children }: Props) {
       {/* Child + Term Selectors */}
       <Card>
         <CardContent className="pt-4 pb-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Select Child</Label>
               <Select value={selectedChildId} onValueChange={handleChildChange}>
@@ -127,7 +127,8 @@ export function FamilyReportsClient({ children }: Props) {
 
       {/* DMC Preview */}
       {isPending && (
-        <div className="flex justify-center py-12 text-muted-foreground">
+        <div className="flex items-center justify-center py-10 sm:py-12 text-muted-foreground">
+          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
           Loading...
         </div>
       )}

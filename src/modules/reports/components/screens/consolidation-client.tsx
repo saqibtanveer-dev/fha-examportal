@@ -88,7 +88,7 @@ export function ConsolidationClient({ terms }: Props) {
           <CardTitle className="text-base">Run Consolidation</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Result Term *</Label>
               <Select value={selectedTermId} onValueChange={setSelectedTermId}>
@@ -179,7 +179,7 @@ export function ConsolidationClient({ terms }: Props) {
           <div className="space-y-3">
             {terms.map((term) => (
               <Card key={term.id}>
-                <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <CardContent className="flex flex-col gap-3 p-3 sm:p-4 sm:py-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="space-y-1">
                     <p className="font-medium">{term.name}</p>
                     <p className="text-sm text-muted-foreground">

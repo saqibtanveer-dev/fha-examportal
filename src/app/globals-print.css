@@ -34,6 +34,16 @@
     font-size: 11pt;
     margin: 0;
     padding: 0;
+    overflow: visible !important;
+    max-width: none !important;
+  }
+
+  /* Remove main content padding/margin that causes blank space */
+  main,
+  [role="main"] {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
   }
 
   /* A4 Portrait by default */
@@ -53,7 +63,7 @@
 
   @page gazette {
     size: A4 landscape;
-    margin: 10mm 8mm;
+    margin: 8mm 6mm;
   }
 
   /* Page breaks */
@@ -67,10 +77,40 @@
     break-inside: avoid;
   }
 
+  /* Each print page should be self-contained */
+  .print-page {
+    background: white !important;
+    color: black !important;
+    padding: 0 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    overflow: visible !important;
+  }
+
+  /* Prevent blank trailing pages — collapse empty space */
+  .print-page:last-child {
+    page-break-after: avoid;
+    break-after: avoid;
+  }
+
   /* Print-specific table styles */
   .print-table {
     border-collapse: collapse !important;
     width: 100% !important;
+    page-break-inside: auto;
+  }
+
+  .print-table thead {
+    display: table-header-group;
+  }
+
+  .print-table tfoot {
+    display: table-footer-group;
+  }
+
+  .print-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   .print-table th,
@@ -89,22 +129,17 @@
     font-weight: bold;
   }
 
-  /* Print page container */
-  .print-page {
-    background: white !important;
-    color: black !important;
-    padding: 0 !important;
-  }
-
   /* School header */
   .print-header {
     text-align: center;
     margin-bottom: 16px;
   }
 
-  /* Signature block */
+  /* Signature block — keep together and close to content */
   .print-signatures {
-    margin-top: 32px;
+    margin-top: 24px;
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 
   /* Remove box shadows, rounded borders for print */
@@ -129,11 +164,28 @@
     background: transparent !important;
   }
 
-  /* Gazette landscape table font */
+  /* Gazette landscape table — auto-scale to fit */
+  .gazette-table {
+    table-layout: fixed;
+    word-wrap: break-word;
+    page-break-inside: auto;
+  }
+
+  .gazette-table thead {
+    display: table-header-group;
+  }
+
+  .gazette-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
   .gazette-table th,
   .gazette-table td {
-    font-size: 8pt !important;
-    padding: 2px 4px !important;
+    font-size: 7pt !important;
+    padding: 1.5px 3px !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   /* Ensure buttons are hidden in print */
@@ -141,5 +193,22 @@
   [role="button"],
   .no-print {
     display: none !important;
+  }
+
+  /* Prevent empty space from flex/grid gaps */
+  .space-y-0 > * {
+    margin-top: 0 !important;
+  }
+
+  /* DMC student info box — keep together */
+  .dmc-student-info {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* DMC summary/remarks — keep together */
+  .dmc-summary-section {
+    page-break-inside: avoid;
+    break-inside: avoid;
   }
 }

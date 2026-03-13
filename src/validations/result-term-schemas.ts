@@ -75,6 +75,19 @@ export const studentRemarksSchema = z.object({
 
 export type StudentRemarksInput = z.infer<typeof studentRemarksSchema>;
 
+export const batchStudentRemarksSchema = z.object({
+  resultTermId: z.string().uuid(),
+  remarks: z.array(
+    z.object({
+      studentId: z.string().uuid(),
+      classTeacherRemarks: z.string().max(1000).optional().nullable(),
+      principalRemarks: z.string().max(1000).optional().nullable(),
+    }),
+  ).min(1, 'At least one student required').max(200, 'Too many students in one batch'),
+});
+
+export type BatchStudentRemarksInput = z.infer<typeof batchStudentRemarksSchema>;
+
 // ============================================
 // Consolidation Options
 // ============================================

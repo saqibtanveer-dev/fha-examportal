@@ -143,13 +143,22 @@ export async function computeConsolidatedResults(
     }
   }
 
+  // Pre-compute common subject set (same for all students, filtered per-student for electives)
+  const commonSubjectIds = new Set<string>();
+  for (const group of groups) {
+    for (const examId of group.examIds) {
+      const subjId = examSubjectMap.get(examId);
+      if (subjId) commonSubjectIds.add(subjId);
+    }
+  }
+
   // Process in batches
   let processed = 0;
   let skipped = 0;
 
   for (let i = 0; i < studentIds.length; i += CONSOLIDATION_BATCH_SIZE) {
     const batch = studentIds.slice(i, i + CONSOLIDATION_BATCH_SIZE);
-    await processBatch(batch, {
+    const result = await processBatch(batch, {
       resultTermId,
       groups,
       sectionMap,
@@ -161,8 +170,10 @@ export async function computeConsolidatedResults(
       recompute: options.recompute ?? false,
       electiveSubjectIds,
       enrolledElectives,
+      commonSubjectIds,
     });
-    processed += batch.length;
+    processed += result.processed;
+    skipped += result.skipped;
   }
 
   // Compute ranks after all results are stored
@@ -189,24 +200,20 @@ async function processBatch(
     recompute: boolean;
     electiveSubjectIds: Set<string>;
     enrolledElectives: Set<string>;
+    commonSubjectIds: Set<string>;
   },
-) {
-  // Build per-student per-subject per-group result
+): Promise<{ processed: number; skipped: number }> {
+  let processed = 0;
+  let skipped = 0;
+
   for (const studentId of studentIds) {
+    try {
     const byExam = ctx.resultIndex.get(studentId) ?? new Map<string, RawExamResult>();
     const sectionId = ctx.sectionMap.get(studentId);
-    if (!sectionId) continue;
+    if (!sectionId) { skipped++; continue; }
 
-    // Collect unique subjects across all groups
-    const subjectIds = new Set<string>();
-    for (const group of ctx.groups) {
-      for (const examId of group.examIds) {
-        const subjId = ctx.examSubjectMap.get(examId);
-        if (subjId) subjectIds.add(subjId);
-      }
-    }
-
-    // Filter out elective subjects the student is NOT enrolled in
+    // Filter subject set per student (elective filtering)
+    const subjectIds = new Set(ctx.commonSubjectIds);
     for (const subjId of subjectIds) {
       if (
         ctx.electiveSubjectIds.has(subjId) &&
@@ -287,5 +294,14 @@ async function processBatch(
         update: { ...summaryData, computedAt: new Date() },
       });
     });
+
+    processed++;
+    } catch (err) {
+      // Log but don't crash — one student failure shouldn't block others
+      console.error(`[consolidation] Failed for student ${studentId}:`, err);
+      skipped++;
+    }
   }
+
+  return { processed, skipped };
 }

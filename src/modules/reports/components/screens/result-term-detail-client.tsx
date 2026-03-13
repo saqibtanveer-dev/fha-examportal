@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Trash2, Link2, Link2Off, Zap, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { Plus, Trash2, Link2, Link2Off, Zap, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -39,6 +39,8 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
   const [addGroupOpen, setAddGroupOpen] = useState(false);
   const [linkExamGroupId, setLinkExamGroupId] = useState<string | null>(null);
   const [removeGroupId, setRemoveGroupId] = useState<string | null>(null);
+  const [examSearch, setExamSearch] = useState('');
+  const [examTypeFilter, setExamTypeFilter] = useState<string>('all');
   const [groupForm, setGroupForm] = useState({
     name: '', weight: '', aggregateMode: 'SINGLE', bestOfCount: '',
   });
@@ -121,25 +123,47 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
 
   const unlinkedExams = availableExams.filter((e) => !linkedExamIds.has(e.id));
 
+  const examTypes = useMemo(() => {
+    const types = new Set(unlinkedExams.map((e) => e.type));
+    return ['all', ...Array.from(types).sort()];
+  }, [unlinkedExams]);
+
+  const filteredExams = useMemo(() => {
+    let list = unlinkedExams;
+    if (examTypeFilter !== 'all') {
+      list = list.filter((e) => e.type === examTypeFilter);
+    }
+    if (examSearch.trim()) {
+      const q = examSearch.toLowerCase();
+      list = list.filter(
+        (e) =>
+          e.title.toLowerCase().includes(q) ||
+          e.subject.name.toLowerCase().includes(q) ||
+          e.subject.code.toLowerCase().includes(q),
+      );
+    }
+    return list;
+  }, [unlinkedExams, examTypeFilter, examSearch]);
+
   return (
     <div className="space-y-6">
       {/* Weight Status Bar */}
       <Card className={weightOk ? 'border-green-500/50' : 'border-amber-500/50'}>
-        <CardContent className="flex items-center justify-between py-3 px-4">
+        <CardContent className="flex flex-col gap-3 py-3 px-3 sm:px-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-2 text-sm">
             {weightOk
-              ? <CheckCircle2 className="h-4 w-4 text-green-500" />
-              : <AlertTriangle className="h-4 w-4 text-amber-500" />}
+              ? <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+              : <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />}
             <span>
               Total weight: <strong>{totalWeight.toFixed(2)}%</strong>
               {!weightOk && <span className="text-amber-600 ml-2">Must equal 100%</span>}
             </span>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={handleAutoLink} disabled={isPending}>
+            <Button variant="outline" size="sm" onClick={handleAutoLink} disabled={isPending} className="flex-1 sm:flex-initial">
               <Zap className="mr-1.5 h-3.5 w-3.5" /> Auto-link
             </Button>
-            <Button size="sm" onClick={() => setAddGroupOpen(true)} disabled={term.isPublished}>
+            <Button size="sm" onClick={() => setAddGroupOpen(true)} disabled={term.isPublished} className="flex-1 sm:flex-initial">
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Group
             </Button>
           </div>
@@ -161,8 +185,8 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
           {term.examGroups.map((group) => (
             <Card key={group.id}>
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <CardTitle className="text-base">{group.name}</CardTitle>
                     <Badge variant="outline">{group.weight}%</Badge>
                     <Badge variant="secondary" className="text-xs">{group.aggregateMode}</Badge>
@@ -170,7 +194,7 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
                       <Badge variant="secondary" className="text-xs">Best of {group.bestOfCount}</Badge>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <Button
                       variant="outline"
                       size="sm"
@@ -287,8 +311,17 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
       </Dialog>
 
       {/* Link Exam Dialog */}
-      <Dialog open={!!linkExamGroupId} onOpenChange={(o) => !o && setLinkExamGroupId(null)}>
-        <DialogContent>
+      <Dialog
+        open={!!linkExamGroupId}
+        onOpenChange={(o) => {
+          if (!o) {
+            setLinkExamGroupId(null);
+            setExamSearch('');
+            setExamTypeFilter('all');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Link Exam to "{selectedGroup?.name}"</DialogTitle>
           </DialogHeader>
@@ -297,20 +330,61 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
               All available exams are already linked. Add more exams to this class first.
             </p>
           ) : (
-            <div className="max-h-80 overflow-y-auto space-y-1.5">
-              {unlinkedExams.map((exam) => (
-                <button
-                  key={exam.id}
-                  className="w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-accent transition-colors"
-                  onClick={() => handleLinkExam(exam.id)}
-                  disabled={isPending}
-                >
-                  <p className="font-medium">{exam.title}</p>
-                  <p className="text-muted-foreground text-xs mt-0.5">
-                    {exam.subject.name} ({exam.subject.code}) · {exam.type} · {exam.totalMarks} marks · {exam.status}
+            <div className="space-y-3">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by title, subject, or code..."
+                  value={examSearch}
+                  onChange={(e) => setExamSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              {/* Type filter */}
+              {examTypes.length > 2 && (
+                <div className="flex gap-1.5 flex-wrap">
+                  {examTypes.map((type) => (
+                    <button
+                      key={type}
+                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                        examTypeFilter === type
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'hover:bg-accent'
+                      }`}
+                      onClick={() => setExamTypeFilter(type)}
+                    >
+                      {type === 'all' ? 'All Types' : type}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Results count */}
+              <p className="text-xs text-muted-foreground">
+                {filteredExams.length} of {unlinkedExams.length} exams
+              </p>
+              {/* Exam list */}
+              <div className="max-h-72 overflow-y-auto space-y-1.5">
+                {filteredExams.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    No exams match your search
                   </p>
-                </button>
-              ))}
+                ) : (
+                  filteredExams.map((exam) => (
+                    <button
+                      key={exam.id}
+                      className="w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-accent active:bg-accent transition-colors"
+                      onClick={() => handleLinkExam(exam.id)}
+                      disabled={isPending}
+                    >
+                      <p className="font-medium">{exam.title}</p>
+                      <p className="text-muted-foreground text-xs mt-0.5">
+                        {exam.subject.name} ({exam.subject.code}) · {exam.type} · {exam.totalMarks} marks
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
             </div>
           )}
           <DialogFooter>

@@ -82,13 +82,13 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
           action={<Button onClick={() => setCreateOpen(true)}>Create Result Term</Button>}
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {terms.map((term) => (
             <Card key={term.id} className="group">
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base">{term.name}</CardTitle>
-                  <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div className="flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
                     <Button
                       variant="ghost"
                       size="icon"
