@@ -128,13 +128,11 @@ function SectionTeacherRow({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border p-3">
-      <div className="min-w-[80px]">
-        <Badge variant="outline">{section.name}</Badge>
-      </div>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 rounded-lg border p-3">
+      <Badge variant="outline" className="shrink-0 w-fit">{section.name}</Badge>
 
       <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-        <SelectTrigger className="w-64">
+        <SelectTrigger className="flex-1">
           <SelectValue placeholder="Select teacher..." />
         </SelectTrigger>
         <SelectContent>
@@ -146,7 +144,7 @@ function SectionTeacherRow({
         </SelectContent>
       </Select>
 
-      <div className="flex items-center gap-2 ml-auto">
+      <div className="flex items-center gap-2 shrink-0">
         {hasChanged && (
           <Button size="sm" onClick={handleAssign} disabled={isPending}>
             {isPending && <Spinner size="sm" className="mr-1" />}

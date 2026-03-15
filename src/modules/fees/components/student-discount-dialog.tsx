@@ -16,7 +16,7 @@ import { toast } from 'sonner';
 import { Trash2, Plus } from 'lucide-react';
 import { formatCurrency } from './fee-status-badge';
 import { fetchFeeCategoriesAction } from '@/modules/fees/fee-client-core-fetch-actions';
-import { fetchStudentDiscountsAction, fetchStudentFeeAmountsAction } from '@/modules/fees/fee-client-finance-fetch-actions';
+import { fetchStudentDiscountsAction, fetchStudentFeeAmountsAction } from '@/modules/fees/fee-student-ledger-fetch-actions';
 import {
   createStudentFeeDiscountAction,
   updateStudentFeeDiscountAction,

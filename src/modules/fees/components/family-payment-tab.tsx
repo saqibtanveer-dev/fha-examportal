@@ -10,17 +10,21 @@ import {
 } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Spinner } from '@/components/shared';
+import { SkeletonCardGrid } from '@/components/shared/skeletons';
 import { formatCurrency } from './fee-status-badge';
 import { FamilySearchCombobox } from './family-search-combobox';
 import { AllocationPreview } from './allocation-preview';
 import { FamilyChildrenSummary } from './family-children-summary';
 import { FamilyCollectionForm } from './family-collection-form';
 import { PaymentHistoryDialog } from './payment-history-dialog';
+import { StudentLedgerDialog } from './student-ledger-dialog';
+import { StudentDiscountDialog } from './student-discount-dialog';
+import { FamilyLedgerDialog } from './family-ledger-dialog';
 import { fetchFamilyChildrenWithFeesAction } from '@/modules/fees/fee-self-service-actions';
 import { recordFamilyPaymentAction } from '@/modules/fees/family-payment-actions';
 import { computeAllocation } from '@/modules/fees/allocation-engine';
 import { toast } from 'sonner';
-import { Users, Zap, ClipboardList } from 'lucide-react';
+import { Users, Zap, ClipboardList, Tag, History, Receipt, Loader2, Banknote, BookOpen } from 'lucide-react';
 import type { ChildWithAssignments, PendingAssignment, AllocationResult } from '@/modules/fees/fee.types';
 
 const PAYMENT_METHODS = [
@@ -39,6 +43,7 @@ type FamilyChild = {
 
 export function FamilyPaymentTab() {
   const [isPending, startTransition] = useTransition();
+  const [isLoadingFees, setIsLoadingFees] = useState(false);
   const [familyId, setFamilyId] = useState('');
   const [familyLabel, setFamilyLabel] = useState('');
   const [childrenData, setChildrenData] = useState<FamilyChild[]>([]);
@@ -50,9 +55,13 @@ export function FamilyPaymentTab() {
   const [view, setView] = useState<'quick' | 'detailed'>('detailed');
   const [customAmounts, setCustomAmounts] = useState<Record<string, string>>({});
   const [historyAssignmentId, setHistoryAssignmentId] = useState<string | null>(null);
+  const [ledgerChild, setLedgerChild] = useState<{ id: string; name: string } | null>(null);
+  const [discountChild, setDiscountChild] = useState<{ id: string; name: string } | null>(null);
+  const [familyLedgerOpen, setFamilyLedgerOpen] = useState(false);
   const invalidate = useInvalidateCache();
 
   function loadFamilyFees(profileId: string) {
+    setIsLoadingFees(true);
     startTransition(async () => {
       try {
         const result = await fetchFamilyChildrenWithFeesAction(profileId);
@@ -60,6 +69,7 @@ export function FamilyPaymentTab() {
         setPreview(null);
         if (!result || result.length === 0) toast.info('No pending fees found for this family');
       } catch { toast.error('Family not found or no access'); }
+      setIsLoadingFees(false);
     });
   }
 
@@ -148,11 +158,79 @@ export function FamilyPaymentTab() {
             onClear={() => { setFamilyId(''); setFamilyLabel(''); setChildrenData([]); setPreview(null); }}
           />
 
+          {/* Family Ledger button — visible once a family is selected */}
+          {familyId && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline disabled:opacity-50"
+                onClick={() => setFamilyLedgerOpen(true)}
+                disabled={isPending}
+              >
+                <BookOpen className="h-3.5 w-3.5" />
+                View Family Ledger
+              </button>
+            </div>
+          )}
+
+          {/* Loading skeleton */}
+          {isLoadingFees && familyId && children.length === 0 && (
+            <div className="space-y-3">
+              <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+              {[1, 2].map((i) => (
+                <div key={i} className="rounded-lg border p-4 space-y-2">
+                  <div className="h-4 w-32 animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-full animate-pulse rounded bg-muted" />
+                  <div className="h-3 w-2/3 animate-pulse rounded bg-muted" />
+                </div>
+              ))}
+            </div>
+          )}
+
           {children.length > 0 && (
             <>
-              <div className="text-sm text-muted-foreground">
-                {children.length} child(ren) with pending fees.
-                Total outstanding: <span className="font-semibold">{formatCurrency(totalPending)}</span>
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div className="text-sm text-muted-foreground">
+                  {children.length} child(ren) with pending fees.
+                  Total outstanding: <span className="font-semibold text-foreground">{formatCurrency(totalPending)}</span>
+                </div>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => {
+                    setTotalAmount(String(totalPending));
+                    setStrategy('OLDEST_FIRST');
+                    setView('quick');
+                    setPreview(computeAllocation({ totalAmount: totalPending, strategy: 'OLDEST_FIRST', children }));
+                  }}
+                  disabled={isPending || totalPending <= 0}
+                >
+                  <Banknote className="mr-1 h-3.5 w-3.5" /> Pay All ({formatCurrency(totalPending)})
+                </Button>
+              </div>
+
+              {/* Per-child action buttons */}
+              <div className="space-y-2">
+                {childrenData.map((c) => {
+                  const childName = `${c.child.user.firstName} ${c.child.user.lastName}`;
+                  const childTotal = c.assignments.reduce((s, a) => s + a.balanceAmount, 0);
+                  return (
+                    <div key={c.child.id} className="flex items-center justify-between gap-2 rounded-md border px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{childName}</p>
+                        <p className="text-xs text-muted-foreground">{c.child.class?.name} · Roll: {c.child.rollNumber} · Balance: <span className="font-mono">{formatCurrency(childTotal)}</span></p>
+                      </div>
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setDiscountChild({ id: c.child.id, name: childName })} disabled={isPending} title="Manage Discounts">
+                          <Tag className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setLedgerChild({ id: c.child.id, name: childName })} disabled={isPending} title="Payment Ledger">
+                          <History className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               {/* View Toggle: Detailed (per-assignment) vs Quick Pay (allocation strategy) */}
@@ -221,6 +299,30 @@ export function FamilyPaymentTab() {
       )}
 
       <PaymentHistoryDialog assignmentId={historyAssignmentId} onClose={() => setHistoryAssignmentId(null)} />
+
+      <FamilyLedgerDialog
+        familyProfileId={familyLedgerOpen ? familyId : null}
+        familyName={familyLabel}
+        onClose={() => setFamilyLedgerOpen(false)}
+      />
+
+      {ledgerChild && (
+        <StudentLedgerDialog
+          open
+          onClose={() => setLedgerChild(null)}
+          studentProfileId={ledgerChild.id}
+          studentName={ledgerChild.name}
+        />
+      )}
+
+      {discountChild && (
+        <StudentDiscountDialog
+          open
+          onClose={() => setDiscountChild(null)}
+          studentProfileId={discountChild.id}
+          studentName={discountChild.name}
+        />
+      )}
     </div>
   );
 }

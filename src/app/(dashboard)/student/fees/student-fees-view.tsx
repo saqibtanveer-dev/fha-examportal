@@ -2,19 +2,17 @@
 
 import { PageHeader, EmptyState } from '@/components/shared';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from '@/components/ui/accordion';
 import {
   FeeStatusBadge, formatCurrency, formatMonth,
 } from '@/modules/fees/components/fee-status-badge';
-import { DollarSign, CheckCircle, Clock, Wallet } from 'lucide-react';
-import type { SerializedFeeAssignment } from '@/modules/fees/fee.types';
+import { DollarSign, CheckCircle, Clock, Wallet, Receipt } from 'lucide-react';
+import type { SerializedFeeAssignmentWithPayments } from '@/modules/fees/fee.types';
 
-type Props = { fees: SerializedFeeAssignment[]; creditBalance?: number };
+type Props = { fees: SerializedFeeAssignmentWithPayments[]; creditBalance?: number };
 
 export function StudentFeesView({ fees, creditBalance = 0 }: Props) {
   const totalDue = fees.reduce((s, f) => s + f.totalAmount, 0);
@@ -25,7 +23,7 @@ export function StudentFeesView({ fees, creditBalance = 0 }: Props) {
     <div className="space-y-6">
       <PageHeader
         title="My Fees"
-        description="View your fee assignments and payment history."
+        description="View your fee assignments and payment receipts."
         breadcrumbs={[{ label: 'Student', href: '/student' }, { label: 'Fees' }]}
       />
 
@@ -36,46 +34,45 @@ export function StudentFeesView({ fees, creditBalance = 0 }: Props) {
         />
       ) : (
         <>
-          {/* Summary Cards */}
-          <div className="grid gap-4 md:grid-cols-3">
+          {/* ── Summary Cards ── */}
+          <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
             <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Fees</p>
-                    <p className="text-2xl font-bold">{formatCurrency(totalDue)}</p>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-muted-foreground opacity-50" />
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs text-muted-foreground">Total Fees</p>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </div>
+                <p className="text-xl font-bold font-mono truncate">{formatCurrency(totalDue)}</p>
               </CardContent>
             </Card>
             <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Paid</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(totalPaid)}</p>
-                  </div>
-                  <CheckCircle className="h-8 w-8 text-green-500 opacity-50" />
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs text-muted-foreground">Paid</p>
+                  <CheckCircle className="h-4 w-4 text-green-500" />
                 </div>
+                <p className="text-xl font-bold font-mono truncate text-green-600 dark:text-green-400">
+                  {formatCurrency(totalPaid)}
+                </p>
               </CardContent>
             </Card>
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Remaining</p>
-                    <p className="text-2xl font-bold text-amber-600">{formatCurrency(totalBalance)}</p>
-                  </div>
-                  <Clock className="h-8 w-8 text-amber-500 opacity-50" />
+            <Card className="col-span-2 sm:col-span-1">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-xs text-muted-foreground">Remaining</p>
+                  <Clock className="h-4 w-4 text-amber-500" />
                 </div>
+                <p className={`text-xl font-bold font-mono truncate ${totalBalance > 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                  {formatCurrency(totalBalance)}
+                </p>
               </CardContent>
             </Card>
           </div>
 
+          {/* ── Credit balance alert ── */}
           {creditBalance > 0 && (
-            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900 dark:bg-green-950">
-              <Wallet className="h-5 w-5 text-green-600" />
+            <div className="flex items-center gap-3 rounded-lg border border-green-200 bg-green-50 px-4 py-3 dark:border-green-900 dark:bg-green-950">
+              <Wallet className="h-5 w-5 text-green-600 shrink-0" />
               <div>
                 <p className="text-sm font-medium text-green-700 dark:text-green-400">
                   Available Credit: <span className="font-mono">{formatCurrency(creditBalance)}</span>
@@ -87,64 +84,120 @@ export function StudentFeesView({ fees, creditBalance = 0 }: Props) {
             </div>
           )}
 
-          {/* Fee Details - Accordion per month */}
+          {/* ── Fee Details: accordion per month ── */}
           <Card>
             <CardHeader>
-              <CardTitle>Fee Details</CardTitle>
+              <CardTitle className="text-base">Fee Details &amp; Payment Receipts</CardTitle>
             </CardHeader>
             <CardContent>
               <Accordion type="multiple" className="w-full">
                 {fees.map((fee) => (
                   <AccordionItem key={fee.id} value={fee.id}>
-                    <AccordionTrigger>
-                      <div className="flex items-center gap-4 text-left">
-                        <span className="font-medium">{formatMonth(fee.generatedForMonth)}</span>
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-2 sm:gap-4 text-left w-full pr-2 flex-wrap">
+                        <span className="font-medium text-sm sm:text-base">{formatMonth(fee.generatedForMonth)}</span>
                         <FeeStatusBadge status={fee.status} />
-                        <span className="ml-auto font-mono text-sm">
-                          {formatCurrency(fee.balanceAmount)} remaining
-                        </span>
+                        {fee.balanceAmount > 0 && (
+                          <span className="font-mono text-xs sm:text-sm text-amber-600 dark:text-amber-400 ml-auto">
+                            {formatCurrency(fee.balanceAmount)} due
+                          </span>
+                        )}
+                        {fee.balanceAmount === 0 && (
+                          <span className="font-mono text-xs sm:text-sm text-green-600 dark:text-green-400 ml-auto">
+                            Cleared
+                          </span>
+                        )}
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
-                      <div className="overflow-x-auto rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Fee Type</TableHead>
-                              <TableHead className="text-right">Amount</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
+                      <div className="space-y-4 pt-2">
+                        {/* ── Fee breakdown ── */}
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Fee Breakdown</p>
+                          <div className="rounded-md border divide-y text-sm">
                             {fee.lineItems.map((li) => (
-                              <TableRow key={li.id}>
-                                <TableCell>{li.categoryName}</TableCell>
-                                <TableCell className="text-right font-mono">
-                                  {formatCurrency(li.amount)}
-                                </TableCell>
-                              </TableRow>
+                              <div key={li.id} className="flex justify-between px-3 py-2">
+                                <span>{li.categoryName}</span>
+                                <span className="font-mono">{formatCurrency(li.amount)}</span>
+                              </div>
                             ))}
                             {fee.lateFeesApplied > 0 && (
-                              <TableRow>
-                                <TableCell className="text-orange-600">Late Fee</TableCell>
-                                <TableCell className="text-right font-mono text-orange-600">
-                                  {formatCurrency(fee.lateFeesApplied)}
-                                </TableCell>
-                              </TableRow>
+                              <div className="flex justify-between px-3 py-2 text-orange-600">
+                                <span>Late Fee</span>
+                                <span className="font-mono">{formatCurrency(fee.lateFeesApplied)}</span>
+                              </div>
                             )}
                             {fee.discountAmount > 0 && (
-                              <TableRow>
-                                <TableCell className="text-green-600">Discount</TableCell>
-                                <TableCell className="text-right font-mono text-green-600">
-                                  -{formatCurrency(fee.discountAmount)}
-                                </TableCell>
-                              </TableRow>
+                              <div className="flex justify-between px-3 py-2 text-green-600">
+                                <span>Discount</span>
+                                <span className="font-mono">-{formatCurrency(fee.discountAmount)}</span>
+                              </div>
                             )}
-                          </TableBody>
-                        </Table>
-                      </div>
-                      <div className="mt-2 flex justify-between text-sm text-muted-foreground">
-                        <span>Due: {new Date(fee.dueDate).toLocaleDateString('en-PK')}</span>
-                        <span>Paid: {formatCurrency(fee.paidAmount)} / {formatCurrency(fee.totalAmount)}</span>
+                            <div className="flex justify-between px-3 py-2 bg-muted/30 font-medium">
+                              <span>Total</span>
+                              <span className="font-mono">{formatCurrency(fee.totalAmount)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* ── Payment receipts ── */}
+                        {fee.payments && fee.payments.length > 0 ? (
+                          <div>
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                              <Receipt className="h-3.5 w-3.5" />
+                              Payment Receipts ({fee.payments.length})
+                            </p>
+                            <div className="space-y-2">
+                              {fee.payments.map((p) => (
+                                <div key={p.id} className="rounded-md border bg-muted/20 px-3 py-2 text-sm">
+                                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                                        {p.paymentMethod}
+                                      </Badge>
+                                      <span className="text-muted-foreground text-xs">
+                                        {new Date(p.paidAt).toLocaleDateString('en-PK', {
+                                          day: 'numeric', month: 'short', year: 'numeric',
+                                        })}
+                                      </span>
+                                      {p.referenceNumber && (
+                                        <span className="text-muted-foreground text-xs font-mono">
+                                          Ref: {p.referenceNumber}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">
+                                      {formatCurrency(p.amount)}
+                                    </span>
+                                  </div>
+                                  <p className="text-[10px] text-muted-foreground mt-1 font-mono">
+                                    {p.receiptNumber}
+                                  </p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : fee.paidAmount > 0 ? (
+                          <p className="text-xs text-muted-foreground">
+                            Payment recorded. Contact school for receipt details.
+                          </p>
+                        ) : null}
+
+                        {/* ── Due date info ── */}
+                        <p className="text-xs text-muted-foreground">
+                          Due:{' '}
+                          <span className="font-medium text-foreground">
+                            {new Date(fee.dueDate).toLocaleDateString('en-PK', {
+                              day: 'numeric', month: 'long', year: 'numeric',
+                            })}
+                          </span>
+                          {fee.balanceAmount > 0 && ' · '}
+                          {fee.balanceAmount > 0 && (
+                            <span className="text-amber-600 font-medium">
+                              {formatCurrency(fee.balanceAmount)} remaining
+                            </span>
+                          )}
+                        </p>
                       </div>
                     </AccordionContent>
                   </AccordionItem>

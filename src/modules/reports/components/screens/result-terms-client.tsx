@@ -88,7 +88,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base">{term.name}</CardTitle>
-                  <div className="flex gap-1 sm:opacity-0 sm:transition-opacity sm:group-hover:opacity-100">
+                  <div className="flex gap-1">
                     <Button
                       variant="ghost"
                       size="icon"

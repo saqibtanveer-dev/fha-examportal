@@ -8,6 +8,7 @@ import {
 } from '../fee-client-core-fetch-actions';
 import {
   fetchMyFeesAction,
+  fetchMyFeesWithPaymentsAction,
   fetchFamilyChildrenWithFeesAction,
   fetchMyCreditBalanceAction,
 } from '../fee-self-service-actions';
@@ -18,6 +19,16 @@ export function useMyFees(enabled = true) {
   return useQuery({
     queryKey: [...queryKeys.fees.all, 'my-fees'],
     queryFn: () => fetchMyFeesAction(),
+    enabled,
+  });
+}
+
+// ── Student's own fees with payment receipts ──
+
+export function useMyFeesWithPayments(enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.fees.all, 'my-fees-with-payments'],
+    queryFn: () => fetchMyFeesWithPaymentsAction(),
     enabled,
   });
 }

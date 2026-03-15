@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useCallback } from 'react';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,12 +18,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { MoreHorizontal, Pencil, Power, Trash2, Link2 } from 'lucide-react';
+import { MoreHorizontal, Pencil, Power, Trash2, Link2, Loader2 } from 'lucide-react';
 import { formatDate } from '@/utils/format';
 import { toggleUserActiveAction, deleteUserAction } from '@/modules/users/user-actions';
 import { EditUserDialog } from './edit-user-dialog';
 import { ManageFamilyLinksDialog } from './manage-family-links-dialog';
 import { TeacherSubjectAssigner } from './teacher-subject-assigner';
+import { ConfirmDialog } from '@/components/shared';
 import { toast } from 'sonner';
 import type { UserWithProfile } from '@/modules/users/user-queries';
 
@@ -46,34 +47,52 @@ const roleBadgeVariant: Record<string, 'default' | 'secondary' | 'outline'> = {
   FAMILY: 'outline',
 };
 
+type ActionKey = `${string}:${'toggle' | 'delete'}`;
+
 export function UserTable({ users, allSubjects = [], allClasses = [], subjectClassLinks = [] }: UserTableProps) {
-  const [isPending, startTransition] = useTransition();
+  const [loadingKeys, setLoadingKeys] = useState<Set<ActionKey>>(new Set());
   const [editingUser, setEditingUser] = useState<UserWithProfile | null>(null);
   const [familyLinkUser, setFamilyLinkUser] = useState<UserWithProfile | null>(null);
+  const [toggleConfirm, setToggleConfirm] = useState<UserWithProfile | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<UserWithProfile | null>(null);
   const invalidate = useInvalidateCache();
 
-  function handleToggleActive(userId: string) {
-    startTransition(async () => {
-      const result = await toggleUserActiveAction(userId);
+  const isRowBusy = useCallback((userId: string) => {
+    return loadingKeys.has(`${userId}:toggle`) || loadingKeys.has(`${userId}:delete`);
+  }, [loadingKeys]);
+
+  async function handleToggleActive(user: UserWithProfile) {
+    const key: ActionKey = `${user.id}:toggle`;
+    setLoadingKeys((prev) => new Set(prev).add(key));
+    try {
+      const result = await toggleUserActiveAction(user.id);
       if (result.success) {
-        toast.success('User status updated');
+        toast.success(`${user.firstName} ${user.isActive ? 'deactivated' : 'activated'}`);
         await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed');
       }
-    });
+    } finally {
+      setLoadingKeys((prev) => { const n = new Set(prev); n.delete(key); return n; });
+      setToggleConfirm(null);
+    }
   }
 
-  function handleDelete(userId: string) {
-    startTransition(async () => {
-      const result = await deleteUserAction(userId);
+  async function handleDelete(user: UserWithProfile) {
+    const key: ActionKey = `${user.id}:delete`;
+    setLoadingKeys((prev) => new Set(prev).add(key));
+    try {
+      const result = await deleteUserAction(user.id);
       if (result.success) {
-        toast.success('User deleted');
+        toast.success(`${user.firstName} deleted`);
         await invalidate.users();
       } else {
         toast.error(result.error ?? 'Failed');
       }
-    });
+    } finally {
+      setLoadingKeys((prev) => { const n = new Set(prev); n.delete(key); return n; });
+      setDeleteConfirm(null);
+    }
   }
 
   return (
@@ -95,8 +114,8 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
               </Badge>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isPending}>
-                    <MoreHorizontal className="h-4 w-4" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8" disabled={isRowBusy(user.id)}>
+                    {isRowBusy(user.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
@@ -108,10 +127,10 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
                       <Link2 className="mr-2 h-4 w-4" /> Manage Children
                     </DropdownMenuItem>
                   )}
-                  <DropdownMenuItem onClick={() => handleToggleActive(user.id)}>
+                  <DropdownMenuItem onClick={() => setToggleConfirm(user)}>
                     <Power className="mr-2 h-4 w-4" /> {user.isActive ? 'Deactivate' : 'Activate'}
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(user.id)}>
+                  <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm(user)}>
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -232,8 +251,8 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={isPending}>
-                      <MoreHorizontal className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" disabled={isRowBusy(user.id)}>
+                      {isRowBusy(user.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -247,13 +266,13 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
                         Manage Children
                       </DropdownMenuItem>
                     )}
-                    <DropdownMenuItem onClick={() => handleToggleActive(user.id)}>
+                    <DropdownMenuItem onClick={() => setToggleConfirm(user)}>
                       <Power className="mr-2 h-4 w-4" />
                       {user.isActive ? 'Deactivate' : 'Activate'}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
-                      onClick={() => handleDelete(user.id)}
+                      onClick={() => setDeleteConfirm(user)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />
                       Delete
@@ -274,6 +293,28 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
         user={editingUser}
       />
     )}
+
+    <ConfirmDialog
+      open={!!toggleConfirm}
+      onOpenChange={(o) => !o && setToggleConfirm(null)}
+      title={toggleConfirm?.isActive ? 'Deactivate User' : 'Activate User'}
+      description={toggleConfirm ? `Are you sure you want to ${toggleConfirm.isActive ? 'deactivate' : 'activate'} ${toggleConfirm.firstName} ${toggleConfirm.lastName}? ${toggleConfirm.isActive ? 'They will lose access to the system.' : 'They will regain access to the system.'}` : ''}
+      onConfirm={() => toggleConfirm && handleToggleActive(toggleConfirm)}
+      isLoading={toggleConfirm ? isRowBusy(toggleConfirm.id) : false}
+      variant={toggleConfirm?.isActive ? 'destructive' : 'default'}
+      confirmLabel={toggleConfirm?.isActive ? 'Deactivate' : 'Activate'}
+    />
+
+    <ConfirmDialog
+      open={!!deleteConfirm}
+      onOpenChange={(o) => !o && setDeleteConfirm(null)}
+      title="Delete User"
+      description={deleteConfirm ? `Are you sure you want to delete ${deleteConfirm.firstName} ${deleteConfirm.lastName}? This action cannot be easily undone.` : ''}
+      onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
+      isLoading={deleteConfirm ? isRowBusy(deleteConfirm.id) : false}
+      variant="destructive"
+      confirmLabel="Delete"
+    />
 
     {familyLinkUser && familyLinkUser.familyProfile && (
       <ManageFamilyLinksDialog

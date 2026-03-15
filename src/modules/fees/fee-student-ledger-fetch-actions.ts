@@ -1,6 +1,6 @@
 'use server';
 
-import { requireRole } from '@/lib/auth-utils';
+import { requireRole, assertFamilyStudentAccess } from '@/lib/auth-utils';
 import { safeFetchAction } from '@/lib/safe-action';
 import { serialize } from '@/utils/serialize';
 import { prisma } from '@/lib/prisma';
@@ -54,9 +54,25 @@ export const fetchStudentFeeAmountsAction = safeFetchAction(
   },
 );
 
+// ── Student Ledger — accessible by ADMIN, PRINCIPAL, FAMILY (linked), STUDENT (own) ──
 export const fetchStudentLedgerAction = safeFetchAction(
   async (studentProfileId: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
+    const session = await requireRole('ADMIN', 'PRINCIPAL', 'FAMILY', 'STUDENT');
+
+    if (session.user.role === 'STUDENT') {
+      const profile = await prisma.studentProfile.findFirst({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+      if (!profile || profile.id !== studentProfileId) {
+        throw new Error('Access denied');
+      }
+    }
+
+    if (session.user.role === 'FAMILY') {
+      await assertFamilyStudentAccess(session.user.id, studentProfileId);
+    }
+
     const sessionId = await getCurrentAcademicSessionId();
     if (!sessionId) return { assignments: [], credits: [] };
 

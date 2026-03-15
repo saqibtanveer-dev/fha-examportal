@@ -21,6 +21,7 @@ import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { deleteDepartmentAction } from '@/modules/departments/department-actions';
 import { EditDepartmentDialog } from './edit-department-dialog';
+import { ConfirmDialog } from '@/components/shared';
 import { toast } from 'sonner';
 
 type Department = {
@@ -36,17 +37,19 @@ type Props = { departments: Department[] };
 export function DepartmentTable({ departments }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingDept, setEditingDept] = useState<Department | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Department | null>(null);
   const invalidate = useInvalidateCache();
 
-  function handleDelete(id: string) {
+  function handleDelete(dept: Department) {
     startTransition(async () => {
-      const result = await deleteDepartmentAction(id);
+      const result = await deleteDepartmentAction(dept.id);
       if (result.success) {
         toast.success('Department deleted');
         await invalidate.departments();
       } else {
         toast.error(result.error ?? 'Failed');
       }
+      setDeleteConfirm(null);
     });
   }
 
@@ -85,7 +88,7 @@ export function DepartmentTable({ departments }: Props) {
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       className="text-destructive"
-                      onClick={() => handleDelete(dept.id)}
+                      onClick={() => setDeleteConfirm(dept)}
                     >
                       <Trash2 className="mr-2 h-4 w-4" />Delete
                     </DropdownMenuItem>
@@ -105,6 +108,17 @@ export function DepartmentTable({ departments }: Props) {
         department={editingDept}
       />
     )}
+
+    <ConfirmDialog
+      open={!!deleteConfirm}
+      onOpenChange={(o) => !o && setDeleteConfirm(null)}
+      title="Delete Department"
+      description={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.name}"? It has ${deleteConfirm._count.subjects} subject(s) linked.` : ''}
+      onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
+      isLoading={isPending}
+      variant="destructive"
+      confirmLabel="Delete Department"
+    />
   </>
   );
 }

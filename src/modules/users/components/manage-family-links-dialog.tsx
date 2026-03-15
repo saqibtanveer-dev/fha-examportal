@@ -4,12 +4,15 @@
 // Manage Family Links Dialog — Link/Unlink Students
 // ============================================
 
-import { useState, useTransition, useCallback } from 'react';
+import { useState, useTransition, useCallback, useEffect, useRef } from 'react';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -17,11 +20,12 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
-import { Spinner } from '@/components/shared';
-import { X, Search, Plus, UserCheck } from 'lucide-react';
+import { Spinner, ConfirmDialog } from '@/components/shared';
+import { X, Search, Plus, UserCheck, Loader2 } from 'lucide-react';
 import { linkStudentToFamilyAction, unlinkStudentFromFamilyAction } from '@/modules/family/family-admin-actions';
 import { searchStudentsForLinkingAction } from '@/modules/family/family-search-actions';
 import type { SearchableStudent } from '@/modules/family/family-search-actions';
+import { FAMILY_RELATIONSHIPS } from '@/modules/family/family.constants';
 import { toast } from 'sonner';
 
 type LinkedStudent = {
@@ -55,33 +59,49 @@ export function ManageFamilyLinksDialog({
   const [searchResults, setSearchResults] = useState<SearchableStudent[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [relationship, setRelationship] = useState('');
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [unlinkConfirm, setUnlinkConfirm] = useState<LinkedStudent | null>(null);
+  const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const invalidate = useInvalidateCache();
 
   const alreadyLinkedIds = new Set(linkedStudents.map((s) => s.studentProfileId));
 
-  const handleSearch = useCallback(async () => {
-    if (searchQuery.trim().length < 2) {
+  const doSearch = useCallback(async (query: string) => {
+    if (query.trim().length < 2) {
       setSearchResults([]);
       return;
     }
     setIsSearching(true);
-    const result = await searchStudentsForLinkingAction(searchQuery);
+    const result = await searchStudentsForLinkingAction(query);
     if (result.success && result.data) {
       setSearchResults(result.data.filter((s) => !alreadyLinkedIds.has(s.studentProfileId)));
     }
     setIsSearching(false);
-  }, [searchQuery, alreadyLinkedIds]);
+  }, [alreadyLinkedIds]);
+
+  // Debounced auto-search on typing
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (searchQuery.trim().length >= 2) {
+      debounceRef.current = setTimeout(() => doSearch(searchQuery), 400);
+    } else {
+      setSearchResults([]);
+    }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [searchQuery, doSearch]);
 
   function handleLink(student: SearchableStudent) {
-    if (!relationship.trim()) {
-      toast.error('Please enter the relationship (e.g. Father, Mother)');
+    if (!relationship) {
+      toast.error('Please select the relationship first');
       return;
     }
+    setLinkingId(student.studentProfileId);
     startTransition(async () => {
       const result = await linkStudentToFamilyAction({
         familyProfileId,
         studentProfileId: student.studentProfileId,
-        relationship: relationship.trim(),
+        relationship,
         isPrimary: linkedStudents.length === 0,
       });
       if (result.success) {
@@ -94,7 +114,7 @@ export function ManageFamilyLinksDialog({
             studentName: student.studentName,
             className: student.className,
             sectionName: student.sectionName,
-            relationship: relationship.trim(),
+            relationship,
             isPrimary: prev.length === 0,
           },
         ]);
@@ -103,10 +123,12 @@ export function ManageFamilyLinksDialog({
       } else {
         toast.error(result.error ?? 'Failed to link student');
       }
+      setLinkingId(null);
     });
   }
 
   function handleUnlink(student: LinkedStudent) {
+    setUnlinkingId(student.studentProfileId);
     startTransition(async () => {
       const result = await unlinkStudentFromFamilyAction({
         familyProfileId,
@@ -119,6 +141,8 @@ export function ManageFamilyLinksDialog({
       } else {
         toast.error(result.error ?? 'Failed to unlink');
       }
+      setUnlinkingId(null);
+      setUnlinkConfirm(null);
     });
   }
 
@@ -139,29 +163,32 @@ export function ManageFamilyLinksDialog({
             <p className="text-sm text-muted-foreground">No children linked yet.</p>
           ) : (
             <div className="space-y-2">
-              {linkedStudents.map((student) => (
-                <div key={student.studentProfileId} className="flex items-center justify-between rounded-md border p-2">
-                  <div className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-green-600" />
-                    <div>
-                      <p className="text-sm font-medium">{student.studentName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {student.className} - {student.sectionName} &bull; {student.relationship}
-                      </p>
+              {linkedStudents.map((student) => {
+                const isThisUnlinking = unlinkingId === student.studentProfileId;
+                return (
+                  <div key={student.studentProfileId} className={`flex items-center justify-between rounded-md border p-2 ${isThisUnlinking ? 'opacity-50' : ''}`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <UserCheck className="h-4 w-4 text-green-600 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{student.studentName}</p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {student.className} - {student.sectionName} &bull; {student.relationship}
+                        </p>
+                      </div>
+                      {student.isPrimary && <Badge variant="secondary" className="text-xs shrink-0">Primary</Badge>}
                     </div>
-                    {student.isPrimary && <Badge variant="secondary" className="text-xs">Primary</Badge>}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive shrink-0"
+                      disabled={isPending}
+                      onClick={() => setUnlinkConfirm(student)}
+                    >
+                      {isThisUnlinking ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                    </Button>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="text-destructive hover:text-destructive"
-                    disabled={isPending}
-                    onClick={() => handleUnlink(student)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -174,26 +201,31 @@ export function ManageFamilyLinksDialog({
             <Label htmlFor="relationship" className="text-xs">
               Relationship <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="relationship"
-              placeholder="e.g. Father, Mother, Guardian"
-              value={relationship}
-              onChange={(e) => setRelationship(e.target.value)}
-              disabled={isPending}
-            />
+            <Select value={relationship} onValueChange={setRelationship} disabled={isPending}>
+              <SelectTrigger id="relationship">
+                <SelectValue placeholder="Select relationship" />
+              </SelectTrigger>
+              <SelectContent>
+                {FAMILY_RELATIONSHIPS.map((r) => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="flex gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search student by name, roll#, reg#..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              onKeyDown={(e) => e.key === 'Enter' && doSearch(searchQuery)}
               disabled={isPending}
+              className="pl-9"
             />
-            <Button size="icon" variant="outline" onClick={handleSearch} disabled={isPending || isSearching}>
-              {isSearching ? <Spinner size="sm" /> : <Search className="h-4 w-4" />}
-            </Button>
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
           </div>
 
           {/* Search Results */}
@@ -208,8 +240,12 @@ export function ManageFamilyLinksDialog({
                       Roll: {student.rollNumber} &bull; Reg: {student.registrationNo}
                     </p>
                   </div>
-                  <Button size="sm" variant="outline" disabled={isPending} onClick={() => handleLink(student)}>
-                    <Plus className="mr-1 h-3 w-3" /> Link
+                  <Button size="sm" variant="outline" disabled={isPending || linkingId === student.studentProfileId} onClick={() => handleLink(student)} className="shrink-0">
+                    {linkingId === student.studentProfileId ? (
+                      <><Loader2 className="mr-1 h-3 w-3 animate-spin" /> Linking...</>
+                    ) : (
+                      <><Plus className="mr-1 h-3 w-3" /> Link</>
+                    )}
                   </Button>
                 </div>
               ))}
@@ -222,6 +258,17 @@ export function ManageFamilyLinksDialog({
             </p>
           )}
         </div>
+
+        <ConfirmDialog
+          open={!!unlinkConfirm}
+          onOpenChange={(o) => !o && setUnlinkConfirm(null)}
+          title="Unlink Student"
+          description={unlinkConfirm ? `Are you sure you want to unlink ${unlinkConfirm.studentName} from this family? They will no longer appear under this parent's account.` : ''}
+          onConfirm={() => unlinkConfirm && handleUnlink(unlinkConfirm)}
+          isLoading={!!unlinkingId}
+          variant="destructive"
+          confirmLabel="Unlink"
+        />
       </DialogContent>
     </Dialog>
   );

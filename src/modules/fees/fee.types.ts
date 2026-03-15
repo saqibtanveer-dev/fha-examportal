@@ -62,6 +62,19 @@ export type SerializedLineItem = {
   amount: number;
 };
 
+export type SerializedPaymentRecord = {
+  id: string;
+  amount: number;
+  paymentMethod: string;
+  referenceNumber: string | null;
+  receiptNumber: string;
+  paidAt: string;
+};
+
+export type SerializedFeeAssignmentWithPayments = SerializedFeeAssignment & {
+  payments: SerializedPaymentRecord[];
+};
+
 export type SerializedFeePayment = {
   id: string;
   feeAssignmentId: string;

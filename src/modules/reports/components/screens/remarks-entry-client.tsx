@@ -23,6 +23,8 @@ type StudentRow = {
   overallPercentage: number;
   overallGrade: string | null;
   isOverallPassed: boolean;
+  classTeacherRemarks?: string;
+  principalRemarks?: string;
 };
 
 type Section = { id: string; name: string };
@@ -60,7 +62,10 @@ export function RemarksEntryClient({ terms }: Props) {
       setStudents(res ?? []);
       const initial: Record<string, { teacher: string; principal: string }> = {};
       for (const s of res ?? []) {
-        initial[s.studentId] = { teacher: '', principal: '' };
+        initial[s.studentId] = {
+          teacher: s.classTeacherRemarks ?? '',
+          principal: s.principalRemarks ?? '',
+        };
       }
       setRemarks(initial);
     });

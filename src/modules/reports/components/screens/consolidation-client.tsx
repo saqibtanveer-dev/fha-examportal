@@ -255,7 +255,7 @@ export function ConsolidationClient({ terms }: Props) {
         open={!!clearConfirmId}
         onOpenChange={(o) => !o && setClearConfirmId(null)}
         title="Clear Consolidated Results"
-        description="All computed results for this term will be deleted. This cannot be undone. You will need to re-run consolidation."
+        description={`All computed results for "${terms.find((t) => t.id === clearConfirmId)?.name ?? ''}" will be permanently deleted. You will need to re-run consolidation afterwards.`}
         onConfirm={() => clearConfirmId && handleClear(clearConfirmId)}
         variant="destructive"
         confirmLabel="Clear Results"
@@ -264,7 +264,7 @@ export function ConsolidationClient({ terms }: Props) {
         open={!!publishConfirmId}
         onOpenChange={(o) => !o && setPublishConfirmId(null)}
         title="Publish Results"
-        description="Students and families will be able to view their DMCs and results after publishing."
+        description={`Publishing "${terms.find((t) => t.id === publishConfirmId)?.name ?? ''}" will make DMCs and results visible to all students and families.`}
         onConfirm={() => publishConfirmId && handlePublish(publishConfirmId)}
         confirmLabel="Publish"
       />
@@ -272,7 +272,7 @@ export function ConsolidationClient({ terms }: Props) {
         open={!!unpublishConfirmId}
         onOpenChange={(o) => !o && setUnpublishConfirmId(null)}
         title="Unpublish Results"
-        description="Students and families will no longer be able to view their DMCs."
+        description={`Unpublishing "${terms.find((t) => t.id === unpublishConfirmId)?.name ?? ''}" will hide DMCs from students and families.`}
         onConfirm={() => unpublishConfirmId && handleUnpublish(unpublishConfirmId)}
         variant="destructive"
         confirmLabel="Unpublish"

@@ -76,6 +76,36 @@ export const fetchMyFeesAction = safeFetchAction(async () => {
   return serialize(await findStudentAssignments(profile.id, sessionId));
 });
 
+// ── Student Self-Service: fees WITH payment transactions (for receipt history view) ──
+export const fetchMyFeesWithPaymentsAction = safeFetchAction(async () => {
+  const session = await requireRole('STUDENT');
+  const profile = await prisma.studentProfile.findFirst({
+    where: { userId: session.user.id },
+    select: { id: true },
+  });
+  if (!profile) return [];
+
+  const sessionId = await getCurrentAcademicSessionId();
+  if (!sessionId) return [];
+
+  const assignments = await prisma.feeAssignment.findMany({
+    where: { studentProfileId: profile.id, academicSessionId: sessionId, status: { not: 'CANCELLED' } },
+    include: {
+      lineItems: { select: { id: true, categoryName: true, amount: true } },
+      payments: {
+        where: { status: 'COMPLETED' },
+        orderBy: { paidAt: 'desc' },
+        select: {
+          id: true, amount: true, paymentMethod: true,
+          referenceNumber: true, receiptNumber: true, paidAt: true,
+        },
+      },
+    },
+    orderBy: [{ generatedForMonth: 'asc' }, { dueDate: 'asc' }],
+  });
+  return serialize(assignments);
+});
+
 // ── Student Credit Balance ──
 export const fetchMyCreditBalanceAction = safeFetchAction(async () => {
   const session = await requireRole('STUDENT');
@@ -157,9 +187,69 @@ export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
         },
       },
       orderBy: { paidAt: 'desc' },
-      take: 50,
+      take: 100,
     }),
   );
 
   return { children, familyPayments };
+});
+
+// ── Family Fee Summary — lightweight for dashboard widget ──
+export const fetchFamilyFeesSummaryAction = safeFetchAction(async () => {
+  const session = await requireRole('FAMILY');
+
+  const profile = await prisma.familyProfile.findUnique({
+    where: { userId: session.user.id },
+    include: {
+      studentLinks: {
+        where: { isActive: true },
+        select: { studentProfileId: true },
+      },
+    },
+  });
+
+  if (!profile) throw new Error('Family profile not found');
+
+  const sessionId = await getCurrentAcademicSessionId();
+  if (!sessionId) return { totalBalance: 0, overdueCount: 0, childrenWithDues: 0, totalChildren: 0 };
+
+  const childIds = profile.studentLinks.map((l) => l.studentProfileId);
+  if (childIds.length === 0) return { totalBalance: 0, overdueCount: 0, childrenWithDues: 0, totalChildren: 0 };
+
+  const [summary, overdueCount, childrenWithDuesData] = await Promise.all([
+    prisma.feeAssignment.aggregate({
+      where: {
+        studentProfileId: { in: childIds },
+        academicSessionId: sessionId,
+        status: { notIn: ['CANCELLED', 'PAID', 'WAIVED'] },
+        balanceAmount: { gt: 0 },
+      },
+      _sum: { balanceAmount: true },
+    }),
+    prisma.feeAssignment.count({
+      where: {
+        studentProfileId: { in: childIds },
+        academicSessionId: sessionId,
+        status: 'OVERDUE',
+        balanceAmount: { gt: 0 },
+      },
+    }),
+    prisma.feeAssignment.findMany({
+      where: {
+        studentProfileId: { in: childIds },
+        academicSessionId: sessionId,
+        status: { notIn: ['CANCELLED', 'PAID', 'WAIVED'] },
+        balanceAmount: { gt: 0 },
+      },
+      select: { studentProfileId: true },
+      distinct: ['studentProfileId'],
+    }),
+  ]);
+
+  return {
+    totalBalance: Number(summary._sum.balanceAmount ?? 0),
+    overdueCount,
+    childrenWithDues: childrenWithDuesData.length,
+    totalChildren: childIds.length,
+  };
 });

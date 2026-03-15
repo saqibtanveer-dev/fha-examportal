@@ -61,3 +61,11 @@ export type AllChildrenOverview = {
   children: ChildDashboardStats[];
   totalChildren: number;
 };
+
+/** Lightweight fee summary for the family dashboard widget */
+export type FamilyFeesSummary = {
+  totalBalance: number;
+  overdueCount: number;
+  childrenWithDues: number;
+  totalChildren: number;
+};

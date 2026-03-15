@@ -42,16 +42,10 @@ export function FamilyChildrenSummary(props: Props) {
             </span>
           </div>
           {mode === 'dual' && (
-            <div className="overflow-x-auto -mx-1 px-1">
-              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-1 text-xs text-muted-foreground items-center min-w-[340px]">
-                <span className="font-semibold">Month</span>
-                <span className="font-semibold text-center w-16 sm:w-20">Balance</span>
-                <span className="font-semibold text-center w-20 sm:w-24">Payment</span>
-                <span className="font-semibold text-center w-20 sm:w-24">Discount</span>
+            <div className="space-y-2">
               {child.assignments.map((a) => (
                 <AssignmentDualRow key={a.assignmentId} assignment={a} props={props as DualInputProps} />
               ))}
-              </div>
             </div>
           )}
           {mode === 'single' && (
@@ -89,17 +83,21 @@ function AssignmentDualRow({ assignment: a, props }: {
   props: DualInputProps;
 }) {
   return (
-    <>
-      <span>{formatMonth(a.periodLabel)}</span>
-      <span className="font-mono text-center">{formatCurrency(a.balanceAmount)}</span>
-      <Input type="number" min={0} max={a.balanceAmount} placeholder="0"
-        value={props.paymentAmounts[a.assignmentId] ?? ''}
-        onChange={(e) => props.onPaymentChange(a.assignmentId, e.target.value)}
-        className="h-7 w-20 sm:w-24 font-mono text-xs" disabled={props.disabled} />
-      <Input type="number" min={0} max={a.balanceAmount} placeholder="0"
-        value={props.discountAmounts[a.assignmentId] ?? ''}
-        onChange={(e) => props.onDiscountChange(a.assignmentId, e.target.value)}
-        className="h-7 w-20 sm:w-24 font-mono text-xs text-green-700" disabled={props.disabled} />
-    </>
+    <div className="rounded bg-muted/30 p-2 space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="font-medium">{formatMonth(a.periodLabel)}</span>
+        <span className="font-mono text-muted-foreground">{formatCurrency(a.balanceAmount)}</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <Input type="number" min={0} max={a.balanceAmount} placeholder="Payment"
+          value={props.paymentAmounts[a.assignmentId] ?? ''}
+          onChange={(e) => props.onPaymentChange(a.assignmentId, e.target.value)}
+          className="h-7 font-mono text-xs" disabled={props.disabled} />
+        <Input type="number" min={0} max={a.balanceAmount} placeholder="Discount"
+          value={props.discountAmounts[a.assignmentId] ?? ''}
+          onChange={(e) => props.onDiscountChange(a.assignmentId, e.target.value)}
+          className="h-7 font-mono text-xs text-green-700" disabled={props.disabled} />
+      </div>
+    </div>
   );
 }

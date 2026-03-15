@@ -10,6 +10,7 @@ import { FAMILY_QUERY_STALE_TIME, FAMILY_DASHBOARD_REFRESH_INTERVAL } from '../f
 
 import { fetchFamilyProfileAction, fetchLinkedChildrenAction } from '../family-profile-actions';
 import { fetchChildDashboardStatsAction, fetchAllChildrenOverviewAction } from '../family-dashboard-actions';
+import { fetchFamilyFeesSummaryAction } from '@/modules/fees/fee-self-service-actions';
 import { fetchChildUpcomingExamsAction } from '../family-exam-actions';
 import { fetchChildResultsWithAnalyticsAction } from '../family-results-actions';
 import { fetchChildDiaryForFamilyAction, fetchChildTodayDiaryForFamilyAction } from '../family-diary-actions';
@@ -42,6 +43,15 @@ export function useAllChildrenOverview(enabled = true) {
     queryFn: () => fetchAllChildrenOverviewAction(),
     staleTime: FAMILY_QUERY_STALE_TIME,
     refetchInterval: FAMILY_DASHBOARD_REFRESH_INTERVAL,
+    enabled,
+  });
+}
+
+export function useFamilyFeesSummary(enabled = true) {
+  return useQuery({
+    queryKey: [...queryKeys.fees.all, 'family-fees-summary'],
+    queryFn: () => fetchFamilyFeesSummaryAction(),
+    staleTime: FAMILY_QUERY_STALE_TIME,
     enabled,
   });
 }

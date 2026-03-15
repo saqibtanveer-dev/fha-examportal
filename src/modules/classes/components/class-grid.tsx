@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Pencil, Trash2, Users } from 'lucide-react';
 import { deleteClassAction, deleteSectionAction } from '@/modules/classes/class-actions';
 import { EditClassDialog } from './edit-class-dialog';
+import { ConfirmDialog } from '@/components/shared';
 import { toast } from 'sonner';
 
 type Section = {
@@ -30,29 +31,33 @@ type Props = { classes: ClassItem[] };
 export function ClassGrid({ classes }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingClass, setEditingClass] = useState<ClassItem | null>(null);
+  const [deleteClassConfirm, setDeleteClassConfirm] = useState<ClassItem | null>(null);
+  const [deleteSectionConfirm, setDeleteSectionConfirm] = useState<{ id: string; name: string; className: string } | null>(null);
   const invalidate = useInvalidateCache();
 
-  function handleDeleteClass(id: string) {
+  function handleDeleteClass(cls: ClassItem) {
     startTransition(async () => {
-      const result = await deleteClassAction(id);
+      const result = await deleteClassAction(cls.id);
       if (result.success) {
         toast.success('Class deleted');
         await invalidate.classes();
       } else {
         toast.error(result.error ?? 'Failed');
       }
+      setDeleteClassConfirm(null);
     });
   }
 
-  function handleDeleteSection(id: string) {
+  function handleDeleteSection(sec: { id: string; name: string; className: string }) {
     startTransition(async () => {
-      const result = await deleteSectionAction(id);
+      const result = await deleteSectionAction(sec.id);
       if (result.success) {
         toast.success('Section deleted');
         await invalidate.classes();
       } else {
         toast.error(result.error ?? 'Failed');
       }
+      setDeleteSectionConfirm(null);
     });
   }
 
@@ -78,7 +83,7 @@ export function ClassGrid({ classes }: Props) {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-destructive"
-                onClick={() => handleDeleteClass(cls.id)}
+                onClick={() => setDeleteClassConfirm(cls)}
                 disabled={isPending}
               >
                 <Trash2 className="h-4 w-4" />
@@ -100,7 +105,7 @@ export function ClassGrid({ classes }: Props) {
                     <Badge key={sec.id} variant="outline" className="gap-1">
                       {sec.name}
                       <button
-                        onClick={() => handleDeleteSection(sec.id)}
+                        onClick={() => setDeleteSectionConfirm({ id: sec.id, name: sec.name, className: cls.name })}
                         className="ml-0.5 inline-flex h-6 w-6 items-center justify-center rounded-full text-destructive hover:bg-destructive/10 hover:text-destructive/80"
                         disabled={isPending}
                         aria-label={`Remove section ${sec.name}`}
@@ -124,6 +129,28 @@ export function ClassGrid({ classes }: Props) {
         classItem={editingClass}
       />
     )}
+
+    <ConfirmDialog
+      open={!!deleteClassConfirm}
+      onOpenChange={(o) => !o && setDeleteClassConfirm(null)}
+      title="Delete Class"
+      description={deleteClassConfirm ? `Are you sure you want to delete "${deleteClassConfirm.name}"? It has ${deleteClassConfirm._count.students} student(s) and ${deleteClassConfirm.sections.length} section(s). This action cannot be undone.` : ''}
+      onConfirm={() => deleteClassConfirm && handleDeleteClass(deleteClassConfirm)}
+      isLoading={isPending}
+      variant="destructive"
+      confirmLabel="Delete Class"
+    />
+
+    <ConfirmDialog
+      open={!!deleteSectionConfirm}
+      onOpenChange={(o) => !o && setDeleteSectionConfirm(null)}
+      title="Delete Section"
+      description={deleteSectionConfirm ? `Are you sure you want to delete section "${deleteSectionConfirm.name}" from ${deleteSectionConfirm.className}?` : ''}
+      onConfirm={() => deleteSectionConfirm && handleDeleteSection(deleteSectionConfirm)}
+      isLoading={isPending}
+      variant="destructive"
+      confirmLabel="Delete Section"
+    />
   </>
   );
 }

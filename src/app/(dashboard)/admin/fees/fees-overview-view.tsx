@@ -231,7 +231,7 @@ function StatCard({
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">{title}</p>
-            <p className={`text-2xl font-bold ${colorMap[variant]}`}>{value}</p>
+            <p className={`text-xl sm:text-2xl font-bold ${colorMap[variant]} truncate`}>{value}</p>
             {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
           </div>
           <Icon className={`h-8 w-8 ${colorMap[variant]} opacity-50`} />

@@ -22,6 +22,7 @@ import { MoreHorizontal, Pencil, Trash2, Zap } from 'lucide-react';
 import { deleteSubjectAction } from '@/modules/subjects/subject-actions';
 import { EditSubjectDialog } from './edit-subject-dialog';
 import { SubjectClassManager } from './subject-class-manager';
+import { ConfirmDialog } from '@/components/shared';
 import { toast } from 'sonner';
 
 type SubjectClassLink = {
@@ -56,17 +57,19 @@ type Props = {
 export function SubjectTable({ subjects, departments, allClasses }: Props) {
   const [isPending, startTransition] = useTransition();
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<Subject | null>(null);
   const invalidate = useInvalidateCache();
 
-  function handleDelete(id: string) {
+  function handleDelete(subj: Subject) {
     startTransition(async () => {
-      const result = await deleteSubjectAction(id);
+      const result = await deleteSubjectAction(subj.id);
       if (result.success) {
         toast.success('Subject deleted');
         await invalidate.subjects();
       } else {
         toast.error(result.error ?? 'Failed');
       }
+      setDeleteConfirm(null);
     });
   }
 
@@ -97,7 +100,7 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
                   <DropdownMenuItem onClick={() => setEditingSubject(subj)}>
                     <Pencil className="mr-2 h-4 w-4" />Edit
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(subj.id)}>
+                  <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm(subj)}>
                     <Trash2 className="mr-2 h-4 w-4" />Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -176,7 +179,7 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
                     <DropdownMenuItem onClick={() => setEditingSubject(subj)}>
                       <Pencil className="mr-2 h-4 w-4" />Edit
                     </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(subj.id)}>
+                    <DropdownMenuItem className="text-destructive" onClick={() => setDeleteConfirm(subj)}>
                       <Trash2 className="mr-2 h-4 w-4" />Delete
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -196,6 +199,17 @@ export function SubjectTable({ subjects, departments, allClasses }: Props) {
         departments={departments}
       />
     )}
+
+    <ConfirmDialog
+      open={!!deleteConfirm}
+      onOpenChange={(o) => !o && setDeleteConfirm(null)}
+      title="Delete Subject"
+      description={deleteConfirm ? `Are you sure you want to delete "${deleteConfirm.name}" (${deleteConfirm.code})? It has ${deleteConfirm._count.questions} question(s) and ${deleteConfirm._count.exams} exam(s) linked.` : ''}
+      onConfirm={() => deleteConfirm && handleDelete(deleteConfirm)}
+      isLoading={isPending}
+      variant="destructive"
+      confirmLabel="Delete Subject"
+    />
   </>
   );
 }

@@ -20,7 +20,6 @@ import type { DiaryFilters } from './diary.types';
 import { safeFetchAction } from '@/lib/safe-action';
 import { getStudentVisibleSubjectIds } from '@/lib/enrollment-helpers';
 import { getTodayDateString } from './diary.utils';
-export { fetchDiaryCoverageAction, fetchDiaryStatsAction } from './diary-analytics-fetch-actions';
 
 // ── Helpers ──
 

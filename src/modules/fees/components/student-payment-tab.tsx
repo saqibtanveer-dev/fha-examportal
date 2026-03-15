@@ -17,7 +17,7 @@ import { AdvancePaymentDialog } from './advance-payment-dialog';
 import { StudentLedgerDialog } from './student-ledger-dialog';
 import { StudentAssignmentList } from './student-assignment-list';
 import { fetchPendingAssignmentsAction } from '@/modules/fees/fee-client-core-fetch-actions';
-import { fetchStudentCreditsAction } from '@/modules/fees/fee-client-finance-fetch-actions';
+import { fetchStudentCreditsAction } from '@/modules/fees/fee-student-ledger-fetch-actions';
 import { collectStudentFeeAction } from '@/modules/fees/fee-collection-actions';
 import { toast } from 'sonner';
 import type { SerializedFeeAssignment } from '@/modules/fees/fee.types';
@@ -27,6 +27,7 @@ const METHOD_LABELS: Record<string, string> = { CASH: 'Cash', BANK_TRANSFER: 'Ba
 
 export function StudentPaymentTab() {
   const [isPending, startTransition] = useTransition();
+  const [isLoadingAssignments, setIsLoadingAssignments] = useState(false);
   const [studentId, setStudentId] = useState('');
   const [studentLabel, setStudentLabel] = useState('');
   const [assignments, setAssignments] = useState<SerializedFeeAssignment[]>([]);
@@ -34,7 +35,8 @@ export function StudentPaymentTab() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [discountAmount, setDiscountAmount] = useState('');
   const [discountReason, setDiscountReason] = useState('');
-  const [method, setMethod] = useState('CASH');  const [reference, setReference] = useState('');
+  const [method, setMethod] = useState('CASH');  
+  const [reference, setReference] = useState('');
   const [historyAssignmentId, setHistoryAssignmentId] = useState<string | null>(null);
   const [discountDialogOpen, setDiscountDialogOpen] = useState(false);
   const [advanceDialogOpen, setAdvanceDialogOpen] = useState(false);
@@ -43,6 +45,7 @@ export function StudentPaymentTab() {
   const invalidate = useInvalidateCache();
 
   function loadAssignments(profileId: string) {
+    setIsLoadingAssignments(true);
     startTransition(async () => {
       try {
         const [assignmentResult, creditResult] = await Promise.all([
@@ -56,6 +59,7 @@ export function StudentPaymentTab() {
         setCreditBalance(totalCredit);
         if (!assignmentResult || assignmentResult.length === 0) toast.info('No pending fees found');
       } catch { toast.error('Student not found or no access'); }
+      setIsLoadingAssignments(false);
     });
   }
 
@@ -158,9 +162,21 @@ export function StudentPaymentTab() {
                 )}
               </div>
 
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setPaymentAmount(String(selected.balanceAmount))}
+                  disabled={isPending}
+                  className="text-xs"
+                >
+                  Pay Full Balance ({formatCurrency(selected.balanceAmount)})
+                </Button>
+              </div>
+
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-1">
-                  <Label>Payment Amount</Label>
+                  <Label>Payment Amount (Rs.)</Label>
                   <Input type="number" min={0} max={selected.balanceAmount} value={paymentAmount}
                     onChange={(e) => setPaymentAmount(e.target.value)} disabled={isPending} className="font-mono" placeholder="0" />
                 </div>

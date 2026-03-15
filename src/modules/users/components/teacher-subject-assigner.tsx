@@ -164,7 +164,7 @@ export function TeacherSubjectAssigner({
                   {classes.map((cls) => (
                     <div key={cls.classId} className="space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">{cls.className}</span>
-                      <div className="grid grid-cols-2 gap-2 pl-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-2">
                         {cls.sections.map((sec) => {
                           const key = makeKey(subject.id, cls.classId, sec.id);
                           return (

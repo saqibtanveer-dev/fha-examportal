@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useMemo } from 'react';
 import { toast } from 'sonner';
-import { Printer, FileText, Users, ChevronRight, Loader2 } from 'lucide-react';
+import { Printer, FileText, Users, ChevronRight, Loader2, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -38,8 +39,17 @@ export function DmcGeneratorClient({ terms }: Props) {
   const [dmcData, setDmcData] = useState<DmcData | null>(null);
   const [batchDmcs, setBatchDmcs] = useState<DmcData[]>([]);
   const [mode, setMode] = useState<'single' | 'batch' | null>(null);
+  const [studentSearch, setStudentSearch] = useState('');
 
   const selectedTerm = terms.find((t) => t.id === termId);
+
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return students;
+    const q = studentSearch.toLowerCase();
+    return students.filter((s) =>
+      s.name.toLowerCase().includes(q) || s.rollNumber.toLowerCase().includes(q),
+    );
+  }, [students, studentSearch]);
 
   function handleTermChange(id: string) {
     setTermId(id);
@@ -151,36 +161,52 @@ export function DmcGeneratorClient({ terms }: Props) {
       </Card>
 
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[280px_1fr] lg:gap-6">
-        {/* Student List — horizontal scroll on mobile, vertical on desktop */}
+        {/* Student List */}
         {students.length === 0 ? (
           <p className="text-sm text-muted-foreground">Select a section to see students</p>
         ) : (
-          <div className="flex gap-2 overflow-x-auto pb-2 lg:flex-col lg:overflow-x-visible lg:pb-0 lg:max-h-[70vh] lg:overflow-y-auto">
-            {students.map((s) => (
-              <button
-                key={s.studentId}
-                className={`shrink-0 w-56 lg:w-full text-left rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-accent active:bg-accent ${
-                  selectedStudentId === s.studentId ? 'bg-accent border-primary ring-1 ring-primary' : ''
-                }`}
-                onClick={() => handleLoadDmc(s.studentId)}
-                disabled={isPending}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="font-medium truncate">{s.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Roll #{s.rollNumber} · Rank {s.rankInSection ?? '—'}
-                    </p>
+          <div className="space-y-2">
+            {students.length > 8 && (
+              <div className="relative no-print">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or roll#"
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="pl-9 h-8 text-xs"
+                />
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5 max-h-[50vh] lg:max-h-[70vh] overflow-y-auto">
+              {filteredStudents.map((s) => (
+                <button
+                  key={s.studentId}
+                  className={`w-full text-left rounded-md border px-3 py-2.5 text-sm transition-colors hover:bg-accent active:bg-accent ${
+                    selectedStudentId === s.studentId ? 'bg-accent border-primary ring-1 ring-primary' : ''
+                  }`}
+                  onClick={() => handleLoadDmc(s.studentId)}
+                  disabled={isPending}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{s.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Roll #{s.rollNumber} · Rank {s.rankInSection ?? '—'}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold">{s.overallPercentage.toFixed(1)}%</p>
+                      <Badge variant={s.isOverallPassed ? 'default' : 'destructive'} className="text-xs">
+                        {s.overallGrade ?? (s.isOverallPassed ? 'Pass' : 'Fail')}
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-semibold">{s.overallPercentage.toFixed(1)}%</p>
-                    <Badge variant={s.isOverallPassed ? 'default' : 'destructive'} className="text-xs">
-                      {s.overallGrade ?? (s.isOverallPassed ? 'Pass' : 'Fail')}
-                    </Badge>
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              ))}
+              {filteredStudents.length === 0 && studentSearch && (
+                <p className="text-xs text-muted-foreground text-center py-3">No students match "{studentSearch}"</p>
+              )}
+            </div>
           </div>
         )}
 

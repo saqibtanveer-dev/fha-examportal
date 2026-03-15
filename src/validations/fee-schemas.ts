@@ -72,7 +72,9 @@ export const generateFeesSchema = z.object({
     'Month must be YYYY-MM format',
   ),
   classId: z.string().uuid('Invalid class').optional(),
+  sectionId: z.string().uuid('Invalid section').optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be YYYY-MM-DD'),
+  studentProfileIds: z.array(z.string().uuid()).optional(),
 });
 
 export type GenerateFeesInput = z.infer<typeof generateFeesSchema>;

@@ -28,19 +28,25 @@ export const generateFeesAction = safeAction(
     const parsed = generateFeesSchema.safeParse(input);
     if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
 
-    const { generatedForMonth, classId, dueDate } = parsed.data;
+    const { generatedForMonth, classId, sectionId, dueDate, studentProfileIds } = parsed.data;
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return actionError('No active academic session');
 
+    // Build student filter based on specificity
+    const studentWhere: Record<string, unknown> = {
+      status: 'ACTIVE',
+      user: { isActive: true, deletedAt: null },
+    };
+    if (studentProfileIds?.length) {
+      studentWhere.id = { in: studentProfileIds };
+    } else {
+      if (classId) studentWhere.classId = classId;
+      if (sectionId) studentWhere.sectionId = sectionId;
+    }
+
     // Quick pre-flight checks (fast, no heavy queries)
     const [studentCount, structureCount] = await Promise.all([
-      prisma.studentProfile.count({
-        where: {
-          status: 'ACTIVE',
-          user: { isActive: true, deletedAt: null },
-          ...(classId ? { classId } : {}),
-        },
-      }),
+      prisma.studentProfile.count({ where: studentWhere }),
       prisma.feeStructure.count({
         where: { academicSessionId, isActive: true },
       }),
@@ -55,21 +61,27 @@ export const generateFeesAction = safeAction(
       'FEE_GENERATION_LOCK',
       'FEE_ASSIGNMENT',
       generatedForMonth,
-      { classId, dueDate, academicSessionId },
+      { classId, sectionId, dueDate, academicSessionId, studentProfileIds },
     );
 
     try {
+      const idempotencySuffix = studentProfileIds?.length
+        ? `students:${studentProfileIds.sort().join(',')}`
+        : `${classId ?? 'all'}:${sectionId ?? 'all'}`;
+
       const runHandle = await tasks.trigger('fees-generation-workflow', {
         generatedForMonth,
         classId,
+        sectionId,
         dueDate,
         academicSessionId,
         requestedByUserId: session.user.id,
         lockId: lockRecord.id,
+        studentProfileIds,
       }, {
         concurrencyKey: `fee-gen:${academicSessionId}:${generatedForMonth}`,
         maxAttempts: 3,
-        idempotencyKey: `fees:generate:${academicSessionId}:${generatedForMonth}:${classId ?? 'all'}`,
+        idempotencyKey: `fees:generate:${academicSessionId}:${generatedForMonth}:${idempotencySuffix}`,
       });
 
       createAuditLog(
@@ -77,7 +89,7 @@ export const generateFeesAction = safeAction(
         'QUEUE_FEE_GENERATION',
         'FEE_ASSIGNMENT',
         generatedForMonth,
-        { classId, runId: runHandle.id, studentCount },
+        { classId, sectionId, studentProfileIds, runId: runHandle.id, studentCount },
       ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
       revalidateFeePaths();

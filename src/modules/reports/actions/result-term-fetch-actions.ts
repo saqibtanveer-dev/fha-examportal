@@ -185,6 +185,8 @@ const getSectionStudentsForDmc = safeFetchAction(
       overallPercentage: Number(s.overallPercentage),
       overallGrade: s.overallGrade,
       isOverallPassed: s.isOverallPassed,
+      classTeacherRemarks: s.classTeacherRemarks ?? '',
+      principalRemarks: s.principalRemarks ?? '',
     }));
   },
 );

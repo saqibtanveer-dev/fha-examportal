@@ -16,99 +16,85 @@ ik senior level high users handling expert developer kia kam kro
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 
 ik senior level horizontal scalling expert developer kia kam kro 
 ik senior level stability expert developer kia kam kro 
-ik senior level reliability expert developer kia kam kro 
-ik senior level production grade expert developer kia kam kro 
+ik senior level reliability expert developer kia kam kro  
 ik senior level production readiness expert developer kia kam kro 
 ik senior level high users handling expert developer kia kam kro 
 ik senior level high users performance expert developer kia kam kro 

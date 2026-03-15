@@ -25,10 +25,11 @@ export function GeneratePageClient() {
 
   return (
     <GenerateFeesView
-      classes={(classes ?? []).map((c: { id: string; name: string; grade: number }) => ({
+      classes={(classes ?? []).map((c: { id: string; name: string; grade: number; sections?: { id: string; name: string }[] }) => ({
         id: c.id,
         name: c.name,
         grade: c.grade,
+        sections: c.sections?.map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })),
       }))}
       dueDayOfMonth={settings?.dueDayOfMonth ?? 10}
     />
