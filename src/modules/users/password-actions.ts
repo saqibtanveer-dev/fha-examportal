@@ -8,6 +8,7 @@ import bcrypt from 'bcryptjs';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 const SALT_ROUNDS = 12;
 
 export const changePasswordAction = safeAction(async function changePasswordAction(input: ChangePasswordInput): Promise<ActionResult> {
@@ -33,7 +34,7 @@ export const changePasswordAction = safeAction(async function changePasswordActi
     data: { passwordHash: hash },
   });
 
-  createAuditLog(session.user.id, 'CHANGE_PASSWORD', 'USER', session.user.id).catch(() => {});
+  createAuditLog(session.user.id, 'CHANGE_PASSWORD', 'USER', session.user.id).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   return { success: true };
 });

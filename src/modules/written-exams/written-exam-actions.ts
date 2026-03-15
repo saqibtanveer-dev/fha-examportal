@@ -16,6 +16,7 @@ import {
 import { isSubjectElectiveForClass, getStudentsForSubject } from '@/lib/enrollment-helpers';
 
 
+import { logger } from '@/lib/logger';
 const MARKS_PATH = '/teacher/exams';
 
 // Verify Written Exam Ownership
@@ -148,7 +149,7 @@ export const initializeWrittenExamSessionsAction = safeAction(
 
     createAuditLog(session.user.id, 'INITIALIZE_WRITTEN_SESSIONS', 'EXAM', examId, {
       sessionsCreated: newStudentIds.length,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePath(MARKS_PATH);
 
     return { success: true, data: { sessionsCreated: newStudentIds.length } };

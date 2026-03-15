@@ -21,6 +21,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 // ============================================
 // Subject CRUD
 // ============================================
@@ -34,7 +35,7 @@ export const createSubjectAction = safeAction(async function createSubjectAction
   if (existing) return { success: false, error: 'Subject code already exists' };
 
   const subject = await prisma.subject.create({ data: parsed.data });
-  createAuditLog(session.user.id, 'CREATE_SUBJECT', 'SUBJECT', subject.id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_SUBJECT', 'SUBJECT', subject.id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   return { success: true, data: { id: subject.id } };
 });
@@ -48,7 +49,7 @@ export const updateSubjectAction = safeAction(async function updateSubjectAction
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   await prisma.subject.update({ where: { id }, data: parsed.data });
-  createAuditLog(session.user.id, 'UPDATE_SUBJECT', 'SUBJECT', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_SUBJECT', 'SUBJECT', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   return { success: true };
 });
@@ -63,7 +64,7 @@ export const deleteSubjectAction = safeAction(async function deleteSubjectAction
   if (exams > 0) return { success: false, error: 'Cannot delete subject with linked exams' };
 
   await prisma.subject.delete({ where: { id } });
-  createAuditLog(session.user.id, 'DELETE_SUBJECT', 'SUBJECT', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_SUBJECT', 'SUBJECT', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   return { success: true };
 });
@@ -90,7 +91,7 @@ export const assignSubjectToClassAction = safeAction(async function assignSubjec
   }
 
   await prisma.subjectClassLink.create({ data: parsed.data });
-  createAuditLog(session.user.id, 'ASSIGN_SUBJECT_CLASS', 'SUBJECT_CLASS_LINK', parsed.data.subjectId, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'ASSIGN_SUBJECT_CLASS', 'SUBJECT_CLASS_LINK', parsed.data.subjectId, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   return { success: true };
 });
@@ -138,7 +139,7 @@ export const bulkAssignSubjectToClassesAction = safeAction(async function bulkAs
     }
   });
 
-  createAuditLog(session.user.id, 'BULK_ASSIGN_SUBJECT_CLASSES', 'SUBJECT', subjectId, { classIds }).catch(() => {});
+  createAuditLog(session.user.id, 'BULK_ASSIGN_SUBJECT_CLASSES', 'SUBJECT', subjectId, { classIds }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   return { success: true };
 });
@@ -156,7 +157,7 @@ export const removeSubjectFromClassAction = safeAction(async function removeSubj
     data: { isActive: false },
   });
 
-  createAuditLog(session.user.id, 'REMOVE_SUBJECT_CLASS', 'SUBJECT_CLASS_LINK', subjectId, { classId }).catch(() => {});
+  createAuditLog(session.user.id, 'REMOVE_SUBJECT_CLASS', 'SUBJECT_CLASS_LINK', subjectId, { classId }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   return { success: true };
 });
@@ -176,7 +177,7 @@ export const assignTeacherToSubjectAction = safeAction(async function assignTeac
   if (existing) return { success: true };
 
   await prisma.teacherSubject.create({ data: parsed.data });
-  createAuditLog(session.user.id, 'ASSIGN_TEACHER_SUBJECT', 'TEACHER_SUBJECT', parsed.data.teacherId, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'ASSIGN_TEACHER_SUBJECT', 'TEACHER_SUBJECT', parsed.data.teacherId, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };
@@ -209,7 +210,7 @@ export const bulkAssignTeacherSubjectsAction = safeAction(async function bulkAss
     }
   });
 
-  createAuditLog(session.user.id, 'BULK_ASSIGN_TEACHER_SUBJECTS', 'TEACHER_SUBJECT', teacherId, { assignments }).catch(() => {});
+  createAuditLog(session.user.id, 'BULK_ASSIGN_TEACHER_SUBJECTS', 'TEACHER_SUBJECT', teacherId, { assignments }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };
@@ -219,7 +220,7 @@ export const removeTeacherFromSubjectAction = safeAction(async function removeTe
   const session = await requireRole('ADMIN');
 
   await prisma.teacherSubject.deleteMany({ where: { teacherId, subjectId } });
-  createAuditLog(session.user.id, 'REMOVE_TEACHER_SUBJECT', 'TEACHER_SUBJECT', teacherId, { subjectId }).catch(() => {});
+  createAuditLog(session.user.id, 'REMOVE_TEACHER_SUBJECT', 'TEACHER_SUBJECT', teacherId, { subjectId }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/subjects');
   revalidatePath('/admin/users');
   return { success: true };
@@ -252,7 +253,7 @@ export const updateSubjectClassElectiveAction = safeAction(
       },
     });
 
-    createAuditLog(session.user.id, 'UPDATE_SUBJECT_ELECTIVE', 'SUBJECT_CLASS_LINK', link.id, input).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_SUBJECT_ELECTIVE', 'SUBJECT_CLASS_LINK', link.id, input).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePath('/admin/subjects');
     return { success: true };
   },

@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
+import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transaction-locks';
 import {
   recordFamilyPaymentSchema,
   type RecordFamilyPaymentInput,
@@ -154,12 +155,18 @@ export const recordFamilyPaymentAction = safeAction(
       );
     }
 
-    // Create family payment + child payments in a batch transaction (Neon-safe)
+    // Collect all assignment IDs for advisory locks
+    const allAssignmentIds = allocation.allocations
+      .flatMap((ca) => ca.assignmentAllocations.filter((a) => a.allocatedAmount > 0).map((a) => a.assignmentId));
+    const lockKeys = allAssignmentIds.map((id) => `fee-assignment:${id}`);
+
     const familyPaymentId = crypto.randomUUID();
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ops: any[] = [
-      prisma.familyPayment.create({
+    // Run all writes inside a serializable transaction with advisory locks
+    await runSerializableTransaction(async (tx) => {
+      await lockTransactionKeys(tx, lockKeys);
+
+      await tx.familyPayment.create({
         data: {
           id: familyPaymentId,
           familyProfileId,
@@ -171,58 +178,57 @@ export const recordFamilyPaymentAction = safeAction(
           allocationDetails: JSON.parse(JSON.stringify(allocation)),
           recordedById: session.user.id,
         },
-      }),
-    ];
+      });
 
-    let receiptIdx = 0;
-    for (const childAlloc of allocation.allocations) {
-      for (const aa of childAlloc.assignmentAllocations) {
-        if (aa.allocatedAmount <= 0) continue;
+      let receiptIdx = 0;
+      for (const childAlloc of allocation.allocations) {
+        for (const aa of childAlloc.assignmentAllocations) {
+          if (aa.allocatedAmount <= 0) continue;
 
-        ops.push(prisma.feePayment.create({
-          data: {
-            feeAssignmentId: aa.assignmentId,
-            familyPaymentId,
-            amount: aa.allocatedAmount,
-            paymentMethod,
-            referenceNumber,
-            receiptNumber: childReceipts[receiptIdx++]!,
-            recordedById: session.user.id,
-          },
-        }));
+          await tx.feePayment.create({
+            data: {
+              feeAssignmentId: aa.assignmentId,
+              familyPaymentId,
+              amount: aa.allocatedAmount,
+              paymentMethod,
+              referenceNumber,
+              receiptNumber: childReceipts[receiptIdx++]!,
+              recordedById: session.user.id,
+            },
+          });
 
-        ops.push(prisma.feeAssignment.update({
-          where: { id: aa.assignmentId },
-          data: {
-            paidAmount: { increment: aa.allocatedAmount },
-            balanceAmount: { decrement: aa.allocatedAmount },
-            status: aa.newBalance <= 0 ? 'PAID' : 'PARTIAL',
-          },
-        }));
+          await tx.feeAssignment.update({
+            where: { id: aa.assignmentId },
+            data: {
+              paidAmount: { increment: aa.allocatedAmount },
+              balanceAmount: { decrement: aa.allocatedAmount },
+              status: aa.newBalance <= 0 ? 'PAID' : 'PARTIAL',
+            },
+          });
+        }
       }
-    }
 
-    // Overpayment credits INSIDE transaction for atomicity
-    if (allocation.unallocated > 0.01) {
-      const excessPerChild = Math.round((allocation.unallocated / childIds.length) * 100) / 100;
-      for (const childId of childIds) {
-        if (excessPerChild <= 0) continue;
-        ops.push(prisma.feeCredit.create({
-          data: {
-            studentProfileId: childId,
-            familyProfileId,
-            academicSessionId,
-            amount: excessPerChild,
-            remainingAmount: excessPerChild,
-            reason: `Overpayment credit from family payment ${masterReceipt}`,
-            referenceNumber: masterReceipt,
-            createdById: session.user.id,
-          },
-        }));
+      // Overpayment credits INSIDE transaction for atomicity
+      if (allocation.unallocated > 0.01) {
+        const excessPerChild = Math.round((allocation.unallocated / childIds.length) * 100) / 100;
+        for (const childId of childIds) {
+          if (excessPerChild <= 0) continue;
+          await tx.feeCredit.create({
+            data: {
+              studentProfileId: childId,
+              familyProfileId,
+              academicSessionId,
+              amount: excessPerChild,
+              remainingAmount: excessPerChild,
+              reason: `Overpayment credit from family payment ${masterReceipt}`,
+              referenceNumber: masterReceipt,
+              createdById: session.user.id,
+            },
+          });
+        }
       }
-    }
+    });
 
-    await prisma.$transaction(ops);
     const masterReceiptNumber = masterReceipt;
 
     createAuditLog(session.user.id, 'RECORD_FAMILY_PAYMENT', 'FAMILY_PAYMENT', masterReceiptNumber, {

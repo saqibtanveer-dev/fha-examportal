@@ -8,6 +8,7 @@ import { z } from 'zod/v4';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 const createTagSchema = z.object({
   name: z.string().min(1, 'Name is required').max(50),
   category: z.enum(['TOPIC', 'DIFFICULTY', 'BLOOM_LEVEL', 'CUSTOM']),
@@ -32,7 +33,7 @@ export const createTagAction = safeAction(async function createTagAction(input: 
 
   const tag = await prisma.tag.create({ data: parsed.data });
 
-  createAuditLog(session.user.id, 'CREATE_TAG', 'TAG', tag.id, { name: tag.name }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_TAG', 'TAG', tag.id, { name: tag.name }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return { success: true, data: { id: tag.id } };
 });
@@ -53,7 +54,7 @@ export const updateTagAction = safeAction(async function updateTagAction(id: str
 
   await prisma.tag.update({ where: { id }, data: parsed.data });
 
-  createAuditLog(session.user.id, 'UPDATE_TAG', 'TAG', id).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_TAG', 'TAG', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return { success: true };
 });
@@ -68,7 +69,7 @@ export const deleteTagAction = safeAction(async function deleteTagAction(id: str
 
   await prisma.tag.delete({ where: { id } });
 
-  createAuditLog(session.user.id, 'DELETE_TAG', 'TAG', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_TAG', 'TAG', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return { success: true };
 });

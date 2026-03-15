@@ -10,8 +10,14 @@ const { mockGetSessionId } = vi.hoisted(() => ({
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    studentProfile: { findMany: vi.fn().mockResolvedValue([]) },
-    feeStructure: { findMany: vi.fn().mockResolvedValue([]) },
+    studentProfile: {
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
+    feeStructure: {
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
     feeLineItem: { findMany: vi.fn().mockResolvedValue([]) },
     feeAssignment: {
       findMany: vi.fn().mockResolvedValue([]),
@@ -32,7 +38,7 @@ vi.mock('@/lib/auth-utils', () => ({
 vi.mock('next/cache', () => ({ revalidatePath: vi.fn() }));
 
 vi.mock('@/modules/audit/audit-queries', () => ({
-  createAuditLog: vi.fn().mockResolvedValue(undefined),
+  createAuditLog: vi.fn().mockResolvedValue({ id: 'audit-lock-001' }),
 }));
 
 vi.mock('@/lib/logger', () => ({
@@ -57,6 +63,14 @@ vi.mock('@/modules/fees/student-discount-queries', () => ({
   }),
 }));
 
+const { mockTrigger } = vi.hoisted(() => ({
+  mockTrigger: vi.fn().mockResolvedValue({ id: 'run-001' }),
+}));
+
+vi.mock('@trigger.dev/sdk/v3', () => ({
+  tasks: { trigger: mockTrigger },
+}));
+
 import { prisma } from '@/lib/prisma';
 import { generateFeesAction } from '../fee-generation-actions';
 import { cancelAssignmentAction } from '../fee-management-actions';
@@ -64,8 +78,8 @@ import { cancelAssignmentAction } from '../fee-management-actions';
 // ── Typed mock accessor ──
 
 const mockPrisma = prisma as unknown as {
-  studentProfile: { findMany: ReturnType<typeof vi.fn> };
-  feeStructure: { findMany: ReturnType<typeof vi.fn> };
+  studentProfile: { findMany: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> };
+  feeStructure: { findMany: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> };
   feeLineItem: { findMany: ReturnType<typeof vi.fn> };
   feeAssignment: {
     findMany: ReturnType<typeof vi.fn>;
@@ -79,8 +93,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   // Restore defaults cleared by clearAllMocks
   mockGetSessionId.mockResolvedValue('session-001');
+  mockTrigger.mockResolvedValue({ id: 'run-001' });
   mockPrisma.studentProfile.findMany.mockResolvedValue([]);
+  mockPrisma.studentProfile.count.mockResolvedValue(0);
   mockPrisma.feeStructure.findMany.mockResolvedValue([]);
+  mockPrisma.feeStructure.count.mockResolvedValue(0);
   mockPrisma.feeLineItem.findMany.mockResolvedValue([]);
   mockPrisma.feeAssignment.findMany.mockResolvedValue([]);
   mockPrisma.feeAssignment.findUnique.mockResolvedValue(null);
@@ -113,7 +130,8 @@ describe('generateFeesAction', () => {
   });
 
   it('returns error when no active students found', async () => {
-    mockPrisma.studentProfile.findMany.mockResolvedValueOnce([]);
+    mockPrisma.studentProfile.count.mockResolvedValueOnce(0);
+    mockPrisma.feeStructure.count.mockResolvedValueOnce(5);
 
     const result = await generateFeesAction(validInput);
     expect(result.success).toBe(false);
@@ -121,106 +139,41 @@ describe('generateFeesAction', () => {
   });
 
   it('returns error when no fee structures configured', async () => {
-    mockPrisma.studentProfile.findMany.mockResolvedValueOnce([
-      { id: 'stu-001', classId: 'cls-001' },
-    ]);
-    mockPrisma.feeStructure.findMany.mockResolvedValueOnce([]);
+    mockPrisma.studentProfile.count.mockResolvedValueOnce(10);
+    mockPrisma.feeStructure.count.mockResolvedValueOnce(0);
 
     const result = await generateFeesAction(validInput);
     expect(result.success).toBe(false);
     expect(result.error).toContain('No fee structures');
   });
 
-  it('generates fees for students with matching structures', async () => {
-    mockPrisma.studentProfile.findMany.mockResolvedValueOnce([
-      { id: 'stu-001', classId: 'cls-001' },
-      { id: 'stu-002', classId: 'cls-001' },
-    ]);
-    mockPrisma.feeStructure.findMany.mockResolvedValueOnce([
-      {
-        id: 'fs-001',
-        classId: 'cls-001',
-        amount: 5000,
-        category: { name: 'Tuition', frequency: 'MONTHLY' },
-      },
-    ]);
-    // No existing assignments
-    mockPrisma.feeAssignment.findMany.mockResolvedValueOnce([]);
+  it('queues fee generation when pre-flight checks pass', async () => {
+    mockPrisma.studentProfile.count.mockResolvedValueOnce(2);
+    mockPrisma.feeStructure.count.mockResolvedValueOnce(1);
 
     const result = await generateFeesAction(validInput);
     expect(result.success).toBe(true);
-    expect(result.data).toEqual({ generated: 2, skipped: 0 });
+    expect(result.data).toEqual({ queued: true });
+    expect(mockTrigger).toHaveBeenCalledWith(
+      'fees-generation-workflow',
+      expect.objectContaining({ generatedForMonth: '2025-06' }),
+      expect.objectContaining({ maxAttempts: 3 }),
+    );
   });
 
-  it('skips students with existing assignments for the month', async () => {
-    mockPrisma.studentProfile.findMany.mockResolvedValueOnce([
-      { id: 'stu-001', classId: 'cls-001' },
-      { id: 'stu-002', classId: 'cls-001' },
-    ]);
-    mockPrisma.feeStructure.findMany.mockResolvedValueOnce([
-      {
-        id: 'fs-001',
-        classId: 'cls-001',
-        amount: 5000,
-        category: { name: 'Tuition', frequency: 'MONTHLY' },
-      },
-    ]);
-    // stu-001 already has assignment
-    mockPrisma.feeAssignment.findMany.mockResolvedValueOnce([
-      { studentProfileId: 'stu-001' },
-    ]);
-
-    const result = await generateFeesAction(validInput);
-    expect(result.success).toBe(true);
-    expect(result.data).toEqual({ generated: 1, skipped: 1 });
-  });
-
-  it('skips students without classId', async () => {
-    mockPrisma.studentProfile.findMany.mockResolvedValueOnce([
-      { id: 'stu-001', classId: null },
-    ]);
-    mockPrisma.feeStructure.findMany.mockResolvedValueOnce([
-      {
-        id: 'fs-001',
-        classId: 'cls-001',
-        amount: 5000,
-        category: { name: 'Tuition', frequency: 'MONTHLY' },
-      },
-    ]);
-    mockPrisma.feeAssignment.findMany.mockResolvedValueOnce([]);
-
-    const result = await generateFeesAction(validInput);
-    expect(result.success).toBe(true);
-    expect(result.data?.skipped).toBe(1);
-    expect(result.data?.generated).toBe(0);
-  });
-
-  it('filters by classId when provided', async () => {
-    mockPrisma.studentProfile.findMany.mockResolvedValueOnce([
-      { id: 'stu-001', classId: 'cls-002' },
-    ]);
-    mockPrisma.feeStructure.findMany.mockResolvedValueOnce([
-      {
-        id: 'fs-002',
-        classId: 'cls-002',
-        amount: 3000,
-        category: { name: 'Lab Fee', frequency: 'MONTHLY' },
-      },
-    ]);
-    mockPrisma.feeAssignment.findMany.mockResolvedValueOnce([]);
+  it('includes classId in trigger payload when provided', async () => {
+    mockPrisma.studentProfile.count.mockResolvedValueOnce(1);
+    mockPrisma.feeStructure.count.mockResolvedValueOnce(1);
 
     const result = await generateFeesAction({
       ...validInput,
       classId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
     });
     expect(result.success).toBe(true);
-    // Verify classId was in the where clause
-    expect(mockPrisma.studentProfile.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          classId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479',
-        }),
-      }),
+    expect(mockTrigger).toHaveBeenCalledWith(
+      'fees-generation-workflow',
+      expect.objectContaining({ classId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }),
+      expect.anything(),
     );
   });
 });

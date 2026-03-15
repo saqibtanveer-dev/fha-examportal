@@ -13,13 +13,14 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 export const createClassAction = safeAction(async function createClassAction(input: CreateClassInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('ADMIN');
   const parsed = createClassSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   const cls = await prisma.class.create({ data: { name: parsed.data.name, grade: parsed.data.grade } });
-  createAuditLog(session.user.id, 'CREATE_CLASS', 'CLASS', cls.id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_CLASS', 'CLASS', cls.id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/classes');
   return { success: true, data: { id: cls.id } };
 });
@@ -35,7 +36,7 @@ export const createSectionAction = safeAction(async function createSectionAction
   if (existing) return { success: false, error: 'Section already exists in this class' };
 
   const section = await prisma.section.create({ data: parsed.data });
-  createAuditLog(session.user.id, 'CREATE_SECTION', 'SECTION', section.id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_SECTION', 'SECTION', section.id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/classes');
   return { success: true, data: { id: section.id } };
 });
@@ -51,7 +52,7 @@ export const deleteClassAction = safeAction(async function deleteClassAction(id:
   if (examAssignments > 0) return { success: false, error: 'Cannot delete class with linked exam assignments' };
 
   await prisma.class.delete({ where: { id } });
-  createAuditLog(session.user.id, 'DELETE_CLASS', 'CLASS', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_CLASS', 'CLASS', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/classes');
   return { success: true };
 });
@@ -62,7 +63,7 @@ export const deleteSectionAction = safeAction(async function deleteSectionAction
   if (students > 0) return { success: false, error: 'Cannot delete section with students' };
 
   await prisma.section.delete({ where: { id } });
-  createAuditLog(session.user.id, 'DELETE_SECTION', 'SECTION', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_SECTION', 'SECTION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/classes');
   return { success: true };
 });

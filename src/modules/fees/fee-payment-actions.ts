@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
+import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transaction-locks';
 import {
   recordPaymentSchema,
   applyDiscountSchema,
@@ -34,72 +35,58 @@ export const recordPaymentAction = safeAction(
 
     const { feeAssignmentId, amount, paymentMethod, referenceNumber } = parsed.data;
 
-    const assignment = await prisma.feeAssignment.findUnique({
-      where: { id: feeAssignmentId },
-    });
-    if (!assignment) return actionError('Fee assignment not found');
-    if (assignment.status === 'CANCELLED') return actionError('Cannot pay a cancelled assignment');
-    if (assignment.status === 'WAIVED') return actionError('This fee has been waived');
-    if (assignment.status === 'PAID') return actionError('This fee is already fully paid');
-
-    const balance = Number(assignment.balanceAmount);
-    // Clamp to actual balance — excess becomes advance credit
-    const effectiveAmount = Math.min(amount, balance);
-    const excessAmount = Math.round(Math.max(0, amount - balance) * 100) / 100;
-
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return actionError('No active academic session');
+
+    // Pre-generate receipt number OUTSIDE the serializable tx to avoid P2028 on Neon
     const settings = await findFeeSettings(academicSessionId);
     const receiptNumber = await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP');
 
-    const newPaid = Number(assignment.paidAmount) + effectiveAmount;
-    const newBalance = Math.max(0, Number(assignment.totalAmount) - newPaid);
-    const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL';
+    const result = await runSerializableTransaction(async (tx) => {
+      await lockTransactionKeys(tx, [`fee-assignment:${feeAssignmentId}`]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ops: any[] = [
-      prisma.feePayment.create({
-        data: {
-          feeAssignmentId,
-          amount: effectiveAmount,
-          paymentMethod,
-          referenceNumber,
-          receiptNumber,
-          recordedById: session.user.id,
-        },
-      }),
-      prisma.feeAssignment.update({
+      const assignment = await tx.feeAssignment.findUnique({ where: { id: feeAssignmentId } });
+      if (!assignment) return { error: 'Fee assignment not found' } as const;
+      if (assignment.status === 'CANCELLED') return { error: 'Cannot pay a cancelled assignment' } as const;
+      if (assignment.status === 'WAIVED') return { error: 'This fee has been waived' } as const;
+      if (assignment.status === 'PAID') return { error: 'This fee is already fully paid' } as const;
+
+      const balance = Number(assignment.balanceAmount);
+      const effectiveAmount = Math.min(amount, balance);
+      const excessAmount = Math.round(Math.max(0, amount - balance) * 100) / 100;
+
+      const newPaid = Number(assignment.paidAmount) + effectiveAmount;
+      const newBalance = Math.max(0, Number(assignment.totalAmount) - newPaid);
+      const newStatus = newBalance <= 0 ? 'PAID' : 'PARTIAL';
+
+      await tx.feePayment.create({
+        data: { feeAssignmentId, amount: effectiveAmount, paymentMethod, referenceNumber, receiptNumber, recordedById: session.user.id },
+      });
+
+      await tx.feeAssignment.update({
         where: { id: feeAssignmentId },
-        data: {
-          paidAmount: newPaid,
-          balanceAmount: Math.max(0, newBalance),
-          status: newStatus,
-        },
-      }),
-    ];
+        data: { paidAmount: newPaid, balanceAmount: Math.max(0, newBalance), status: newStatus },
+      });
 
-    // Overpayment credit INSIDE transaction for atomicity
-    if (excessAmount > 0) {
-      ops.push(prisma.feeCredit.create({
-        data: {
-          studentProfileId: assignment.studentProfileId,
-          academicSessionId,
-          amount: excessAmount,
-          remainingAmount: excessAmount,
-          reason: `Overpayment credit from receipt ${receiptNumber}`,
-          referenceNumber: receiptNumber,
-          createdById: session.user.id,
-        },
-      }));
-    }
+      if (excessAmount > 0) {
+        await tx.feeCredit.create({
+          data: {
+            studentProfileId: assignment.studentProfileId, academicSessionId,
+            amount: excessAmount, remainingAmount: excessAmount,
+            reason: `Overpayment credit from receipt ${receiptNumber}`,
+            referenceNumber: receiptNumber, createdById: session.user.id,
+          },
+        });
+      }
 
-    await prisma.$transaction(ops);
+      return { error: null, effectiveAmount, excessAmount } as const;
+    });
+
+    if (result.error) return actionError(result.error);
 
     createAuditLog(session.user.id, 'RECORD_FEE_PAYMENT', 'FEE_PAYMENT', receiptNumber, {
-      feeAssignmentId,
-      amount: effectiveAmount,
-      excessCredit: excessAmount > 0 ? excessAmount : undefined,
-      paymentMethod,
+      feeAssignmentId, amount: result.effectiveAmount,
+      excessCredit: result.excessAmount > 0 ? result.excessAmount : undefined, paymentMethod,
     }).catch((err) => logger.error({ err }, 'Audit log failed for payment'));
 
     revalidateFeePaths();
@@ -119,39 +106,38 @@ export const applyDiscountAction = safeAction(
 
     const { feeAssignmentId, amount, reason } = parsed.data;
 
-    const assignment = await prisma.feeAssignment.findUnique({
-      where: { id: feeAssignmentId },
-    });
-    if (!assignment) return actionError('Fee assignment not found');
-    if (assignment.status === 'CANCELLED') return actionError('Cannot discount a cancelled assignment');
+    const result = await runSerializableTransaction(async (tx) => {
+      await lockTransactionKeys(tx, [`fee-assignment:${feeAssignmentId}`]);
 
-    const balance = Number(assignment.balanceAmount);
-    if (amount > balance + 0.01) {
-      return actionError(`Discount (${amount}) exceeds balance (${balance})`);
-    }
-    const effectiveDiscount = Math.min(amount, balance);
+      const assignment = await tx.feeAssignment.findUnique({ where: { id: feeAssignmentId } });
+      if (!assignment) return { error: 'Fee assignment not found' } as const;
+      if (assignment.status === 'CANCELLED') return { error: 'Cannot discount a cancelled assignment' } as const;
 
-    const newBalance = Math.max(0, balance - effectiveDiscount);
-    const newDiscount = Number(assignment.discountAmount) + effectiveDiscount;
-    const newStatus = newBalance <= 0 ? 'WAIVED' : assignment.status;
+      const balance = Number(assignment.balanceAmount);
+      if (amount > balance + 0.01) {
+        return { error: `Discount (${amount}) exceeds balance (${balance})` } as const;
+      }
+      const effectiveDiscount = Math.min(amount, balance);
 
-    await prisma.$transaction([
-      prisma.feeDiscount.create({
+      const newBalance = Math.max(0, balance - effectiveDiscount);
+      const newDiscount = Number(assignment.discountAmount) + effectiveDiscount;
+      const newStatus = newBalance <= 0 ? 'WAIVED' : assignment.status;
+
+      await tx.feeDiscount.create({
         data: { feeAssignmentId, amount: effectiveDiscount, reason, appliedById: session.user.id },
-      }),
-      prisma.feeAssignment.update({
+      });
+      await tx.feeAssignment.update({
         where: { id: feeAssignmentId },
-        data: {
-          discountAmount: newDiscount,
-          balanceAmount: newBalance,
-          status: newStatus,
-        },
-      }),
-    ]);
+        data: { discountAmount: newDiscount, balanceAmount: newBalance, status: newStatus },
+      });
+
+      return { error: null, effectiveDiscount } as const;
+    });
+
+    if (result.error) return actionError(result.error);
 
     createAuditLog(session.user.id, 'APPLY_FEE_DISCOUNT', 'FEE_DISCOUNT', feeAssignmentId, {
-      amount: effectiveDiscount,
-      reason,
+      amount: result.effectiveDiscount, reason,
     }).catch((err) => logger.error({ err }, 'Audit log failed for discount'));
 
     revalidateFeePaths();
@@ -171,68 +157,58 @@ export const reversePaymentAction = safeAction(
 
     const { paymentId, reason } = parsed.data;
 
-    const payment = await prisma.feePayment.findUnique({
-      where: { id: paymentId },
-      include: { feeAssignment: true },
-    });
-    if (!payment) return actionError('Payment not found');
-    if (payment.status === 'REVERSED') return actionError('Payment already reversed');
-
-    const paymentAmount = Number(payment.amount);
-    const assignment = payment.feeAssignment;
-    const newPaid = Math.max(0, Number(assignment.paidAmount) - paymentAmount);
-    const totalDiscount = Number(assignment.discountAmount);
-    const newBalance = Math.max(0, Number(assignment.totalAmount) - newPaid - totalDiscount);
-
-    // Determine correct status after reversal
-    let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'WAIVED';
-    if (newPaid <= 0 && totalDiscount >= Number(assignment.totalAmount)) {
-      newStatus = 'WAIVED'; // fully covered by discount
-    } else if (newPaid <= 0 && totalDiscount <= 0) {
-      newStatus = 'PENDING';
-    } else if (newBalance <= 0) {
-      newStatus = 'PAID';
-    } else {
-      newStatus = newPaid > 0 ? 'PARTIAL' : 'PENDING';
-    }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ops: any[] = [
-      prisma.feePayment.update({
+    const result = await runSerializableTransaction(async (tx) => {
+      const payment = await tx.feePayment.findUnique({
         where: { id: paymentId },
-        data: {
-          status: 'REVERSED',
-          reversedById: session.user.id,
-          reversalReason: reason,
-          reversedAt: new Date(),
-        },
-      }),
-      prisma.feeAssignment.update({
+        include: { feeAssignment: true },
+      });
+      if (!payment) return { error: 'Payment not found' } as const;
+      if (payment.status === 'REVERSED') return { error: 'Payment already reversed' } as const;
+
+      // Lock the assignment to prevent concurrent modifications
+      await lockTransactionKeys(tx, [`fee-assignment:${payment.feeAssignmentId}`]);
+
+      const paymentAmount = Number(payment.amount);
+      const assignment = payment.feeAssignment;
+      const newPaid = Math.max(0, Number(assignment.paidAmount) - paymentAmount);
+      const totalDiscount = Number(assignment.discountAmount);
+      const newBalance = Math.max(0, Number(assignment.totalAmount) - newPaid - totalDiscount);
+
+      let newStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'WAIVED';
+      if (newPaid <= 0 && totalDiscount >= Number(assignment.totalAmount)) {
+        newStatus = 'WAIVED';
+      } else if (newPaid <= 0 && totalDiscount <= 0) {
+        newStatus = 'PENDING';
+      } else if (newBalance <= 0) {
+        newStatus = 'PAID';
+      } else {
+        newStatus = newPaid > 0 ? 'PARTIAL' : 'PENDING';
+      }
+
+      await tx.feePayment.update({
+        where: { id: paymentId },
+        data: { status: 'REVERSED', reversedById: session.user.id, reversalReason: reason, reversedAt: new Date() },
+      });
+
+      await tx.feeAssignment.update({
         where: { id: assignment.id },
-        data: {
-          paidAmount: newPaid,
-          balanceAmount: Math.max(0, newBalance),
-          status: newStatus,
-        },
-      }),
-    ];
+        data: { paidAmount: newPaid, balanceAmount: Math.max(0, newBalance), status: newStatus },
+      });
 
-    // Void any FeeCredits created from this payment's receipt (overpayment credits)
-    if (payment.receiptNumber) {
-      ops.push(prisma.feeCredit.updateMany({
-        where: {
-          referenceNumber: payment.receiptNumber,
-          status: 'ACTIVE',
-        },
-        data: { status: 'REFUNDED', remainingAmount: 0 },
-      }));
-    }
+      if (payment.receiptNumber) {
+        await tx.feeCredit.updateMany({
+          where: { referenceNumber: payment.receiptNumber, status: 'ACTIVE' },
+          data: { status: 'REFUNDED', remainingAmount: 0 },
+        });
+      }
 
-    await prisma.$transaction(ops);
+      return { error: null, paymentAmount } as const;
+    });
+
+    if (result.error) return actionError(result.error);
 
     createAuditLog(session.user.id, 'REVERSE_FEE_PAYMENT', 'FEE_PAYMENT', paymentId, {
-      amount: paymentAmount,
-      reason,
+      amount: result.paymentAmount, reason,
     }).catch((err) => logger.error({ err }, 'Audit log failed for payment reversal'));
 
     revalidateFeePaths();

@@ -7,6 +7,7 @@ import { revalidatePath } from 'next/cache';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 /** Add a question to an exam (draft only) */
 export const addQuestionToExamAction = safeAction(async function addQuestionToExamAction(
   examId: string,
@@ -54,7 +55,7 @@ export const addQuestionToExamAction = safeAction(async function addQuestionToEx
   // Recalculate total marks
   await recalculateExamMarks(examId);
 
-  createAuditLog(session.user.id, 'ADD_EXAM_QUESTION', 'EXAM', examId, { questionId }).catch(() => {});
+  createAuditLog(session.user.id, 'ADD_EXAM_QUESTION', 'EXAM', examId, { questionId }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(`/teacher/exams/${examId}`);
   return { success: true };
 });
@@ -76,7 +77,7 @@ export const removeQuestionFromExamAction = safeAction(async function removeQues
   await prisma.examQuestion.deleteMany({ where: { examId, questionId } });
   await recalculateExamMarks(examId);
 
-  createAuditLog(session.user.id, 'REMOVE_EXAM_QUESTION', 'EXAM', examId, { questionId }).catch(() => {});
+  createAuditLog(session.user.id, 'REMOVE_EXAM_QUESTION', 'EXAM', examId, { questionId }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(`/teacher/exams/${examId}`);
   return { success: true };
 });

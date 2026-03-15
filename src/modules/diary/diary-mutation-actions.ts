@@ -18,6 +18,7 @@ import {
 import type { ActionResult } from '@/types/action-result';
 import { isFutureDate, isToday } from './diary.utils';
 
+import { logger } from '@/lib/logger';
 // ── Helpers ──
 
 async function getCurrentSessionId(): Promise<string> {
@@ -95,7 +96,7 @@ export const createDiaryEntryAction = safeAction(
       'DiaryEntry',
       entry.id,
       { classId, sectionId, subjectId, date, status },
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateDiaryPaths();
     return actionSuccess({ id: entry.id });
@@ -146,7 +147,7 @@ export const updateDiaryEntryAction = safeAction(
       'DiaryEntry',
       entryId,
       parsed.data,
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateDiaryPaths();
     return actionSuccess();
@@ -182,7 +183,7 @@ export const deleteDiaryEntryAction = safeAction(
       data: { deletedAt: new Date() },
     });
 
-    createAuditLog(session.user.id, 'DELETE_DIARY_ENTRY', 'DiaryEntry', entryId).catch(() => {});
+    createAuditLog(session.user.id, 'DELETE_DIARY_ENTRY', 'DiaryEntry', entryId).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDiaryPaths();
     return actionSuccess();
   },
@@ -214,7 +215,7 @@ export const publishDiaryEntryAction = safeAction(
       data: { status: 'PUBLISHED' },
     });
 
-    createAuditLog(session.user.id, 'PUBLISH_DIARY_ENTRY', 'DiaryEntry', entryId).catch(() => {});
+    createAuditLog(session.user.id, 'PUBLISH_DIARY_ENTRY', 'DiaryEntry', entryId).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDiaryPaths();
     return actionSuccess();
   },

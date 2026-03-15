@@ -10,6 +10,7 @@ import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 export const updateQuestionAction = safeAction(async function updateQuestionAction(
   id: string,
   input: UpdateQuestionInput,
@@ -76,7 +77,7 @@ export const updateQuestionAction = safeAction(async function updateQuestionActi
     }
   });
 
-  createAuditLog(session.user.id, 'UPDATE_QUESTION', 'QUESTION', id).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_QUESTION', 'QUESTION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return actionSuccess();
 });
@@ -124,7 +125,7 @@ export const duplicateQuestionAction = safeAction(async function duplicateQuesti
     },
   });
 
-  createAuditLog(session.user.id, 'DUPLICATE_QUESTION', 'QUESTION', duplicate.id, { originalId: id }).catch(() => {});
+  createAuditLog(session.user.id, 'DUPLICATE_QUESTION', 'QUESTION', duplicate.id, { originalId: id }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return actionSuccess({ id: duplicate.id });
 });

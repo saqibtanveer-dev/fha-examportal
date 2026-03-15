@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
+import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transaction-locks';
 import { getCurrentAcademicSessionId } from './fee-queries';
 
 const FEE_PATHS = ['/admin/fees', '/student/fees', '/family/fees'];
@@ -72,62 +73,57 @@ export async function applyCreditsToAssignment(
 ): Promise<number> {
   if (balanceAmount <= 0) return 0;
 
-  const credits = await prisma.feeCredit.findMany({
-    where: {
-      studentProfileId,
-      status: 'ACTIVE',
-      remainingAmount: { gt: 0 },
-    },
-    orderBy: { createdAt: 'asc' },
+  return runSerializableTransaction(async (tx) => {
+    await lockTransactionKeys(tx, [`fee-assignment:${assignmentId}`, `fee-credits:${studentProfileId}`]);
+
+    const credits = await tx.feeCredit.findMany({
+      where: { studentProfileId, status: 'ACTIVE', remainingAmount: { gt: 0 } },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    let totalApplied = 0;
+    let remaining = balanceAmount;
+    const exhaustedIds: string[] = [];
+
+    for (const credit of credits) {
+      if (remaining <= 0) break;
+      const creditRemaining = Number(credit.remainingAmount);
+      const toApply = Math.min(remaining, creditRemaining);
+      remaining = Math.round((remaining - toApply) * 100) / 100;
+      totalApplied = Math.round((totalApplied + toApply) * 100) / 100;
+
+      const newRemaining = Math.round((creditRemaining - toApply) * 100) / 100;
+      if (newRemaining <= 0) {
+        exhaustedIds.push(credit.id);
+      } else {
+        await tx.feeCredit.update({
+          where: { id: credit.id },
+          data: { remainingAmount: newRemaining },
+        });
+      }
+    }
+
+    if (totalApplied > 0) {
+      if (exhaustedIds.length > 0) {
+        await tx.feeCredit.updateMany({
+          where: { id: { in: exhaustedIds } },
+          data: { remainingAmount: 0, status: 'EXHAUSTED' },
+        });
+      }
+
+      const newBalance = Math.max(0, Math.round((balanceAmount - totalApplied) * 100) / 100);
+      await tx.feeAssignment.update({
+        where: { id: assignmentId },
+        data: {
+          paidAmount: { increment: totalApplied },
+          balanceAmount: newBalance,
+          status: newBalance <= 0 ? 'PAID' : 'PARTIAL',
+        },
+      });
+    }
+
+    return totalApplied;
   });
-
-  let totalApplied = 0;
-  let remaining = balanceAmount;
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ops: any[] = [];
-  const exhaustedIds: string[] = [];
-
-  for (const credit of credits) {
-    if (remaining <= 0) break;
-    const creditRemaining = Number(credit.remainingAmount);
-    const toApply = Math.min(remaining, creditRemaining);
-    remaining = Math.round((remaining - toApply) * 100) / 100;
-    totalApplied = Math.round((totalApplied + toApply) * 100) / 100;
-
-    const newRemaining = Math.round((creditRemaining - toApply) * 100) / 100;
-    if (newRemaining <= 0) {
-      exhaustedIds.push(credit.id);
-    } else {
-      ops.push(prisma.feeCredit.update({
-        where: { id: credit.id },
-        data: { remainingAmount: newRemaining },
-      }));
-    }
-  }
-
-  if (totalApplied > 0) {
-    // Batch exhaust fully-used credits in one op
-    if (exhaustedIds.length > 0) {
-      ops.push(prisma.feeCredit.updateMany({
-        where: { id: { in: exhaustedIds } },
-        data: { remainingAmount: 0, status: 'EXHAUSTED' },
-      }));
-    }
-
-    const newBalance = Math.max(0, Math.round((balanceAmount - totalApplied) * 100) / 100);
-    ops.push(prisma.feeAssignment.update({
-      where: { id: assignmentId },
-      data: {
-        paidAmount: { increment: totalApplied },
-        balanceAmount: newBalance,
-        status: newBalance <= 0 ? 'PAID' : 'PARTIAL',
-      },
-    }));
-    await prisma.$transaction(ops);
-  }
-
-  return totalApplied;
 }
 
 // ── Fetch student credits ──

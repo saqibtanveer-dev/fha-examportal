@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 /**
  * Teacher approves AI grade (marks as reviewed).
  * Optionally allows modifying marks and feedback.
@@ -46,7 +47,7 @@ export const approveAiGradeAction = safeAction(async function approveAiGradeActi
 
   createAuditLog(session.user.id, 'APPROVE_AI_GRADE', 'ANSWER_GRADE', gradeId, {
     overrides: overrides ?? null,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true };
@@ -97,7 +98,7 @@ export const finalizeSessionAction = safeAction(async function finalizeSessionAc
   createAuditLog(authSession.user.id, 'FINALIZE_SESSION', 'EXAM_SESSION', sessionId, {
     obtainedMarks: result ? Number(result.obtainedMarks) : null,
     percentage: result ? Number(result.percentage) : null,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
@@ -128,7 +129,7 @@ export const reopenSessionAction = safeAction(async function reopenSessionAction
     prisma.examResult.deleteMany({ where: { sessionId } }),
   ]);
 
-  createAuditLog(authSession.user.id, 'REOPEN_SESSION', 'EXAM_SESSION', sessionId).catch(() => {});
+  createAuditLog(authSession.user.id, 'REOPEN_SESSION', 'EXAM_SESSION', sessionId).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');

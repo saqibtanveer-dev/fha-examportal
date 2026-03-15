@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 import { copyDiaryToSectionsSchema } from '@/validations/diary-schemas';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 function revalidateDiaryPaths() {
   revalidatePath('/teacher/diary');
   revalidatePath('/student/diary');
@@ -85,7 +86,7 @@ export const copyDiaryToSectionsAction = safeAction(
       'DiaryEntry',
       entryId,
       { targetSectionIds: parsed.data.targetSectionIds, count: results.length },
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateDiaryPaths();
     return actionSuccess({ count: results.length });

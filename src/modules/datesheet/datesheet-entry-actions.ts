@@ -18,6 +18,7 @@ import {
   type BulkCreateEntriesInput,
 } from '@/validations/datesheet-schemas';
 
+import { logger } from '@/lib/logger';
 function revalidatePaths() {
   revalidatePath('/admin/datesheet');
   revalidatePath('/principal/datesheet');
@@ -82,7 +83,7 @@ export const createDatesheetEntryAction = safeAction(
       const result = await prisma.datesheetEntry.createMany({ data: rows, skipDuplicates: true });
       createAuditLog(session.user.id, 'CREATE_DATESHEET_ENTRIES', 'DATESHEET', data.datesheetId, {
         count: result.count,
-      }).catch(() => {});
+      }).catch((err) => logger.error({ err }, 'Audit log failed'));
       revalidatePaths();
       return actionSuccess({ id: data.datesheetId });
     }
@@ -109,7 +110,7 @@ export const createDatesheetEntryAction = safeAction(
       },
     });
 
-    createAuditLog(session.user.id, 'CREATE_DATESHEET_ENTRY', 'DATESHEET_ENTRY', entry.id, data).catch(() => {});
+    createAuditLog(session.user.id, 'CREATE_DATESHEET_ENTRY', 'DATESHEET_ENTRY', entry.id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess({ id: entry.id });
   },
@@ -170,7 +171,7 @@ export const updateDatesheetEntryAction = safeAction(
       },
     });
 
-    createAuditLog(session.user.id, 'UPDATE_DATESHEET_ENTRY', 'DATESHEET_ENTRY', id, data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_DATESHEET_ENTRY', 'DATESHEET_ENTRY', id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess();
   },
@@ -191,7 +192,7 @@ export const deleteDatesheetEntryAction = safeAction(
 
     await prisma.datesheetEntry.delete({ where: { id } });
 
-    createAuditLog(session.user.id, 'DELETE_DATESHEET_ENTRY', 'DATESHEET_ENTRY', id).catch(() => {});
+    createAuditLog(session.user.id, 'DELETE_DATESHEET_ENTRY', 'DATESHEET_ENTRY', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess();
   },
@@ -244,7 +245,7 @@ export const bulkCreateDatesheetEntriesAction = safeAction(
 
     createAuditLog(session.user.id, 'BULK_CREATE_DATESHEET_ENTRIES', 'DATESHEET', data.datesheetId, {
       count: result.count,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess({ created: result.count });
   },

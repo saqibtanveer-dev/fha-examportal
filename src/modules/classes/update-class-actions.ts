@@ -9,6 +9,7 @@ import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 const updateClassSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   grade: z.number().int().min(1).max(12).optional(),
@@ -32,7 +33,7 @@ export const updateClassAction = safeAction(async function updateClassAction(
   if (!cls) return actionError('Class not found');
 
   await prisma.class.update({ where: { id }, data: parsed.data });
-  createAuditLog(session.user.id, 'UPDATE_CLASS', 'CLASS', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_CLASS', 'CLASS', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/classes');
   return actionSuccess();
 });
@@ -56,7 +57,7 @@ export const updateSectionAction = safeAction(async function updateSectionAction
   }
 
   await prisma.section.update({ where: { id }, data: parsed.data });
-  createAuditLog(session.user.id, 'UPDATE_SECTION', 'SECTION', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_SECTION', 'SECTION', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/classes');
   return actionSuccess();
 });

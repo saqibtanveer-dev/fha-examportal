@@ -19,6 +19,7 @@ import {
   type UpdateCampaignInput,
 } from '../admission-schemas';
 
+import { logger } from '@/lib/logger';
 export const createCampaignAction = safeAction(async function createCampaignAction(
   input: CreateCampaignInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -39,7 +40,7 @@ export const createCampaignAction = safeAction(async function createCampaignActi
     },
   });
 
-  createAuditLog(session.user.id, 'CREATE_CAMPAIGN', 'TEST_CAMPAIGN', campaign.id, { name: data.name }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_CAMPAIGN', 'TEST_CAMPAIGN', campaign.id, { name: data.name }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess({ id: campaign.id });
 });
@@ -68,7 +69,7 @@ export const updateCampaignAction = safeAction(async function updateCampaignActi
     },
   });
 
-  createAuditLog(session.user.id, 'UPDATE_CAMPAIGN', 'TEST_CAMPAIGN', id, data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_CAMPAIGN', 'TEST_CAMPAIGN', id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -88,7 +89,7 @@ export const deleteCampaignAction = safeAction(async function deleteCampaignActi
   }
 
   await prisma.testCampaign.update({ where: { id }, data: { deletedAt: new Date() } });
-  createAuditLog(session.user.id, 'DELETE_CAMPAIGN', 'TEST_CAMPAIGN', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_CAMPAIGN', 'TEST_CAMPAIGN', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });

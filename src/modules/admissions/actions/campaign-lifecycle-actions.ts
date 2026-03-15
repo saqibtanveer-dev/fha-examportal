@@ -15,6 +15,7 @@ import { actionError, actionSuccess } from '@/types/action-result';
 import { ADMISSION_ERRORS } from '../admission-types';
 
 
+import { logger } from '@/lib/logger';
 export const openRegistrationAction = safeAction(async function openRegistrationAction(
   campaignId: string,
 ): Promise<ActionResult> {
@@ -28,7 +29,7 @@ export const openRegistrationAction = safeAction(async function openRegistration
     data: { status: 'REGISTRATION_OPEN' },
   });
 
-  createAuditLog(session.user.id, 'OPEN_REGISTRATION', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'OPEN_REGISTRATION', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -46,7 +47,7 @@ export const closeRegistrationAction = safeAction(async function closeRegistrati
     data: { status: 'REGISTRATION_CLOSED' },
   });
 
-  createAuditLog(session.user.id, 'CLOSE_REGISTRATION', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'CLOSE_REGISTRATION', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -75,7 +76,7 @@ export const activateTestAction = safeAction(async function activateTestAction(
     data: { status: 'TEST_ACTIVE' },
   });
 
-  createAuditLog(session.user.id, 'ACTIVATE_TEST', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'ACTIVATE_TEST', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -103,7 +104,7 @@ export const closeTestAction = safeAction(async function closeTestAction(
     data: { status: 'TEST_CLOSED' },
   });
 
-  createAuditLog(session.user.id, 'CLOSE_TEST', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'CLOSE_TEST', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -132,7 +133,7 @@ export const triggerGradingAction = safeAction(async function triggerGradingActi
     data: { status: 'RESULTS_READY' },
   });
 
-  createAuditLog(session.user.id, 'TRIGGER_GRADING', 'TEST_CAMPAIGN', campaignId, result).catch(() => {});
+  createAuditLog(session.user.id, 'TRIGGER_GRADING', 'TEST_CAMPAIGN', campaignId, result).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess(result);
 });
@@ -157,7 +158,7 @@ export const publishResultsAction = safeAction(async function publishResultsActi
     }),
   ]);
 
-  createAuditLog(session.user.id, 'PUBLISH_RESULTS', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'PUBLISH_RESULTS', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -175,7 +176,7 @@ export const completeCampaignAction = safeAction(async function completeCampaign
     data: { status: 'COMPLETED' },
   });
 
-  createAuditLog(session.user.id, 'COMPLETE_CAMPAIGN', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'COMPLETE_CAMPAIGN', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -193,7 +194,7 @@ export const archiveCampaignAction = safeAction(async function archiveCampaignAc
     data: { status: 'ARCHIVED' },
   });
 
-  createAuditLog(session.user.id, 'ARCHIVE_CAMPAIGN', 'TEST_CAMPAIGN', campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'ARCHIVE_CAMPAIGN', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });

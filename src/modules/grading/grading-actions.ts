@@ -10,6 +10,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 /** Notify student when their session is fully graded */
 async function notifyStudentIfGraded(sessionId: string) {
   const session = await prisma.examSession.findUnique({
@@ -60,7 +61,7 @@ export const autoGradeSessionAction = safeAction(async function autoGradeSession
     });
   }
 
-  createAuditLog(authSession.user.id, 'AUTO_GRADE_SESSION', 'EXAM_SESSION', sessionId, { mcqMarks, fullyGraded }).catch(() => {});
+  createAuditLog(authSession.user.id, 'AUTO_GRADE_SESSION', 'EXAM_SESSION', sessionId, { mcqMarks, fullyGraded }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/grading');
   return { success: true, data: { mcqMarks, fullyGraded } };
 });
@@ -113,7 +114,7 @@ export const gradeAnswerAction = safeAction(async function gradeAnswerAction(
     },
   });
 
-  createAuditLog(authSession.user.id, 'GRADE_ANSWER', 'ANSWER', answerId, { marksAwarded, feedback }).catch(() => {});
+  createAuditLog(authSession.user.id, 'GRADE_ANSWER', 'ANSWER', answerId, { marksAwarded, feedback }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true };
@@ -232,7 +233,7 @@ export const batchGradeAnswersAction = safeAction(async function batchGradeAnswe
     });
   }
 
-  createAuditLog(authSession.user.id, 'BATCH_GRADE_ANSWERS', 'EXAM_SESSION', sessionId, { graded, errors }).catch(() => {});
+  createAuditLog(authSession.user.id, 'BATCH_GRADE_ANSWERS', 'EXAM_SESSION', sessionId, { graded, errors }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/grading');
   revalidatePath('/teacher/results');
   return { success: true, data: { graded, errors } };
@@ -268,7 +269,7 @@ export const batchAutoGradeAction = safeAction(async function batchAutoGradeActi
     }
   }
 
-  createAuditLog(authSession.user.id, 'BATCH_AUTO_GRADE', 'EXAM', examId, { totalSessions: sessions.length, fullyGraded: graded }).catch(() => {});
+  createAuditLog(authSession.user.id, 'BATCH_AUTO_GRADE', 'EXAM', examId, { totalSessions: sessions.length, fullyGraded: graded }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/grading');
   return { success: true, data: { totalSessions: sessions.length, fullyGraded: graded } };
 });

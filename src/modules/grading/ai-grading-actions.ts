@@ -9,6 +9,7 @@ import { revalidatePath } from 'next/cache';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 export type AiGradeStats = {
   total: number;
   graded: number;
@@ -92,7 +93,7 @@ export const aiGradeSessionAction = safeAction(async function aiGradeSessionActi
     });
   }
 
-  createAuditLog(session.user.id, 'AI_GRADE_SESSION', 'EXAM_SESSION', sessionId, { stats }).catch(() => {});
+  createAuditLog(session.user.id, 'AI_GRADE_SESSION', 'EXAM_SESSION', sessionId, { stats }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/grading');
   return { success: true, data: stats };
 });
@@ -136,7 +137,7 @@ export const aiGradeSingleAnswerAction = safeAction(async function aiGradeSingle
   createAuditLog(session.user.id, 'AI_GRADE_ANSWER', 'STUDENT_ANSWER', studentAnswerId, {
     confidence: result.confidence,
     marksAwarded: result.marksAwarded,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/teacher/grading');
   return { success: true };

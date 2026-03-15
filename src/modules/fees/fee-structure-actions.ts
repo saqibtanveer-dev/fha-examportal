@@ -16,6 +16,7 @@ import {
   type BulkCreateStructuresInput,
 } from '@/validations/fee-schemas';
 
+import { logger } from '@/lib/logger';
 const FEE_PATHS = ['/admin/fees', '/admin/fees/structures'];
 const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
 
@@ -37,7 +38,7 @@ export const createFeeStructureAction = safeAction(
       categoryId: parsed.data.categoryId,
       classId: parsed.data.classId,
       amount: parsed.data.amount,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateFeePaths();
     return actionSuccess({ id: structure.id });
@@ -60,7 +61,7 @@ export const updateFeeStructureAction = safeAction(
 
     await prisma.feeStructure.update({ where: { id }, data: parsed.data });
 
-    createAuditLog(session.user.id, 'UPDATE_FEE_STRUCTURE', 'FEE_STRUCTURE', id, parsed.data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_FEE_STRUCTURE', 'FEE_STRUCTURE', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateFeePaths();
     return actionSuccess();
   },
@@ -110,7 +111,7 @@ export const bulkCreateStructuresAction = safeAction(
       categoryId,
       academicSessionId,
       classCount: classAmounts.length,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateFeePaths();
     return actionSuccess({ count: results.length });

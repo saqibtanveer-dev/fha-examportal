@@ -15,6 +15,7 @@ import {
 } from '@/validations/timetable-schemas';
 import { isEndAfterStart } from './timetable.utils';
 
+import { logger } from '@/lib/logger';
 function revalidateTimetablePaths() {
   revalidatePath('/admin/timetable');
   revalidatePath('/teacher/timetable');
@@ -46,7 +47,7 @@ export const createPeriodSlotAction = safeAction(
       },
     });
 
-    createAuditLog(session.user.id, 'CREATE_PERIOD_SLOT', 'PERIOD_SLOT', slot.id, data).catch(() => {});
+    createAuditLog(session.user.id, 'CREATE_PERIOD_SLOT', 'PERIOD_SLOT', slot.id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess({ id: slot.id });
   },
@@ -70,7 +71,7 @@ export const updatePeriodSlotAction = safeAction(
     }
 
     await prisma.periodSlot.update({ where: { id }, data });
-    createAuditLog(session.user.id, 'UPDATE_PERIOD_SLOT', 'PERIOD_SLOT', id, data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_PERIOD_SLOT', 'PERIOD_SLOT', id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess();
   },
@@ -86,7 +87,7 @@ export const deletePeriodSlotAction = safeAction(
     }
 
     await prisma.periodSlot.delete({ where: { id } });
-    createAuditLog(session.user.id, 'DELETE_PERIOD_SLOT', 'PERIOD_SLOT', id).catch(() => {});
+    createAuditLog(session.user.id, 'DELETE_PERIOD_SLOT', 'PERIOD_SLOT', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess();
   },

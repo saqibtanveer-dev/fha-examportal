@@ -8,6 +8,7 @@ import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 export const assignClassTeacherAction = safeAction(
   async function assignClassTeacherAction(
     sectionId: string,
@@ -35,7 +36,7 @@ export const assignClassTeacherAction = safeAction(
 
     createAuditLog(session.user.id, 'ASSIGN_CLASS_TEACHER', 'SECTION', sectionId, {
       classTeacherId: userId,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath('/admin/timetable');
     revalidatePath('/teacher/timetable');

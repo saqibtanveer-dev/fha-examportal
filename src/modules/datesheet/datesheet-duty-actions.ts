@@ -17,6 +17,7 @@ import {
   type UpdateDutyInput,
 } from '@/validations/datesheet-schemas';
 
+import { logger } from '@/lib/logger';
 function revalidatePaths() {
   revalidatePath('/admin/datesheet');
   revalidatePath('/teacher/datesheet');
@@ -91,7 +92,7 @@ export const assignDutyAction = safeAction(
     if (txResult.error) return actionError(txResult.error);
     const duty = txResult.duty;
 
-    createAuditLog(session.user.id, 'ASSIGN_DATESHEET_DUTY', 'DATESHEET_DUTY', duty.id, data).catch(() => {});
+    createAuditLog(session.user.id, 'ASSIGN_DATESHEET_DUTY', 'DATESHEET_DUTY', duty.id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess({ id: duty.id });
   },
@@ -153,7 +154,7 @@ export const updateDutyAction = safeAction(
 
     if (txResult.error) return actionError(txResult.error);
 
-    createAuditLog(session.user.id, 'UPDATE_DATESHEET_DUTY', 'DATESHEET_DUTY', id, data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_DATESHEET_DUTY', 'DATESHEET_DUTY', id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess();
   },
@@ -174,7 +175,7 @@ export const removeDutyAction = safeAction(
 
     await prisma.datesheetDuty.delete({ where: { id } });
 
-    createAuditLog(session.user.id, 'REMOVE_DATESHEET_DUTY', 'DATESHEET_DUTY', id).catch(() => {});
+    createAuditLog(session.user.id, 'REMOVE_DATESHEET_DUTY', 'DATESHEET_DUTY', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePaths();
     return actionSuccess();
   },

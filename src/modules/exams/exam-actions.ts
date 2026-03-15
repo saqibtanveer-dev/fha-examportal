@@ -16,6 +16,7 @@ import type { ActionResult } from '@/types/action-result';
 import { isSubjectElectiveForClass } from '@/lib/enrollment-helpers';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 // ============================================
 // Create Exam
 // ============================================
@@ -75,7 +76,7 @@ export const createExamAction = safeAction(async function createExamAction(input
     },
   });
 
-  createAuditLog(session.user.id, 'CREATE_EXAM', 'EXAM', exam.id, { title: examData.title }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_EXAM', 'EXAM', exam.id, { title: examData.title }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/exams');
   return { success: true, data: { id: exam.id } };
 });
@@ -98,7 +99,7 @@ export const updateExamAction = safeAction(async function updateExamAction(id: s
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   await prisma.exam.update({ where: { id }, data: parsed.data });
-  createAuditLog(session.user.id, 'UPDATE_EXAM', 'EXAM', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_EXAM', 'EXAM', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/exams');
   return { success: true };
 });
@@ -168,7 +169,7 @@ export const publishExamAction = safeAction(async function publishExamAction(id:
     }
   }
 
-  createAuditLog(session.user.id, 'PUBLISH_EXAM', 'EXAM', id).catch(() => {});
+  createAuditLog(session.user.id, 'PUBLISH_EXAM', 'EXAM', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/exams');
   return { success: true };
 });
@@ -190,7 +191,7 @@ export const deleteExamAction = safeAction(async function deleteExamAction(id: s
   if (sessions > 0) return { success: false, error: 'Cannot delete exam with sessions' };
 
   await prisma.exam.update({ where: { id }, data: { deletedAt: new Date() } });
-  createAuditLog(session.user.id, 'DELETE_EXAM', 'EXAM', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_EXAM', 'EXAM', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/exams');
   return { success: true };
 });

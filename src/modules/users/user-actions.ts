@@ -10,6 +10,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 // ============================================
 // Create User
 // ============================================
@@ -119,7 +120,7 @@ export const createUserAction = safeAction(async function createUserAction(input
     },
   });
 
-  createAuditLog(session.user.id, 'CREATE_USER', 'USER', user.id, { email, role }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_USER', 'USER', user.id, { email, role }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/users');
   return { success: true, data: { id: user.id } };
 });
@@ -134,7 +135,7 @@ export const toggleUserActiveAction = safeAction(async function toggleUserActive
   const user = await toggleUserActive(userId);
   if (!user) return { success: false, error: 'User not found' };
 
-  createAuditLog(session.user.id, 'TOGGLE_USER_ACTIVE', 'USER', userId, { isActive: user.isActive }).catch(() => {});
+  createAuditLog(session.user.id, 'TOGGLE_USER_ACTIVE', 'USER', userId, { isActive: user.isActive }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/users');
   return { success: true };
 });
@@ -147,7 +148,7 @@ export const deleteUserAction = safeAction(async function deleteUserAction(userI
   const session = await requireRole('ADMIN');
 
   await softDeleteUser(userId);
-  createAuditLog(session.user.id, 'DELETE_USER', 'USER', userId).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_USER', 'USER', userId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/users');
   return { success: true };
 });

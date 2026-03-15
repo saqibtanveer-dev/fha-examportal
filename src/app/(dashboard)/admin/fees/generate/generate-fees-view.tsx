@@ -51,8 +51,7 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
       });
 
       if (result.success) {
-        const { generated, skipped } = result.data!;
-        toast.success(`Generated fees for ${generated} students (${skipped} skipped)`);
+        toast.success('Fee generation queued. Fees will be generated in the background.');
         await invalidate.afterFeeMutation();
       } else {
         toast.error(result.error ?? 'Failed to generate fees');

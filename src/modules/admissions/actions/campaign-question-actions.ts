@@ -23,6 +23,7 @@ import {
   type CsvImportQuestionsInput,
 } from '../admission-schemas';
 
+import { logger } from '@/lib/logger';
 const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
 
 /** Find or create a "General" subject for admission-specific questions. */
@@ -131,7 +132,7 @@ export const createCampaignQuestionAction = safeAction(async function createCamp
 
   createAuditLog(session.user.id, 'CREATE_CAMPAIGN_QUESTION', 'TEST_CAMPAIGN', parsed.data.campaignId, {
     questionId: result.id,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin/admissions');
   return actionSuccess({ questionId: result.id });
@@ -219,7 +220,7 @@ export const importCsvQuestionsAction = safeAction(async function importCsvQuest
 
   createAuditLog(session.user.id, 'CSV_IMPORT_QUESTIONS', 'TEST_CAMPAIGN', parsed.data.campaignId, {
     count: parsed.data.questions.length,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin/admissions');
   return actionSuccess({ imported: parsed.data.questions.length });
@@ -245,7 +246,7 @@ export const removeQuestionsFromCampaignAction = safeAction(async function remov
 
   await syncCampaignTotalMarks(parsed.data.campaignId);
 
-  createAuditLog(session.user.id, 'REMOVE_CAMPAIGN_QUESTIONS', 'TEST_CAMPAIGN', parsed.data.campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'REMOVE_CAMPAIGN_QUESTIONS', 'TEST_CAMPAIGN', parsed.data.campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -290,7 +291,7 @@ export const configureScholarshipTiersAction = safeAction(async function configu
     data: { hasScholarship: parsed.data.tiers.length > 0 },
   });
 
-  createAuditLog(session.user.id, 'CONFIGURE_SCHOLARSHIP_TIERS', 'TEST_CAMPAIGN', parsed.data.campaignId).catch(() => {});
+  createAuditLog(session.user.id, 'CONFIGURE_SCHOLARSHIP_TIERS', 'TEST_CAMPAIGN', parsed.data.campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });

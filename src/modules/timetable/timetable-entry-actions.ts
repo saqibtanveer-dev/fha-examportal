@@ -22,6 +22,7 @@ import {
 } from './timetable-entry-write-ops';
 import { cleanupOrphanedGroup } from './timetable-elective-helpers';
 
+import { logger } from '@/lib/logger';
 function revalidateTimetablePaths() {
   revalidatePath('/admin/timetable');
   revalidatePath('/teacher/timetable');
@@ -42,7 +43,7 @@ export const createTimetableEntryAction = safeAction(
     if (result.error) return actionError(result.error);
     if (!result.entry) return actionError('Failed to create timetable entry');
 
-    createAuditLog(session.user.id, 'CREATE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', result.entry.id, parsed.data).catch(() => {});
+    createAuditLog(session.user.id, 'CREATE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', result.entry.id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess({ id: result.entry.id });
   },
@@ -60,7 +61,7 @@ export const updateTimetableEntryAction = safeAction(
     const result = await updateTimetableEntryWithLock(id, parsed.data);
     if (result.error) return actionError(result.error);
 
-    createAuditLog(session.user.id, 'UPDATE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id, parsed.data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess();
   },
@@ -86,7 +87,7 @@ export const deleteTimetableEntryAction = safeAction(
       await cleanupOrphanedGroup(existing.electiveSlotGroupId);
     }
 
-    createAuditLog(session.user.id, 'DELETE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id).catch(() => {});
+    createAuditLog(session.user.id, 'DELETE_TIMETABLE_ENTRY', 'TIMETABLE_ENTRY', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess();
   },
@@ -107,7 +108,7 @@ export const bulkCreateTimetableAction = safeAction(
 
     createAuditLog(session.user.id, 'BULK_CREATE_TIMETABLE', 'TIMETABLE_ENTRY', 'bulk', {
       count: result.created,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateTimetablePaths();
     return actionSuccess({ created: result.created });
   },

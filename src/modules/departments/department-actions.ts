@@ -13,13 +13,14 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 export const createDepartmentAction = safeAction(async function createDepartmentAction(input: CreateDepartmentInput): Promise<ActionResult<{ id: string }>> {
   const session = await requireRole('ADMIN');
   const parsed = createDepartmentSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   const dept = await prisma.department.create({ data: parsed.data });
-  createAuditLog(session.user.id, 'CREATE_DEPARTMENT', 'DEPARTMENT', dept.id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_DEPARTMENT', 'DEPARTMENT', dept.id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/departments');
   return { success: true, data: { id: dept.id } };
 });
@@ -33,7 +34,7 @@ export const updateDepartmentAction = safeAction(async function updateDepartment
   if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
   await prisma.department.update({ where: { id }, data: parsed.data });
-  createAuditLog(session.user.id, 'UPDATE_DEPARTMENT', 'DEPARTMENT', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_DEPARTMENT', 'DEPARTMENT', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/departments');
   return { success: true };
 });
@@ -45,7 +46,7 @@ export const deleteDepartmentAction = safeAction(async function deleteDepartment
     return { success: false, error: 'Cannot delete department with associated subjects' };
   }
   await prisma.department.delete({ where: { id } });
-  createAuditLog(session.user.id, 'DELETE_DEPARTMENT', 'DEPARTMENT', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_DEPARTMENT', 'DEPARTMENT', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/departments');
   return { success: true };
 });

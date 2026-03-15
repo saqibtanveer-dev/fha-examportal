@@ -27,6 +27,7 @@ import { generateTestPin, sanitizeString } from '@/lib/admission-utils';
 import { getNextApplicationNumber } from '../admission-queries';
 import { ADMISSION_APPLICATION_NUMBER_PREFIX } from '@/lib/constants';
 
+import { logger } from '@/lib/logger';
 /**
  * Admin adds a single candidate to a campaign.
  * Candidate starts as VERIFIED — no OTP/email verification needed.
@@ -97,7 +98,7 @@ export const addCandidateAction = safeAction(async function addCandidateAction(
   createAuditLog(session.user.id, 'ADD_CANDIDATE', 'APPLICANT', applicant.id, {
     campaignId: campaign.id,
     applicationNumber,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin/admissions');
   return actionSuccess({
@@ -178,7 +179,7 @@ export const bulkAddCandidatesAction = safeAction(async function bulkAddCandidat
   createAuditLog(session.user.id, 'BULK_ADD_CANDIDATES', 'TEST_CAMPAIGN', campaign.id, {
     added,
     skipped,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin/admissions');
   return actionSuccess({ added, skipped });

@@ -12,6 +12,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 export const executeYearTransitionAction = safeAction(async function executeYearTransitionAction(
   input: YearTransitionInput,
 ): Promise<ActionResult<{ promoted: number; graduated: number; heldBack: number }>> {
@@ -217,7 +218,7 @@ export const executeYearTransitionAction = safeAction(async function executeYear
     'ACADEMIC_SESSION',
     academicSessionId,
     { promoted: totalPromoted, graduated: totalGraduated, heldBack: totalHeldBack },
-  ).catch(() => {});
+  ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin');
   revalidatePath('/admin/year-transition');
@@ -283,7 +284,7 @@ export const undoYearTransitionAction = safeAction(async function undoYearTransi
     'ACADEMIC_SESSION',
     academicSessionId,
     { undone: promotions.length },
-  ).catch(() => {});
+  ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin');
   revalidatePath('/admin/year-transition');

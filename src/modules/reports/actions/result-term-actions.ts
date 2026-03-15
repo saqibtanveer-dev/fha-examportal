@@ -14,6 +14,7 @@ import {
   type UpdateResultTermInput,
 } from '@/validations/result-term-schemas';
 
+import { logger } from '@/lib/logger';
 const REPORTS_PATH = '/admin/reports';
 
 // ============================================
@@ -39,7 +40,7 @@ export const createResultTermAction = safeAction(async function createResultTerm
     data: { name, description, academicSessionId, classId },
   });
 
-  createAuditLog(session.user.id, 'CREATE_RESULT_TERM', 'RESULT_TERM', term.id, { name }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_RESULT_TERM', 'RESULT_TERM', term.id, { name }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(REPORTS_PATH);
   return actionSuccess({ id: term.id });
 });
@@ -62,7 +63,7 @@ export const updateResultTermAction = safeAction(async function updateResultTerm
   if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Invalid input');
 
   await prisma.resultTerm.update({ where: { id }, data: parsed.data });
-  createAuditLog(session.user.id, 'UPDATE_RESULT_TERM', 'RESULT_TERM', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_RESULT_TERM', 'RESULT_TERM', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(`${REPORTS_PATH}/result-terms/${id}`);
   revalidatePath(REPORTS_PATH);
   return actionSuccess();
@@ -88,7 +89,7 @@ export const deleteResultTermAction = safeAction(async function deleteResultTerm
   }
 
   await prisma.resultTerm.delete({ where: { id } });
-  createAuditLog(session.user.id, 'DELETE_RESULT_TERM', 'RESULT_TERM', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_RESULT_TERM', 'RESULT_TERM', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(REPORTS_PATH);
   return actionSuccess();
 });
@@ -115,7 +116,7 @@ export const publishResultTermAction = safeAction(async function publishResultTe
     data: { isPublished: true, publishedAt: new Date() },
   });
 
-  createAuditLog(session.user.id, 'PUBLISH_RESULT_TERM', 'RESULT_TERM', id).catch(() => {});
+  createAuditLog(session.user.id, 'PUBLISH_RESULT_TERM', 'RESULT_TERM', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(REPORTS_PATH);
   revalidatePath(`${REPORTS_PATH}/result-terms/${id}`);
   return actionSuccess();
@@ -139,7 +140,7 @@ export const unpublishResultTermAction = safeAction(async function unpublishResu
     data: { isPublished: false },
   });
 
-  createAuditLog(session.user.id, 'UNPUBLISH_RESULT_TERM', 'RESULT_TERM', id).catch(() => {});
+  createAuditLog(session.user.id, 'UNPUBLISH_RESULT_TERM', 'RESULT_TERM', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath(REPORTS_PATH);
   revalidatePath(`${REPORTS_PATH}/result-terms/${id}`);
   return actionSuccess();

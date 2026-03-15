@@ -13,6 +13,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 export const createAcademicSessionAction = safeAction(async function createAcademicSessionAction(
   input: CreateAcademicSessionInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -41,7 +42,7 @@ export const createAcademicSessionAction = safeAction(async function createAcade
     });
   });
 
-  createAuditLog(session.user.id, 'CREATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', academicSession.id, rest).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', academicSession.id, rest).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/settings');
   return { success: true, data: { id: academicSession.id } };
 });
@@ -76,7 +77,7 @@ export const updateAcademicSessionAction = safeAction(async function updateAcade
     });
   });
 
-  createAuditLog(session.user.id, 'UPDATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/settings');
   return { success: true };
 });
@@ -95,7 +96,7 @@ export const setCurrentAcademicSessionAction = safeAction(async function setCurr
     }),
   ]);
 
-  createAuditLog(session.user.id, 'SET_CURRENT_SESSION', 'ACADEMIC_SESSION', id).catch(() => {});
+  createAuditLog(session.user.id, 'SET_CURRENT_SESSION', 'ACADEMIC_SESSION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/settings');
   return { success: true };
 });
@@ -120,7 +121,7 @@ export const deleteAcademicSessionAction = safeAction(async function deleteAcade
   }
 
   await prisma.academicSession.delete({ where: { id } });
-  createAuditLog(session.user.id, 'DELETE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_ACADEMIC_SESSION', 'ACADEMIC_SESSION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/settings');
   return { success: true };
 });

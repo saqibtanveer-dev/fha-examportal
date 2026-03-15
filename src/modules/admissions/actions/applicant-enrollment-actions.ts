@@ -21,6 +21,7 @@ import {
 import bcrypt from 'bcryptjs';
 import { randomBytes } from 'crypto';
 
+import { logger } from '@/lib/logger';
 export const autoAssignScholarshipsAction = safeAction(async function autoAssignScholarshipsAction(
   campaignId: string,
 ): Promise<ActionResult<{ assigned: number }>> {
@@ -93,7 +94,7 @@ export const autoAssignScholarshipsAction = safeAction(async function autoAssign
 
   createAuditLog(session.user.id, 'AUTO_ASSIGN_SCHOLARSHIPS', 'TEST_CAMPAIGN', campaignId, {
     assigned: assignments.length,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess({ assigned: assignments.length });
 });
@@ -173,7 +174,7 @@ export const enrollApplicantAction = safeAction(async function enrollApplicantAc
 
   createAuditLog(session.user.id, 'ENROLL_APPLICANT', 'APPLICANT', applicant.id, {
     userId: user.id,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess({ userId: user.id });
 });
@@ -198,7 +199,7 @@ export const bulkEnrollAction = safeAction(async function bulkEnrollAction(
   createAuditLog(session.user.id, 'BULK_ENROLL', 'TEST_CAMPAIGN', '', {
     enrolled,
     failed,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   return actionSuccess({ enrolled, failed });
 });
 
@@ -232,7 +233,7 @@ export const generateMeritListAction = safeAction(async function generateMeritLi
     data: { status: 'REJECTED' },
   });
 
-  createAuditLog(session.user.id, 'GENERATE_MERIT_LIST', 'TEST_CAMPAIGN', campaignId, { ranked }).catch(() => {});
+  createAuditLog(session.user.id, 'GENERATE_MERIT_LIST', 'TEST_CAMPAIGN', campaignId, { ranked }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess({ ranked });
 });

@@ -8,6 +8,7 @@ import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 
+import { logger } from '@/lib/logger';
 export async function updateUserAction(
   id: string,
   input: UpdateUserInput,
@@ -27,7 +28,7 @@ export async function updateUserAction(
     data: parsed.data,
   });
 
-  createAuditLog(session.user.id, 'UPDATE_USER', 'USER', id, parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_USER', 'USER', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/users');
   return actionSuccess();
 }

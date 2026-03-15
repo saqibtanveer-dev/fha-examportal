@@ -14,6 +14,7 @@ import {
   type FinalizeWrittenExamInput,
 } from '@/validations/written-exam-schemas';
 
+import { logger } from '@/lib/logger';
 const MARKS_PATH = '/teacher/exams';
 const RESULTS_PATH = '/teacher/results';
 const FINALIZE_WRITE_CHUNK_SIZE = 25;
@@ -179,7 +180,7 @@ export const finalizeWrittenExamAction = safeAction(
     createAuditLog(session.user.id, 'FINALIZE_WRITTEN_EXAM', 'EXAM', examId, {
       resultsCreated: results.length,
       absentCount: absentSessions.length,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath(MARKS_PATH);
     revalidatePath(RESULTS_PATH);
@@ -291,7 +292,7 @@ export const refinalizeWrittenExamAction = safeAction(
 
     createAuditLog(session.user.id, 'REFINALIZE_WRITTEN_EXAM', 'EXAM', examId, {
       resultsUpdated: results.length,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath(RESULTS_PATH);
     return { success: true, data: { resultsUpdated: results.length } };

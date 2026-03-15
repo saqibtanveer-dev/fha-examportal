@@ -20,6 +20,7 @@ import {
 } from '../admission-schemas';
 
 
+import { logger } from '@/lib/logger';
 type ApplicantStatusType = 'REGISTERED' | 'VERIFIED' | 'TEST_IN_PROGRESS' | 'TEST_COMPLETED' | 'GRADED' | 'SHORTLISTED' | 'INTERVIEW_SCHEDULED' | 'ACCEPTED' | 'REJECTED' | 'WAITLISTED' | 'ENROLLED' | 'WITHDRAWN' | 'EXPIRED';
 
 export const makeDecisionAction = safeAction(async function makeDecisionAction(
@@ -74,7 +75,7 @@ export const makeDecisionAction = safeAction(async function makeDecisionAction(
 
   createAuditLog(session.user.id, 'MAKE_DECISION', 'APPLICANT', parsed.data.applicantId, {
     decision: parsed.data.decision,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess();
 });
@@ -125,7 +126,7 @@ export const bulkDecisionAction = safeAction(async function bulkDecisionAction(
   createAuditLog(session.user.id, 'BULK_DECISION', 'TEST_CAMPAIGN', applicants[0]?.campaignId ?? '', {
     count: applicants.length,
     decision: parsed.data.decision,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess({ processed: applicants.length });
 });
@@ -168,7 +169,7 @@ export const promoteFromWaitlistAction = safeAction(async function promoteFromWa
 
   createAuditLog(session.user.id, 'PROMOTE_WAITLIST', 'TEST_CAMPAIGN', campaignId, {
     count: waitlisted.length,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/admissions');
   return actionSuccess({ promoted: waitlisted.length });
 });

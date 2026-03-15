@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 const REPORTS_PATH = '/admin/reports';
 
 export const forceReleaseConsolidationLockAction = safeAction(
@@ -49,7 +50,7 @@ export const forceReleaseConsolidationLockAction = safeAction(
         previousLockOwner: term.lockOwner,
         previousLockExpiresAt: term.lockExpiresAt?.toISOString() ?? null,
       },
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath(`${REPORTS_PATH}/consolidation`);
     revalidatePath(`${REPORTS_PATH}/result-terms/${resultTermId}`);

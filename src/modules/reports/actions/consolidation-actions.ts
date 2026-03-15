@@ -18,6 +18,7 @@ import {
   type BatchStudentRemarksInput,
 } from '@/validations/result-term-schemas';
 
+import { logger } from '@/lib/logger';
 const REPORTS_PATH = '/admin/reports';
 const CONSOLIDATION_LOCK_LEASE_MS = 15 * 60 * 1000;
 
@@ -95,7 +96,7 @@ export const computeConsolidatedResultsAction = safeAction(
           sectionId: parsed.data.sectionId ?? null,
           recompute: parsed.data.recompute,
         },
-      ).catch(() => {});
+      ).catch((err) => logger.error({ err }, 'Audit log failed'));
     }
 
     try {
@@ -121,7 +122,7 @@ export const computeConsolidatedResultsAction = safeAction(
           recompute: parsed.data.recompute,
           runId: runHandle.id,
         },
-      ).catch(() => {});
+      ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
       revalidatePath(`${REPORTS_PATH}/consolidation`);
       revalidatePath(`${REPORTS_PATH}/result-terms/${parsed.data.resultTermId}`);
@@ -171,7 +172,7 @@ export const clearConsolidatedResultsAction = safeAction(
       data: { computedAt: null },
     });
 
-    createAuditLog(session.user.id, 'CLEAR_CONSOLIDATED_RESULTS', 'RESULT_TERM', resultTermId).catch(() => {});
+    createAuditLog(session.user.id, 'CLEAR_CONSOLIDATED_RESULTS', 'RESULT_TERM', resultTermId).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePath(`${REPORTS_PATH}/consolidation`);
     revalidatePath(`${REPORTS_PATH}/result-terms/${resultTermId}`);
     return actionSuccess({ deletedResults, deletedSummaries });

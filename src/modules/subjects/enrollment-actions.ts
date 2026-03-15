@@ -10,6 +10,7 @@ import { safeAction } from '@/lib/safe-action';
 import { validateElectiveGroupConflict } from '@/lib/enrollment-helpers';
 import { z } from 'zod/v4';
 
+import { logger } from '@/lib/logger';
 // ── Schemas ──
 
 const enrollStudentSchema = z.object({
@@ -91,7 +92,7 @@ export const enrollStudentInSubjectAction = safeAction(
       create: data,
     });
 
-    createAuditLog(session.user.id, 'ENROLL_STUDENT_SUBJECT', 'STUDENT_SUBJECT_ENROLLMENT', enrollment.id, data).catch(() => {});
+    createAuditLog(session.user.id, 'ENROLL_STUDENT_SUBJECT', 'STUDENT_SUBJECT_ENROLLMENT', enrollment.id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateEnrollmentPaths();
     return actionSuccess({ id: enrollment.id });
   },
@@ -155,7 +156,7 @@ export const bulkEnrollStudentsAction = safeAction(
     createAuditLog(session.user.id, 'BULK_ENROLL_STUDENTS', 'STUDENT_SUBJECT_ENROLLMENT', data.subjectId, {
       count: results.length,
       classId: data.classId,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateEnrollmentPaths();
     return actionSuccess({ count: results.length });
   },
@@ -182,7 +183,7 @@ export const unenrollStudentFromSubjectAction = safeAction(
       data: { isActive: false },
     });
 
-    createAuditLog(session.user.id, 'UNENROLL_STUDENT_SUBJECT', 'STUDENT_SUBJECT_ENROLLMENT', data.studentProfileId, data).catch(() => {});
+    createAuditLog(session.user.id, 'UNENROLL_STUDENT_SUBJECT', 'STUDENT_SUBJECT_ENROLLMENT', data.studentProfileId, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateEnrollmentPaths();
     return actionSuccess();
   },
@@ -254,7 +255,7 @@ export const changeStudentEnrollmentAction = safeAction(
       oldSubjectId: data.oldSubjectId,
       newSubjectId: data.newSubjectId,
       classId: data.classId,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateEnrollmentPaths();
     return actionSuccess();
   },

@@ -8,6 +8,7 @@ import crypto from 'crypto';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 type CsvUser = {
   email: string;
   firstName: string;
@@ -205,7 +206,7 @@ export const importUsersFromCsvAction = safeAction(async function importUsersFro
     created: result.created,
     skipped: result.skipped,
     errorCount: result.errors.length,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   return { success: true, data: result };
 });

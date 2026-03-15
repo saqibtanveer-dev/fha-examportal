@@ -7,6 +7,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 export const markNotificationReadAction = safeAction(async function markNotificationReadAction(id: string): Promise<ActionResult> {
   const session = await getAuthSession();
   if (!session) return { success: false, error: 'Unauthorized' };
@@ -16,7 +17,7 @@ export const markNotificationReadAction = safeAction(async function markNotifica
     data: { isRead: true },
   });
 
-  createAuditLog(session.user.id, 'MARK_NOTIFICATION_READ', 'NOTIFICATION', id).catch(() => {});
+  createAuditLog(session.user.id, 'MARK_NOTIFICATION_READ', 'NOTIFICATION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/');
   return { success: true };
 });
@@ -30,7 +31,7 @@ export const markAllNotificationsReadAction = safeAction(async function markAllN
     data: { isRead: true },
   });
 
-  createAuditLog(session.user.id, 'MARK_ALL_NOTIFICATIONS_READ', 'NOTIFICATION', 'all').catch(() => {});
+  createAuditLog(session.user.id, 'MARK_ALL_NOTIFICATIONS_READ', 'NOTIFICATION', 'all').catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/');
   return { success: true };
 });
@@ -43,7 +44,7 @@ export const deleteNotificationAction = safeAction(async function deleteNotifica
     where: { id, userId: session.user.id },
   });
 
-  createAuditLog(session.user.id, 'DELETE_NOTIFICATION', 'NOTIFICATION', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_NOTIFICATION', 'NOTIFICATION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/');
   return { success: true };
 });

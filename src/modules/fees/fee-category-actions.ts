@@ -14,6 +14,7 @@ import {
   type UpdateFeeCategoryInput,
 } from '@/validations/fee-schemas';
 
+import { logger } from '@/lib/logger';
 const FEE_PATHS = ['/admin/fees'];
 const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
 
@@ -31,7 +32,7 @@ export const createFeeCategoryAction = safeAction(
 
     createAuditLog(session.user.id, 'CREATE_FEE_CATEGORY', 'FEE_CATEGORY', category.id, {
       name: parsed.data.name,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateFeePaths();
     return actionSuccess({ id: category.id });
@@ -54,7 +55,7 @@ export const updateFeeCategoryAction = safeAction(
 
     await prisma.feeCategory.update({ where: { id }, data: parsed.data });
 
-    createAuditLog(session.user.id, 'UPDATE_FEE_CATEGORY', 'FEE_CATEGORY', id, parsed.data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_FEE_CATEGORY', 'FEE_CATEGORY', id, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateFeePaths();
     return actionSuccess();
   },
@@ -79,7 +80,7 @@ export const deleteFeeCategoryAction = safeAction(
 
     createAuditLog(session.user.id, 'DELETE_FEE_CATEGORY', 'FEE_CATEGORY', id, {
       name: category.name,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateFeePaths();
     return actionSuccess();

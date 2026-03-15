@@ -13,6 +13,7 @@ import { revalidatePath } from 'next/cache';
 import { principalNoteSchema } from '@/validations/diary-schemas';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 function revalidateDiaryPaths() {
   revalidatePath('/teacher/diary');
   revalidatePath('/student/diary');
@@ -76,7 +77,7 @@ export const addPrincipalNoteAction = safeAction(
       'DiaryPrincipalNote',
       note.id,
       { diaryEntryId },
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidateDiaryPaths();
     return actionSuccess({ id: note.id });

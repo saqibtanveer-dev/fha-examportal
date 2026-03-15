@@ -15,6 +15,7 @@ import {
 } from '@/validations/attendance-schemas';
 import { isFutureDate, isToday } from './attendance.utils';
 
+import { logger } from '@/lib/logger';
 // ── Helpers ──
 
 async function getCurrentAcademicSessionId(): Promise<string | null> {
@@ -102,7 +103,7 @@ export const markDailyAttendanceAction = safeAction(
 
     createAuditLog(userId, 'MARK_DAILY_ATTENDANCE', 'DAILY_ATTENDANCE', `${classId}-${sectionId}`, {
       date, classId, sectionId, recordCount: records.length,
-    }).catch(() => {});
+    }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath('/teacher/attendance');
     revalidatePath('/admin/attendance');
@@ -153,7 +154,7 @@ export const updateDailyAttendanceAction = safeAction(
       },
     });
 
-    createAuditLog(userId, 'UPDATE_DAILY_ATTENDANCE', 'DAILY_ATTENDANCE', recordId, parsed.data).catch(() => {});
+    createAuditLog(userId, 'UPDATE_DAILY_ATTENDANCE', 'DAILY_ATTENDANCE', recordId, parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidatePath('/teacher/attendance');
     revalidatePath('/admin/attendance');
     revalidatePath('/student/attendance');

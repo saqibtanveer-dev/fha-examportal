@@ -6,6 +6,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
 
+import { logger } from '@/lib/logger';
 type CsvQuestion = {
   title: string;
   type: string;
@@ -68,7 +69,7 @@ export const importQuestionsFromCsvAction = safeAction(async function importQues
     total: result.total,
     created: result.created,
     errorCount: result.errors.length,
-  }).catch(() => {});
+  }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   return { success: true, data: result };
 });

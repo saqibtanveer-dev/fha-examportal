@@ -9,6 +9,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 // ============================================
 // Create Question
 // ============================================
@@ -56,7 +57,7 @@ export const createQuestionAction = safeAction(async function createQuestionActi
     },
   });
 
-  createAuditLog(session.user.id, 'CREATE_QUESTION', 'QUESTION', question.id, { subjectId: questionData.subjectId, classId: questionData.classId, type: questionData.type }).catch(() => {});
+  createAuditLog(session.user.id, 'CREATE_QUESTION', 'QUESTION', question.id, { subjectId: questionData.subjectId, classId: questionData.classId, type: questionData.type }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return { success: true, data: { id: question.id } };
 });
@@ -93,7 +94,7 @@ export const deleteQuestionAction = safeAction(async function deleteQuestionActi
     data: { deletedAt: new Date(), isActive: false },
   });
 
-  createAuditLog(session.user.id, 'DELETE_QUESTION', 'QUESTION', id).catch(() => {});
+  createAuditLog(session.user.id, 'DELETE_QUESTION', 'QUESTION', id).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return { success: true };
 });
@@ -113,7 +114,7 @@ export const toggleQuestionActiveAction = safeAction(async function toggleQuesti
     data: { isActive: !question.isActive },
   });
 
-  createAuditLog(session.user.id, 'TOGGLE_QUESTION_ACTIVE', 'QUESTION', id, { isActive: !question.isActive }).catch(() => {});
+  createAuditLog(session.user.id, 'TOGGLE_QUESTION_ACTIVE', 'QUESTION', id, { isActive: !question.isActive }).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/teacher/questions');
   return { success: true };
 });

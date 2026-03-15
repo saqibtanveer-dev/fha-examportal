@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
+import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transaction-locks';
 import {
   collectStudentFeeSchema,
   collectFamilyFeeSchema,
@@ -37,77 +38,83 @@ export const collectStudentFeeAction = safeAction(
       return actionError('Discount reason is required (min 3 chars)');
     }
 
-    const assignment = await prisma.feeAssignment.findUnique({ where: { id: feeAssignmentId } });
-    if (!assignment) return actionError('Fee assignment not found');
-    if (assignment.status === 'CANCELLED') return actionError('Cannot collect on a cancelled assignment');
-    if (assignment.status === 'WAIVED') return actionError('This fee has been waived');
-    if (assignment.status === 'PAID') return actionError('This fee is already fully paid');
-
-    const balance = Number(assignment.balanceAmount);
-    const effectiveDiscount = Math.min(discountAmount, balance);
-    const balanceAfterDiscount = Math.round(Math.max(0, balance - effectiveDiscount) * 100) / 100;
-    const effectivePayment = Math.min(paymentAmount, balanceAfterDiscount);
-    const finalBalance = Math.round(Math.max(0, balanceAfterDiscount - effectivePayment) * 100) / 100;
-    const excessPayment = Math.round(Math.max(0, paymentAmount - effectivePayment) * 100) / 100;
-
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return actionError('No active academic session');
 
+    // Pre-generate receipt number OUTSIDE the serializable tx to avoid P2028 on Neon
     let receiptNumber: string | undefined;
-    if (effectivePayment > 0) {
+    if (paymentAmount > 0) {
       const settings = await findFeeSettings(academicSessionId);
       receiptNumber = await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP');
     }
 
-    const newPaid = Number(assignment.paidAmount) + effectivePayment;
-    const newDiscount = Number(assignment.discountAmount) + effectiveDiscount;
-    const newStatus = finalBalance <= 0 ? (effectivePayment > 0 ? 'PAID' : 'WAIVED') : 'PARTIAL';
+    // Run read + compute + write inside a serializable transaction with advisory lock
+    // to prevent race conditions when two admins process the same fee simultaneously
+    const result = await runSerializableTransaction(async (tx) => {
+      await lockTransactionKeys(tx, [`fee-assignment:${feeAssignmentId}`]);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ops: any[] = [];
+      const assignment = await tx.feeAssignment.findUnique({ where: { id: feeAssignmentId } });
+      if (!assignment) return { error: 'Fee assignment not found' } as const;
+      if (assignment.status === 'CANCELLED') return { error: 'Cannot collect on a cancelled assignment' } as const;
+      if (assignment.status === 'WAIVED') return { error: 'This fee has been waived' } as const;
+      if (assignment.status === 'PAID') return { error: 'This fee is already fully paid' } as const;
 
-    if (effectiveDiscount > 0) {
-      ops.push(prisma.feeDiscount.create({
-        data: { feeAssignmentId, amount: effectiveDiscount, reason: discountReason!, appliedById: session.user.id },
-      }));
-    }
+      const balance = Number(assignment.balanceAmount);
+      const effectiveDiscount = Math.min(discountAmount, balance);
+      const balanceAfterDiscount = Math.round(Math.max(0, balance - effectiveDiscount) * 100) / 100;
+      const effectivePayment = Math.min(paymentAmount, balanceAfterDiscount);
+      const finalBalance = Math.round(Math.max(0, balanceAfterDiscount - effectivePayment) * 100) / 100;
+      const excessPayment = Math.round(Math.max(0, paymentAmount - effectivePayment) * 100) / 100;
 
-    if (effectivePayment > 0) {
-      ops.push(prisma.feePayment.create({
-        data: {
-          feeAssignmentId, amount: effectivePayment, paymentMethod,
-          referenceNumber, receiptNumber: receiptNumber!,
-          recordedById: session.user.id,
-        },
-      }));
-    }
+      const newPaid = Number(assignment.paidAmount) + effectivePayment;
+      const newDiscount = Number(assignment.discountAmount) + effectiveDiscount;
+      const newStatus = finalBalance <= 0 ? (effectivePayment > 0 ? 'PAID' : 'WAIVED') : 'PARTIAL';
 
-    ops.push(prisma.feeAssignment.update({
-      where: { id: feeAssignmentId },
-      data: { paidAmount: newPaid, balanceAmount: finalBalance, discountAmount: newDiscount, status: newStatus },
-    }));
+      if (effectiveDiscount > 0) {
+        await tx.feeDiscount.create({
+          data: { feeAssignmentId, amount: effectiveDiscount, reason: discountReason!, appliedById: session.user.id },
+        });
+      }
 
-    // Overpayment credit INSIDE transaction for atomicity
-    if (excessPayment > 0) {
-      ops.push(prisma.feeCredit.create({
-        data: {
-          studentProfileId: assignment.studentProfileId, academicSessionId,
-          amount: excessPayment, remainingAmount: excessPayment,
-          reason: `Overpayment credit from receipt ${receiptNumber}`,
-          referenceNumber: receiptNumber, createdById: session.user.id,
-        },
-      }));
-    }
+      if (effectivePayment > 0) {
+        await tx.feePayment.create({
+          data: {
+            feeAssignmentId, amount: effectivePayment, paymentMethod,
+            referenceNumber, receiptNumber: receiptNumber!,
+            recordedById: session.user.id,
+          },
+        });
+      }
 
-    await prisma.$transaction(ops);
+      await tx.feeAssignment.update({
+        where: { id: feeAssignmentId },
+        data: { paidAmount: newPaid, balanceAmount: finalBalance, discountAmount: newDiscount, status: newStatus },
+      });
+
+      // Overpayment credit INSIDE transaction for atomicity
+      if (excessPayment > 0) {
+        await tx.feeCredit.create({
+          data: {
+            studentProfileId: assignment.studentProfileId, academicSessionId,
+            amount: excessPayment, remainingAmount: excessPayment,
+            reason: `Overpayment credit from receipt ${receiptNumber}`,
+            referenceNumber: receiptNumber, createdById: session.user.id,
+          },
+        });
+      }
+
+      return { error: null, receiptNumber, effectivePayment, effectiveDiscount, excessPayment } as const;
+    });
+
+    if (result.error) return actionError(result.error);
 
     createAuditLog(session.user.id, 'COLLECT_STUDENT_FEE', 'FEE_PAYMENT', feeAssignmentId, {
-      paymentAmount: effectivePayment, discountAmount: effectiveDiscount,
-      excessCredit: excessPayment > 0 ? excessPayment : undefined, paymentMethod,
+      paymentAmount: result.effectivePayment, discountAmount: result.effectiveDiscount,
+      excessCredit: result.excessPayment > 0 ? result.excessPayment : undefined, paymentMethod,
     }).catch((err: unknown) => logger.error({ err }, 'Audit log failed'));
 
     revalidateFeePaths();
-    return actionSuccess({ receiptNumber });
+    return actionSuccess({ receiptNumber: result.receiptNumber });
   },
 );
 
@@ -136,104 +143,111 @@ export const collectFamilyFeeAction = safeAction(
     });
     if (!family) return actionError('Family profile not found');
 
-    const assignmentIds = activeItems.map((i) => i.feeAssignmentId);
-    const assignments = await prisma.feeAssignment.findMany({
-      where: { id: { in: assignmentIds }, status: { notIn: ['CANCELLED', 'PAID', 'WAIVED'] } },
-      select: { id: true, balanceAmount: true, paidAmount: true, discountAmount: true, studentProfileId: true },
-    });
-    const aMap = new Map(assignments.map((a) => [a.id, a]));
-
-    // Validate all items before applying
-    for (const item of activeItems) {
-      const a = aMap.get(item.feeAssignmentId);
-      if (!a) return actionError(`Assignment ${item.feeAssignmentId} not found or already settled`);
-      const balance = Number(a.balanceAmount);
-      if (item.paymentAmount + item.discountAmount > balance + 0.01) {
-        return actionError(`Payment + discount (${item.paymentAmount + item.discountAmount}) exceeds balance (${balance})`);
-      }
-    }
-
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return actionError('No active academic session');
     const settings = await findFeeSettings(academicSessionId);
 
+    // Pre-generate receipt numbers OUTSIDE the serializable tx to avoid P2028 on Neon
     const hasPayments = activeItems.some((i) => i.paymentAmount > 0);
     const familyPaymentId = hasPayments ? crypto.randomUUID() : undefined;
     const masterReceiptNumber = hasPayments
       ? await generateFamilyReceiptNumber(settings?.familyReceiptPrefix ?? 'FMRC')
       : undefined;
 
-    // Pre-generate ALL child receipt numbers to avoid race conditions inside the loop
     const paymentItems = activeItems.filter((i) => i.paymentAmount > 0);
     const childReceipts: string[] = [];
     for (const _ of paymentItems) {
       childReceipts.push(await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP'));
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ops: any[] = [];
-    let totalPayment = 0;
-    let totalDiscount = 0;
+    // Run read + compute + write inside a serializable transaction with advisory locks
+    const assignmentIds = activeItems.map((i) => i.feeAssignmentId);
+    const lockKeys = assignmentIds.map((id) => `fee-assignment:${id}`);
 
-    // Create FamilyPayment record if any payments
-    if (hasPayments && masterReceiptNumber && familyPaymentId) {
-      const payTotal = activeItems.reduce((s, i) => s + Math.min(i.paymentAmount, Number(aMap.get(i.feeAssignmentId)!.balanceAmount)), 0);
-      ops.push(prisma.familyPayment.create({
-        data: {
-          id: familyPaymentId,
-          familyProfileId, totalAmount: payTotal, paymentMethod, referenceNumber,
-          masterReceiptNumber, allocationStrategy: 'CUSTOM',
-          recordedById: session.user.id,
-        },
-      }));
-    }
+    const result = await runSerializableTransaction(async (tx) => {
+      await lockTransactionKeys(tx, lockKeys);
 
-    // Process each item
-    let receiptIdx = 0;
-    for (const item of activeItems) {
-      const a = aMap.get(item.feeAssignmentId)!;
-      const balance = Number(a.balanceAmount);
+      const assignments = await tx.feeAssignment.findMany({
+        where: { id: { in: assignmentIds }, status: { notIn: ['CANCELLED', 'PAID', 'WAIVED'] } },
+        select: { id: true, balanceAmount: true, paidAmount: true, discountAmount: true, studentProfileId: true },
+      });
+      const aMap = new Map(assignments.map((a) => [a.id, a]));
 
-      const effDiscount = Math.min(item.discountAmount, balance);
-      const balAfterDiscount = Math.round(Math.max(0, balance - effDiscount) * 100) / 100;
-      const effPayment = Math.min(item.paymentAmount, balAfterDiscount);
-      const finalBal = Math.round(Math.max(0, balAfterDiscount - effPayment) * 100) / 100;
-
-      if (effDiscount > 0) {
-        ops.push(prisma.feeDiscount.create({
-          data: { feeAssignmentId: item.feeAssignmentId, amount: effDiscount, reason: discountReason!, appliedById: session.user.id },
-        }));
-        totalDiscount = Math.round((totalDiscount + effDiscount) * 100) / 100;
+      // Validate all items against fresh balances
+      for (const item of activeItems) {
+        const a = aMap.get(item.feeAssignmentId);
+        if (!a) return { error: `Assignment ${item.feeAssignmentId} not found or already settled` } as const;
+        const balance = Number(a.balanceAmount);
+        if (item.paymentAmount + item.discountAmount > balance + 0.01) {
+          return { error: `Payment + discount (${item.paymentAmount + item.discountAmount}) exceeds balance (${balance})` } as const;
+        }
       }
 
-      if (effPayment > 0) {
-        ops.push(prisma.feePayment.create({
+      let totalPayment = 0;
+      let totalDiscount = 0;
+
+      // Create FamilyPayment record if any payments
+      if (hasPayments && masterReceiptNumber && familyPaymentId) {
+        const payTotal = activeItems.reduce((s, i) => s + Math.min(i.paymentAmount, Number(aMap.get(i.feeAssignmentId)!.balanceAmount)), 0);
+        await tx.familyPayment.create({
           data: {
-            feeAssignmentId: item.feeAssignmentId, familyPaymentId,
-            amount: effPayment, paymentMethod, referenceNumber, receiptNumber: childReceipts[receiptIdx++]!,
+            id: familyPaymentId,
+            familyProfileId, totalAmount: payTotal, paymentMethod, referenceNumber,
+            masterReceiptNumber, allocationStrategy: 'CUSTOM',
             recordedById: session.user.id,
           },
-        }));
-        totalPayment = Math.round((totalPayment + effPayment) * 100) / 100;
+        });
       }
 
-      const newPaid = Number(a.paidAmount) + effPayment;
-      const newDiscountTotal = Number(a.discountAmount) + effDiscount;
-      const newStatus = finalBal <= 0 ? (effPayment > 0 ? 'PAID' : 'WAIVED') : 'PARTIAL';
+      // Process each item
+      let receiptIdx = 0;
+      for (const item of activeItems) {
+        const a = aMap.get(item.feeAssignmentId)!;
+        const balance = Number(a.balanceAmount);
 
-      ops.push(prisma.feeAssignment.update({
-        where: { id: item.feeAssignmentId },
-        data: { paidAmount: newPaid, balanceAmount: finalBal, discountAmount: newDiscountTotal, status: newStatus },
-      }));
-    }
+        const effDiscount = Math.min(item.discountAmount, balance);
+        const balAfterDiscount = Math.round(Math.max(0, balance - effDiscount) * 100) / 100;
+        const effPayment = Math.min(item.paymentAmount, balAfterDiscount);
+        const finalBal = Math.round(Math.max(0, balAfterDiscount - effPayment) * 100) / 100;
 
-    await prisma.$transaction(ops);
+        if (effDiscount > 0) {
+          await tx.feeDiscount.create({
+            data: { feeAssignmentId: item.feeAssignmentId, amount: effDiscount, reason: discountReason!, appliedById: session.user.id },
+          });
+          totalDiscount = Math.round((totalDiscount + effDiscount) * 100) / 100;
+        }
+
+        if (effPayment > 0) {
+          await tx.feePayment.create({
+            data: {
+              feeAssignmentId: item.feeAssignmentId, familyPaymentId,
+              amount: effPayment, paymentMethod, referenceNumber, receiptNumber: childReceipts[receiptIdx++]!,
+              recordedById: session.user.id,
+            },
+          });
+          totalPayment = Math.round((totalPayment + effPayment) * 100) / 100;
+        }
+
+        const newPaid = Number(a.paidAmount) + effPayment;
+        const newDiscountTotal = Number(a.discountAmount) + effDiscount;
+        const newStatus = finalBal <= 0 ? (effPayment > 0 ? 'PAID' : 'WAIVED') : 'PARTIAL';
+
+        await tx.feeAssignment.update({
+          where: { id: item.feeAssignmentId },
+          data: { paidAmount: newPaid, balanceAmount: finalBal, discountAmount: newDiscountTotal, status: newStatus },
+        });
+      }
+
+      return { error: null, totalPayment, totalDiscount } as const;
+    });
+
+    if (result.error) return actionError(result.error);
 
     createAuditLog(session.user.id, 'COLLECT_FAMILY_FEE', 'FAMILY_PAYMENT', masterReceiptNumber ?? familyProfileId, {
-      familyProfileId, totalPayment, totalDiscount, itemCount: activeItems.length,
+      familyProfileId, totalPayment: result.totalPayment, totalDiscount: result.totalDiscount, itemCount: activeItems.length,
     }).catch((err: unknown) => logger.error({ err }, 'Audit log failed'));
 
     revalidateFeePaths();
-    return actionSuccess({ masterReceiptNumber, totalPayment, totalDiscount });
+    return actionSuccess({ masterReceiptNumber, totalPayment: result.totalPayment, totalDiscount: result.totalDiscount });
   },
 );

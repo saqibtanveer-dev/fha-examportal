@@ -14,6 +14,7 @@ import type { ActionResult } from '@/types/action-result';
 import type { LinkStudentInput, UnlinkStudentInput } from '@/validations/family-schemas';
 import { MAX_CHILDREN_PER_FAMILY } from './family.constants';
 
+import { logger } from '@/lib/logger';
 /**
  * Link a student to a family profile. Admin-only.
  */
@@ -94,7 +95,7 @@ export const linkStudentToFamilyAction = safeAction(
     createAuditLog(
       session.user.id, 'LINK_FAMILY_STUDENT', 'FAMILY_STUDENT_LINK', link.id,
       { familyProfileId, studentProfileId, relationship },
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath('/admin/users');
     return { success: true, data: { id: link.id } };
@@ -133,7 +134,7 @@ export const unlinkStudentFromFamilyAction = safeAction(
     createAuditLog(
       session.user.id, 'UNLINK_FAMILY_STUDENT', 'FAMILY_STUDENT_LINK', link.id,
       { familyProfileId, studentProfileId },
-    ).catch(() => {});
+    ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath('/admin/users');
     return { success: true };

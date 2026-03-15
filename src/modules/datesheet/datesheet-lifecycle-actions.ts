@@ -14,6 +14,7 @@ import {
   type UpdateDatesheetInput,
 } from '@/validations/datesheet-schemas';
 
+import { logger } from '@/lib/logger';
 function revalidateDatesheetPaths() {
   revalidatePath('/admin/datesheet');
   revalidatePath('/principal/datesheet');
@@ -59,7 +60,7 @@ export const createDatesheetAction = safeAction(
       },
     });
 
-    createAuditLog(session.user.id, 'CREATE_DATESHEET', 'DATESHEET', datesheet.id, data).catch(() => {});
+    createAuditLog(session.user.id, 'CREATE_DATESHEET', 'DATESHEET', datesheet.id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDatesheetPaths();
     return actionSuccess({ id: datesheet.id });
   },
@@ -90,7 +91,7 @@ export const updateDatesheetAction = safeAction(
       },
     });
 
-    createAuditLog(session.user.id, 'UPDATE_DATESHEET', 'DATESHEET', id, data).catch(() => {});
+    createAuditLog(session.user.id, 'UPDATE_DATESHEET', 'DATESHEET', id, data).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDatesheetPaths();
     return actionSuccess();
   },
@@ -115,7 +116,7 @@ export const publishDatesheetAction = safeAction(
       data: { status: 'PUBLISHED', publishedAt: new Date(), publishedById: session.user.id },
     });
 
-    createAuditLog(session.user.id, 'PUBLISH_DATESHEET', 'DATESHEET', id).catch(() => {});
+    createAuditLog(session.user.id, 'PUBLISH_DATESHEET', 'DATESHEET', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDatesheetPaths();
     return actionSuccess();
   },
@@ -136,7 +137,7 @@ export const unpublishDatesheetAction = safeAction(
       data: { status: 'DRAFT', publishedAt: null, publishedById: null },
     });
 
-    createAuditLog(session.user.id, 'UNPUBLISH_DATESHEET', 'DATESHEET', id).catch(() => {});
+    createAuditLog(session.user.id, 'UNPUBLISH_DATESHEET', 'DATESHEET', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDatesheetPaths();
     return actionSuccess();
   },
@@ -157,7 +158,7 @@ export const archiveDatesheetAction = safeAction(
       data: { status: 'ARCHIVED' },
     });
 
-    createAuditLog(session.user.id, 'ARCHIVE_DATESHEET', 'DATESHEET', id).catch(() => {});
+    createAuditLog(session.user.id, 'ARCHIVE_DATESHEET', 'DATESHEET', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDatesheetPaths();
     return actionSuccess();
   },
@@ -175,7 +176,7 @@ export const deleteDatesheetAction = safeAction(
 
     await prisma.datesheet.delete({ where: { id } });
 
-    createAuditLog(session.user.id, 'DELETE_DATESHEET', 'DATESHEET', id).catch(() => {});
+    createAuditLog(session.user.id, 'DELETE_DATESHEET', 'DATESHEET', id).catch((err) => logger.error({ err }, 'Audit log failed'));
     revalidateDatesheetPaths();
     return actionSuccess();
   },

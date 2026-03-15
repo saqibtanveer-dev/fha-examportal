@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 
+import { logger } from '@/lib/logger';
 const updateSettingsSchema = z.object({
   schoolName: z.string().min(1).max(200),
   academicYear: z.string().min(4).max(20),
@@ -34,7 +35,7 @@ export const updateSettingsAction = safeAction(async function updateSettingsActi
     });
   }
 
-  createAuditLog(session.user.id, 'UPDATE_SETTINGS', 'SETTINGS', 'global', parsed.data).catch(() => {});
+  createAuditLog(session.user.id, 'UPDATE_SETTINGS', 'SETTINGS', 'global', parsed.data).catch((err) => logger.error({ err }, 'Audit log failed'));
   revalidatePath('/admin/settings');
   return { success: true };
 });
