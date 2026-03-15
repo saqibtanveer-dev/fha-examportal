@@ -6,7 +6,7 @@ import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
-import { safeAction, safeFetchAction } from '@/lib/safe-action';
+import { safeAction } from '@/lib/safe-action';
 import { validateElectiveGroupConflict } from '@/lib/enrollment-helpers';
 import { z } from 'zod/v4';
 
@@ -260,65 +260,3 @@ export const changeStudentEnrollmentAction = safeAction(
   },
 );
 
-/** Fetch enrollments for a class/subject/session (for UI) */
-export const fetchEnrollmentsBySubjectAction = safeFetchAction(async (
-  subjectId: string,
-  classId: string,
-  academicSessionId: string,
-) => {
-  await requireRole('ADMIN', 'TEACHER');
-
-  return prisma.studentSubjectEnrollment.findMany({
-    where: { subjectId, classId, academicSessionId, isActive: true },
-    select: {
-      id: true,
-      studentProfileId: true,
-      studentProfile: {
-        select: {
-          id: true,
-          rollNumber: true,
-          sectionId: true,
-          user: { select: { firstName: true, lastName: true } },
-        },
-      },
-    },
-    orderBy: { studentProfile: { rollNumber: 'asc' } },
-  });
-});
-
-/** Fetch elective groups for a class (server action wrapper) */
-export const fetchElectiveGroupsAction = safeFetchAction(async (
-  classId: string,
-  academicSessionId: string,
-) => {
-  await requireRole('ADMIN');
-
-  const { getElectiveGroupsForClass } = await import('./enrollment-queries');
-  return getElectiveGroupsForClass(classId, academicSessionId);
-});
-
-/** Fetch unassigned students for an elective group (server action wrapper) */
-export const fetchUnassignedStudentsAction = safeFetchAction(async (
-  classId: string,
-  sectionId: string,
-  electiveGroupName: string,
-  academicSessionId: string,
-) => {
-  await requireRole('ADMIN');
-
-  const { getUnassignedStudentsForElectiveGroup } = await import('./enrollment-queries');
-  return getUnassignedStudentsForElectiveGroup(classId, sectionId, electiveGroupName, academicSessionId);
-});
-
-/** Fetch enrolled students for an elective group in a section */
-export const fetchEnrolledStudentsForGroupAction = safeFetchAction(async (
-  classId: string,
-  sectionId: string,
-  electiveGroupName: string,
-  academicSessionId: string,
-) => {
-  await requireRole('ADMIN');
-
-  const { getEnrolledStudentsForElectiveGroup } = await import('./enrollment-queries');
-  return getEnrolledStudentsForElectiveGroup(classId, sectionId, electiveGroupName, academicSessionId);
-});

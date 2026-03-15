@@ -7,7 +7,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
 import { formatCurrency, formatMonth } from './fee-status-badge';
-import { fetchAssignmentDetailAction } from '@/modules/fees/fee-fetch-actions';
+import { fetchAssignmentDetailAction } from '@/modules/fees/fee-client-core-fetch-actions';
 
 type Payment = {
   id: string; amount: number; paymentMethod: string;

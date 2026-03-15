@@ -3,14 +3,9 @@
 import { useState, useTransition, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Plus, Trash2, Link2, Link2Off, Zap, AlertTriangle, CheckCircle2, Search } from 'lucide-react';
+import { Plus, Zap, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/shared';
 import {
   addExamGroupAction,
@@ -21,12 +16,10 @@ import {
 } from '@/modules/reports/actions/result-exam-group-actions';
 import type { ResultTermWithGroups } from '@/modules/reports/types/report-types';
 import { REQUIRED_TOTAL_WEIGHT } from '@/modules/reports/engine/report-constants';
-
-type AvailableExam = {
-  id: string; title: string; type: string; status: string;
-  totalMarks: number; subjectId: string;
-  subject: { name: string; code: string };
-};
+import type { AvailableExam, GroupFormState } from './result-term-detail-shared';
+import { ResultTermAddGroupDialog } from './result-term-add-group-dialog';
+import { ResultTermLinkExamDialog } from './result-term-link-exam-dialog';
+import { ResultTermGroupCard } from './result-term-group-card';
 
 type Props = {
   term: ResultTermWithGroups;
@@ -41,7 +34,7 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
   const [removeGroupId, setRemoveGroupId] = useState<string | null>(null);
   const [examSearch, setExamSearch] = useState('');
   const [examTypeFilter, setExamTypeFilter] = useState<string>('all');
-  const [groupForm, setGroupForm] = useState({
+  const [groupForm, setGroupForm] = useState<GroupFormState>({
     name: '', weight: '', aggregateMode: 'SINGLE', bestOfCount: '',
   });
 
@@ -183,215 +176,46 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
       ) : (
         <div className="space-y-4">
           {term.examGroups.map((group) => (
-            <Card key={group.id}>
-              <CardHeader className="pb-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <CardTitle className="text-base">{group.name}</CardTitle>
-                    <Badge variant="outline">{group.weight}%</Badge>
-                    <Badge variant="secondary" className="text-xs">{group.aggregateMode}</Badge>
-                    {group.bestOfCount && (
-                      <Badge variant="secondary" className="text-xs">Best of {group.bestOfCount}</Badge>
-                    )}
-                  </div>
-                  <div className="flex gap-2 shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setLinkExamGroupId(group.id)}
-                      disabled={term.isPublished || isPending}
-                    >
-                      <Link2 className="mr-1.5 h-3.5 w-3.5" /> Link Exam
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive"
-                      onClick={() => setRemoveGroupId(group.id)}
-                      disabled={term.isPublished}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {group.examLinks.length === 0 ? (
-                  <p className="text-sm text-muted-foreground italic">No exams linked</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {group.examLinks.map((link) => (
-                      <div
-                        key={link.id}
-                        className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                      >
-                        <div>
-                          <span className="font-medium">{link.exam.title}</span>
-                          <span className="ml-2 text-muted-foreground">
-                            {link.exam.subjectName} · {link.exam.totalMarks} marks · {link.exam.type}
-                          </span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-muted-foreground"
-                          onClick={() => handleUnlink(link.id)}
-                          disabled={term.isPublished || isPending}
-                        >
-                          <Link2Off className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <ResultTermGroupCard
+              key={group.id}
+              group={group}
+              isPending={isPending}
+              isPublished={term.isPublished}
+              onLinkExam={setLinkExamGroupId}
+              onRemoveGroup={setRemoveGroupId}
+              onUnlinkExam={handleUnlink}
+            />
           ))}
         </div>
       )}
 
-      {/* Add Group Dialog */}
-      <Dialog open={addGroupOpen} onOpenChange={setAddGroupOpen}>
-        <DialogContent>
-          <DialogHeader><DialogTitle>Add Exam Group</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <Label>Group Name *</Label>
-              <Input
-                placeholder="e.g. Midterm, Final, Quizzes"
-                value={groupForm.name}
-                onChange={(e) => setGroupForm((f) => ({ ...f, name: e.target.value }))}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Weight (%) *</Label>
-                <Input
-                  type="number" min={0.01} max={100} step={0.01}
-                  placeholder="e.g. 30"
-                  value={groupForm.weight}
-                  onChange={(e) => setGroupForm((f) => ({ ...f, weight: e.target.value }))}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Aggregate Mode</Label>
-                <Select
-                  value={groupForm.aggregateMode}
-                  onValueChange={(v) => setGroupForm((f) => ({ ...f, aggregateMode: v }))}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="SINGLE">Single Exam</SelectItem>
-                    <SelectItem value="AVERAGE">Average All</SelectItem>
-                    <SelectItem value="BEST_OF">Best of N</SelectItem>
-                    <SelectItem value="SUM">Sum All</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            {groupForm.aggregateMode === 'BEST_OF' && (
-              <div className="space-y-1.5">
-                <Label>Best of Count *</Label>
-                <Input
-                  type="number" min={1}
-                  placeholder="e.g. 2"
-                  value={groupForm.bestOfCount}
-                  onChange={(e) => setGroupForm((f) => ({ ...f, bestOfCount: e.target.value }))}
-                />
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAddGroupOpen(false)}>Cancel</Button>
-            <Button onClick={handleAddGroup} disabled={isPending}>
-              {isPending ? 'Adding...' : 'Add Group'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResultTermAddGroupDialog
+        open={addGroupOpen}
+        isPending={isPending}
+        groupForm={groupForm}
+        setOpen={setAddGroupOpen}
+        setGroupForm={setGroupForm}
+        onAddGroup={handleAddGroup}
+      />
 
-      {/* Link Exam Dialog */}
-      <Dialog
+      <ResultTermLinkExamDialog
         open={!!linkExamGroupId}
-        onOpenChange={(o) => {
-          if (!o) {
-            setLinkExamGroupId(null);
-            setExamSearch('');
-            setExamTypeFilter('all');
-          }
+        selectedGroupName={selectedGroup?.name}
+        isPending={isPending}
+        examSearch={examSearch}
+        examTypeFilter={examTypeFilter}
+        examTypes={examTypes}
+        unlinkedExamsCount={unlinkedExams.length}
+        filteredExams={filteredExams}
+        onClose={() => {
+          setLinkExamGroupId(null);
+          setExamSearch('');
+          setExamTypeFilter('all');
         }}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Link Exam to "{selectedGroup?.name}"</DialogTitle>
-          </DialogHeader>
-          {unlinkedExams.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4">
-              All available exams are already linked. Add more exams to this class first.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {/* Search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search by title, subject, or code..."
-                  value={examSearch}
-                  onChange={(e) => setExamSearch(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              {/* Type filter */}
-              {examTypes.length > 2 && (
-                <div className="flex gap-1.5 flex-wrap">
-                  {examTypes.map((type) => (
-                    <button
-                      key={type}
-                      className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                        examTypeFilter === type
-                          ? 'bg-primary text-primary-foreground border-primary'
-                          : 'hover:bg-accent'
-                      }`}
-                      onClick={() => setExamTypeFilter(type)}
-                    >
-                      {type === 'all' ? 'All Types' : type}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {/* Results count */}
-              <p className="text-xs text-muted-foreground">
-                {filteredExams.length} of {unlinkedExams.length} exams
-              </p>
-              {/* Exam list */}
-              <div className="max-h-72 overflow-y-auto space-y-1.5">
-                {filteredExams.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">
-                    No exams match your search
-                  </p>
-                ) : (
-                  filteredExams.map((exam) => (
-                    <button
-                      key={exam.id}
-                      className="w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-accent active:bg-accent transition-colors"
-                      onClick={() => handleLinkExam(exam.id)}
-                      disabled={isPending}
-                    >
-                      <p className="font-medium">{exam.title}</p>
-                      <p className="text-muted-foreground text-xs mt-0.5">
-                        {exam.subject.name} ({exam.subject.code}) · {exam.type} · {exam.totalMarks} marks
-                      </p>
-                    </button>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setLinkExamGroupId(null)}>Close</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        onSearchChange={setExamSearch}
+        onTypeFilterChange={setExamTypeFilter}
+        onLinkExam={handleLinkExam}
+      />
 
       <ConfirmDialog
         open={!!removeGroupId}

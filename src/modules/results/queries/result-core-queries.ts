@@ -2,6 +2,13 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import type { ResultWithDetails, DetailedResult, AnswerDetail, AiGradeInfo } from './result-types';
 
+export type ExamResultsPage = {
+  results: ResultWithDetails[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export async function getResultsByStudent(studentId: string): Promise<ResultWithDetails[]> {
   const results = await prisma.examResult.findMany({
     where: { studentId },
@@ -36,6 +43,33 @@ export async function getResultsByExam(examId: string): Promise<ResultWithDetail
       session: { select: { id: true, attemptNumber: true, submittedAt: true } },
     },
   });
+}
+
+export async function getResultsByExamPage(
+  examId: string,
+  params?: { page?: number; pageSize?: number },
+): Promise<ExamResultsPage> {
+  const page = Math.max(1, params?.page ?? 1);
+  const requestedPageSize = params?.pageSize ?? 50;
+  const pageSize = Math.min(100, Math.max(10, requestedPageSize));
+  const skip = (page - 1) * pageSize;
+
+  const [results, total] = await Promise.all([
+    prisma.examResult.findMany({
+      where: { examId },
+      orderBy: { percentage: 'desc' },
+      skip,
+      take: pageSize,
+      include: {
+        exam: { include: { subject: { select: { id: true, name: true, code: true } } } },
+        student: { select: { id: true, firstName: true, lastName: true } },
+        session: { select: { id: true, attemptNumber: true, submittedAt: true } },
+      },
+    }),
+    prisma.examResult.count({ where: { examId } }),
+  ]);
+
+  return { results, total, page, pageSize };
 }
 
 // ─── Detailed Result Builder ─────────────────────────────────────────

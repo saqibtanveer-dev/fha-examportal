@@ -12,7 +12,7 @@ import { Clock } from 'lucide-react';
 import { TimetableGrid } from '@/modules/timetable/components';
 import { useActivePeriodSlots } from '@/modules/timetable/hooks/use-timetable';
 import { buildTimetableGrid } from '@/modules/timetable/timetable.utils';
-import { fetchCurrentAcademicSessionAction } from '@/modules/attendance/attendance-fetch-actions';
+import { fetchCurrentAcademicSessionAction } from '@/modules/attendance/attendance-client-self-fetch-actions';
 import { fetchTimetableForStudentAction } from '@/modules/timetable/timetable-fetch-actions';
 import { queryKeys } from '@/lib/query-keys';
 import { useSelectedChild } from '@/modules/family/hooks';

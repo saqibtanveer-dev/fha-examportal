@@ -9,7 +9,7 @@ import {
   fetchStudentSubjectAttendanceAction,
   fetchStudentsForMarkingAction,
   fetchHasDailyAttendanceAction,
-} from '../attendance-fetch-actions';
+} from '../attendance-client-daily-fetch-actions';
 
 export function useDailyAttendance(
   classId: string,

@@ -14,9 +14,12 @@ export type {
 export {
   getResultsByStudent,
   getResultsByExam,
+  getResultsByExamPage,
   getStudentResultDetail,
   getTeacherResultDetail,
 } from './queries/result-core-queries';
+
+export type { ExamResultsPage } from './queries/result-core-queries';
 
 export {
   getExamAnalytics,

@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { SkeletonPage } from '@/components/shared';
-import { fetchMyStudentProfileAction } from '@/modules/attendance/attendance-fetch-actions';
+import { fetchMyStudentProfileAction } from '@/modules/attendance/attendance-client-self-fetch-actions';
 import { queryKeys } from '@/lib/query-keys';
 import { StudentTimetableView } from './timetable-view';
 

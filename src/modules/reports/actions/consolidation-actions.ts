@@ -7,7 +7,8 @@ import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
-import { computeConsolidatedResults } from '../engine/consolidation-engine';
+import { tasks } from '@trigger.dev/sdk/v3';
+import { randomUUID } from 'crypto';
 import {
   computeConsolidatedSchema,
   studentRemarksSchema,
@@ -18,6 +19,7 @@ import {
 } from '@/validations/result-term-schemas';
 
 const REPORTS_PATH = '/admin/reports';
+const CONSOLIDATION_LOCK_LEASE_MS = 15 * 60 * 1000;
 
 // ============================================
 // Compute Consolidated Results
@@ -26,7 +28,7 @@ const REPORTS_PATH = '/admin/reports';
 export const computeConsolidatedResultsAction = safeAction(
   async function computeConsolidatedResultsAction(
     input: ComputeConsolidatedInput,
-  ): Promise<ActionResult<{ processed: number; skipped: number }>> {
+  ): Promise<ActionResult<{ queued: true }>> {
     const session = await requireRole('ADMIN', 'PRINCIPAL');
 
     const parsed = computeConsolidatedSchema.safeParse(input);
@@ -37,7 +39,6 @@ export const computeConsolidatedResultsAction = safeAction(
       include: { _count: { select: { examGroups: true } } },
     });
     if (!term) return actionError('Result term not found');
-    if (term.isComputing) return actionError('Consolidation is already running for this term');
     if (term._count.examGroups === 0) {
       return actionError('No exam groups configured. Add exam groups and link exams first.');
     }
@@ -58,38 +59,92 @@ export const computeConsolidatedResultsAction = safeAction(
       return actionError(`${emptyGroups.length} exam group(s) have no exams linked. Link exams to all groups.`);
     }
 
-    // Lock to prevent concurrent runs
-    await prisma.resultTerm.update({
-      where: { id: parsed.data.resultTermId },
-      data: { isComputing: true },
+    const now = new Date();
+    const lockExpiresAt = new Date(now.getTime() + CONSOLIDATION_LOCK_LEASE_MS);
+    const lockOwner = randomUUID();
+
+    // Atomic lock acquisition with stale-lock recovery.
+    const lock = await prisma.resultTerm.updateMany({
+      where: {
+        id: parsed.data.resultTermId,
+        OR: [
+          { isComputing: false },
+          { isComputing: true, lockExpiresAt: { lt: now } },
+          { isComputing: true, lockExpiresAt: null },
+        ],
+      },
+      data: {
+        isComputing: true,
+        lockOwner,
+        lockAcquiredAt: now,
+        lockExpiresAt,
+      },
     });
+    if (lock.count === 0) {
+      return actionError('Consolidation is already running for this term');
+    }
+
+    if (term.isComputing && (!term.lockExpiresAt || term.lockExpiresAt < now)) {
+      createAuditLog(
+        session.user.id,
+        'RECOVER_STALE_CONSOLIDATION_LOCK',
+        'RESULT_TERM',
+        parsed.data.resultTermId,
+        {
+          previousLockExpiresAt: term.lockExpiresAt?.toISOString() ?? null,
+          sectionId: parsed.data.sectionId ?? null,
+          recompute: parsed.data.recompute,
+        },
+      ).catch(() => {});
+    }
 
     try {
-      const result = await computeConsolidatedResults(parsed.data.resultTermId, {
+      const runHandle = await tasks.trigger('reports-consolidation-workflow', {
+        resultTermId: parsed.data.resultTermId,
         sectionId: parsed.data.sectionId,
         recompute: parsed.data.recompute,
+        requestedByUserId: session.user.id,
+        lockOwner,
+      }, {
+        concurrencyKey: parsed.data.resultTermId,
+        maxAttempts: 3,
+        idempotencyKey: `reports:consolidation:${parsed.data.resultTermId}:${parsed.data.sectionId ?? 'all'}:${parsed.data.recompute ? 'recompute' : 'skip-existing'}`,
       });
 
       createAuditLog(
         session.user.id,
-        'COMPUTE_CONSOLIDATED_RESULTS',
+        'QUEUE_CONSOLIDATED_RESULTS',
         'RESULT_TERM',
         parsed.data.resultTermId,
-        { processed: result.processed },
+        {
+          sectionId: parsed.data.sectionId ?? null,
+          recompute: parsed.data.recompute,
+          runId: runHandle.id,
+        },
       ).catch(() => {});
 
       revalidatePath(`${REPORTS_PATH}/consolidation`);
       revalidatePath(`${REPORTS_PATH}/result-terms/${parsed.data.resultTermId}`);
-      return actionSuccess(result);
-    } finally {
-      // Always unlock
+      return actionSuccess({ queued: true });
+    } catch (error: unknown) {
       await prisma.resultTerm.update({
         where: { id: parsed.data.resultTermId },
-        data: { isComputing: false },
+        data: {
+          isComputing: false,
+          lockOwner: null,
+          lockAcquiredAt: null,
+          lockExpiresAt: null,
+        },
       });
+
+      const errorMessage = error instanceof Error ? error.message : 'Failed to queue consolidation job';
+      return actionError(errorMessage);
+    } finally {
+      // Lock release is handled by the worker on success/failure.
     }
   },
 );
+
 
 // ============================================
 // Clear Consolidated Results (for recompute)
@@ -205,26 +260,3 @@ export const batchUpdateStudentRemarksAction = safeAction(
   },
 );
 
-// ============================================
-// Mark stale (when underlying exam results change)
-// ============================================
-
-export async function markConsolidatedResultsStale(examId: string): Promise<void> {
-  const links = await prisma.resultExamLink.findMany({
-    where: { examId },
-    select: { examGroup: { select: { resultTermId: true } } },
-  });
-
-  const termIds = [...new Set(links.map((l) => l.examGroup.resultTermId))];
-  if (termIds.length === 0) return;
-
-  await prisma.consolidatedResult.updateMany({
-    where: { resultTermId: { in: termIds } },
-    data: { isStale: true },
-  });
-
-  await prisma.consolidatedStudentSummary.updateMany({
-    where: { resultTermId: { in: termIds } },
-    data: { isStale: true },
-  });
-}

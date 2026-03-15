@@ -8,6 +8,7 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { revalidatePath } from 'next/cache';
 import { calculateScore } from '@/modules/grading/grading-core';
 import type { ActionResult } from '@/types/action-result';
+import { runInChunks } from '@/modules/written-exams/chunked-async';
 import {
   finalizeWrittenExamSchema,
   type FinalizeWrittenExamInput,
@@ -15,11 +16,13 @@ import {
 
 const MARKS_PATH = '/teacher/exams';
 const RESULTS_PATH = '/teacher/results';
-
-// ============================================
-// Finalize Written Exam
-// ============================================
-
+const FINALIZE_WRITE_CHUNK_SIZE = 25;
+const FINALIZE_WRITE_MAX_RETRIES = 2;
+const FINALIZE_WRITE_RETRY_DELAY_MS = 100;
+const FINALIZE_WRITE_RETRY_OPTIONS = {
+  maxRetries: FINALIZE_WRITE_MAX_RETRIES,
+  initialRetryDelayMs: FINALIZE_WRITE_RETRY_DELAY_MS,
+};
 export const finalizeWrittenExamAction = safeAction(
   async function finalizeWrittenExam(
     input: FinalizeWrittenExamInput,
@@ -35,7 +38,6 @@ export const finalizeWrittenExamAction = safeAction(
     if (!parsed.success) return { success: false, error: parsed.error.issues[0]?.message };
 
     const { examId } = parsed.data;
-
     const exam = await prisma.exam.findUnique({
       where: { id: examId, deletedAt: null },
       select: {
@@ -45,6 +47,7 @@ export const finalizeWrittenExamAction = safeAction(
         status: true,
         totalMarks: true,
         passingMarks: true,
+        showResultAfter: true,
       },
     });
     if (!exam) return { success: false, error: 'Exam not found' };
@@ -86,13 +89,15 @@ export const finalizeWrittenExamAction = safeAction(
 
     const totalMarks = Number(exam.totalMarks);
     const passingMarks = Number(exam.passingMarks);
-
     const results = await prisma.$transaction(async (tx) => {
       const now = new Date();
+      const publishedAt = exam.showResultAfter === 'MANUAL' ? null : now;
 
-      // Batch upsert all results in parallel (replaces sequential N+1 loop)
-      const createdResults = await Promise.all(
-        activeSessions.map((s) => {
+      // Keep writes bounded to reduce transaction pressure on large cohorts.
+      const createdResults = await runInChunks(
+        activeSessions,
+        FINALIZE_WRITE_CHUNK_SIZE,
+        (s) => {
           const obtainedMarks = s.studentAnswers.reduce(
             (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
             0,
@@ -110,7 +115,7 @@ export const finalizeWrittenExamAction = safeAction(
               percentage: score.percentage,
               isPassed: score.isPassed,
               grade: score.grade,
-              publishedAt: now,
+              publishedAt,
             },
             update: {
               obtainedMarks: score.obtainedMarks,
@@ -118,10 +123,11 @@ export const finalizeWrittenExamAction = safeAction(
               percentage: score.percentage,
               isPassed: score.isPassed,
               grade: score.grade,
-              publishedAt: now,
+              publishedAt,
             },
           });
-        }),
+        },
+        FINALIZE_WRITE_RETRY_OPTIONS,
       );
 
       // Batch update all active sessions to GRADED
@@ -189,10 +195,6 @@ export const finalizeWrittenExamAction = safeAction(
   },
 );
 
-// ============================================
-// Re-finalize (Recalculate After Corrections)
-// ============================================
-
 export const refinalizeWrittenExamAction = safeAction(
   async function refinalizeWrittenExam(
     input: FinalizeWrittenExamInput,
@@ -205,7 +207,14 @@ export const refinalizeWrittenExamAction = safeAction(
 
     const exam = await prisma.exam.findUnique({
       where: { id: examId, deletedAt: null },
-      select: { id: true, deliveryMode: true, createdById: true, totalMarks: true, passingMarks: true },
+      select: {
+        id: true,
+        deliveryMode: true,
+        createdById: true,
+        totalMarks: true,
+        passingMarks: true,
+        showResultAfter: true,
+      },
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
@@ -225,10 +234,13 @@ export const refinalizeWrittenExamAction = safeAction(
 
     const results = await prisma.$transaction(async (tx) => {
       const now = new Date();
+      const publishedAt = exam.showResultAfter === 'MANUAL' ? null : now;
 
-      // Batch update all results in parallel (replaces sequential N+1 loop)
-      const updated = await Promise.all(
-        gradedSessions.map((s) => {
+      // Keep writes bounded to reduce transaction pressure on large cohorts.
+      const updated = await runInChunks(
+        gradedSessions,
+        FINALIZE_WRITE_CHUNK_SIZE,
+        (s) => {
           const obtainedMarks = s.studentAnswers.reduce(
             (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
             0,
@@ -243,10 +255,11 @@ export const refinalizeWrittenExamAction = safeAction(
               percentage: score.percentage,
               isPassed: score.isPassed,
               grade: score.grade,
-              publishedAt: now,
+              publishedAt,
             },
           });
-        }),
+        },
+        FINALIZE_WRITE_RETRY_OPTIONS,
       );
 
       // Recalculate ranks

@@ -37,3 +37,26 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 
 
 resilience 
+
+
+Reports consolidation screen
+Queue consolidation run.
+Polling status updates.
+Ensure no action export error in browser console.
+Files:
+consolidation-client.tsx
+consolidation-actions.ts
+Subject enrollment elective flow
+Load groups, unassigned/enrolled lists, enroll/unenroll actions.
+Files:
+enrollment-view.tsx
+enrollment-group-card.tsx
+Fees transaction flow
+Student selection, pending assignments load, partial payment, ledger open, discount dialog.
+Files:
+student-payment-tab.tsx
+student-ledger-dialog.tsx
+student-discount-dialog.tsx
+Migration safety check
+Run migrate status.
+Ensure no failed migration entries.

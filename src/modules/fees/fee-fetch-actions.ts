@@ -20,14 +20,20 @@ import {
 import {
   findAllStudentDiscounts,
 } from './student-discount-queries';
-import {
-  getFeeOverview,
-  getClassWiseSummary,
-  getSectionWiseSummary,
-  getStudentWiseSummary,
-  getDefaulterList,
-  getCollectionByDateRange,
-} from './fee-report-queries';
+export {
+  fetchFeeOverviewAction,
+  fetchClassWiseSummaryAction,
+  fetchSectionWiseSummaryAction,
+  fetchStudentWiseSummaryAction,
+  fetchDefaulterListAction,
+  fetchCollectionReportAction,
+} from './fee-report-fetch-actions';
+export {
+  fetchStudentDiscountsAction,
+  fetchStudentCreditsAction,
+  fetchStudentFeeAmountsAction,
+  fetchStudentLedgerAction,
+} from './fee-student-ledger-fetch-actions';
 
 // ── Categories ──
 export const fetchFeeCategoriesAction = safeFetchAction(
@@ -158,155 +164,3 @@ export const fetchFeeSettingsAction = safeFetchAction(async () => {
   return serialize(await findFeeSettings(sessionId));
 });
 
-// ── Reports ──
-export const fetchFeeOverviewAction = safeFetchAction(
-  async (academicSessionId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await resolveSessionId(academicSessionId);
-    if (!sessionId) return null;
-    return await getFeeOverview(sessionId);
-  },
-);
-
-export const fetchClassWiseSummaryAction = safeFetchAction(
-  async (academicSessionId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await resolveSessionId(academicSessionId);
-    if (!sessionId) return [];
-    return await getClassWiseSummary(sessionId);
-  },
-);
-
-export const fetchSectionWiseSummaryAction = safeFetchAction(
-  async (classId: string, academicSessionId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await resolveSessionId(academicSessionId);
-    if (!sessionId) return [];
-    return await getSectionWiseSummary(sessionId, classId);
-  },
-);
-
-export const fetchStudentWiseSummaryAction = safeFetchAction(
-  async (classId: string, sectionId?: string, academicSessionId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await resolveSessionId(academicSessionId);
-    if (!sessionId) return [];
-    return await getStudentWiseSummary(sessionId, classId, sectionId);
-  },
-);
-
-export const fetchDefaulterListAction = safeFetchAction(
-  async (classId?: string, academicSessionId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await resolveSessionId(academicSessionId);
-    if (!sessionId) return [];
-    return serialize(await getDefaulterList(sessionId, classId));
-  },
-);
-
-export const fetchCollectionReportAction = safeFetchAction(
-  async (startDate: string, endDate: string, academicSessionId?: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await resolveSessionId(academicSessionId);
-    if (!sessionId) return [];
-    return serialize(
-      await getCollectionByDateRange(
-        new Date(startDate + 'T00:00:00.000Z'),
-        new Date(endDate + 'T23:59:59.999Z'),
-        sessionId,
-      ),
-    );
-  },
-);
-
-// ── Student Permanent Discounts ──
-export const fetchStudentDiscountsAction = safeFetchAction(
-  async (studentProfileId: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
-    if (!sessionId) return [];
-    return serialize(await findAllStudentDiscounts(studentProfileId, sessionId));
-  },
-);
-
-// ── Student Credits (advance payments) ──
-export const fetchStudentCreditsAction = safeFetchAction(
-  async (studentProfileId: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const credits = await prisma.feeCredit.findMany({
-      where: { studentProfileId, status: 'ACTIVE', remainingAmount: { gt: 0 } },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true, amount: true, remainingAmount: true, reason: true, status: true, createdAt: true },
-    });
-    return serialize(credits);
-  },
-);
-
-// ── Student fee structure amounts (for discount dialog context) ──
-export const fetchStudentFeeAmountsAction = safeFetchAction(
-  async (studentProfileId: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
-    if (!sessionId) return { total: 0, categories: [] as { id: string; name: string; amount: number }[] };
-
-    const student = await prisma.studentProfile.findUnique({
-      where: { id: studentProfileId },
-      select: { classId: true },
-    });
-    if (!student?.classId) return { total: 0, categories: [] as { id: string; name: string; amount: number }[] };
-
-    const structures = await prisma.feeStructure.findMany({
-      where: { academicSessionId: sessionId, classId: student.classId, isActive: true },
-      select: { amount: true, category: { select: { id: true, name: true } } },
-    });
-
-    const categories = structures.map((s) => ({
-      id: s.category.id, name: s.category.name, amount: Number(s.amount),
-    }));
-    return { total: categories.reduce((sum, c) => sum + c.amount, 0), categories };
-  },
-);
-
-// ── Full student payment ledger (all months, payments, discounts, credits) ──
-export const fetchStudentLedgerAction = safeFetchAction(
-  async (studentProfileId: string) => {
-    await requireRole('ADMIN', 'PRINCIPAL');
-    const sessionId = await getCurrentAcademicSessionId();
-    if (!sessionId) return { assignments: [], credits: [] };
-
-    const [assignments, credits] = await Promise.all([
-      prisma.feeAssignment.findMany({
-        where: { studentProfileId, academicSessionId: sessionId, status: { not: 'CANCELLED' } },
-        include: {
-          lineItems: { select: { id: true, categoryName: true, amount: true } },
-          payments: {
-            where: { status: 'COMPLETED' },
-            orderBy: { paidAt: 'desc' },
-            select: {
-              id: true, amount: true, paymentMethod: true, referenceNumber: true,
-              receiptNumber: true, paidAt: true,
-              recordedBy: { select: { firstName: true, lastName: true } },
-            },
-          },
-          discounts: {
-            select: {
-              id: true, amount: true, reason: true, createdAt: true,
-              appliedBy: { select: { firstName: true, lastName: true } },
-            },
-          },
-        },
-        orderBy: { generatedForMonth: 'asc' },
-      }),
-      prisma.feeCredit.findMany({
-        where: { studentProfileId, academicSession: { id: sessionId } },
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true, amount: true, remainingAmount: true, reason: true,
-          status: true, referenceNumber: true, createdAt: true,
-        },
-      }),
-    ]);
-
-    return serialize({ assignments, credits });
-  },
-);

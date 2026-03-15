@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 import { SkeletonPage } from '@/components/shared';
-import { fetchMyStudentDiaryProfileAction } from '@/modules/diary/diary-fetch-actions';
+import { fetchMyStudentDiaryProfileAction } from '@/modules/diary/diary-client-fetch-actions';
 import { StudentDiaryView } from './diary-view';
 
 export function StudentDiaryClient() {

@@ -17,39 +17,53 @@ import { prisma } from '@/lib/prisma';
 // Result Term Fetch Actions
 // ============================================
 
-export const getResultTermsAction = safeFetchAction(async function getResultTermsAction(
+const getResultTerms = safeFetchAction(async function getResultTerms(
   filters: ResultTermListFilters,
 ) {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
   return listResultTerms(filters);
 });
 
-export const getResultTermAction = safeFetchAction(async function getResultTermAction(
-  id: string,
-) {
+export async function getResultTermsAction(filters: ResultTermListFilters) {
+  return getResultTerms(filters);
+}
+
+const getResultTerm = safeFetchAction(async function getResultTerm(id: string) {
   await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
   return getResultTermWithGroups(id);
 });
 
-export const getAvailableExamsForTermAction = safeFetchAction(
-  async function getAvailableExamsForTermAction(resultTermId: string) {
+export async function getResultTermAction(id: string) {
+  return getResultTerm(id);
+}
+
+const getAvailableExamsForTermSafe = safeFetchAction(
+  async function getAvailableExamsForTermSafe(resultTermId: string) {
     await requireRole('ADMIN', 'PRINCIPAL');
     return getAvailableExamsForTerm(resultTermId);
   },
 );
 
-export const validateResultTermWeightsAction = safeFetchAction(
-  async function validateResultTermWeightsAction(resultTermId: string) {
+export async function getAvailableExamsForTermAction(resultTermId: string) {
+  return getAvailableExamsForTermSafe(resultTermId);
+}
+
+const validateResultTermWeightsForTerm = safeFetchAction(
+  async function validateResultTermWeightsForTerm(resultTermId: string) {
     await requireRole('ADMIN', 'PRINCIPAL');
     return validateResultTermWeights(resultTermId);
   },
 );
 
+export async function validateResultTermWeightsAction(resultTermId: string) {
+  return validateResultTermWeightsForTerm(resultTermId);
+}
+
 // ============================================
 // DMC Fetch Actions
 // ============================================
 
-export const getDmcDataAction = safeFetchAction(async function getDmcDataAction(
+const getDmcData = safeFetchAction(async function getDmcData(
   resultTermId: string,
   studentId: string,
 ) {
@@ -59,7 +73,11 @@ export const getDmcDataAction = safeFetchAction(async function getDmcDataAction(
   return fetchDmcData(resultTermId, studentId);
 });
 
-export const getBatchDmcDataAction = safeFetchAction(async function getBatchDmcDataAction(
+export async function getDmcDataAction(resultTermId: string, studentId: string) {
+  return getDmcData(resultTermId, studentId);
+}
+
+const getBatchDmcData = safeFetchAction(async function getBatchDmcData(
   resultTermId: string,
   sectionId: string,
 ) {
@@ -69,11 +87,15 @@ export const getBatchDmcDataAction = safeFetchAction(async function getBatchDmcD
   return fetchBatchDmcData(resultTermId, sectionId);
 });
 
+export async function getBatchDmcDataAction(resultTermId: string, sectionId: string) {
+  return getBatchDmcData(resultTermId, sectionId);
+}
+
 // ============================================
 // Gazette Fetch Actions
 // ============================================
 
-export const getGazetteDataAction = safeFetchAction(async function getGazetteDataAction(
+const getGazetteData = safeFetchAction(async function getGazetteData(
   resultTermId: string,
   sectionId: string,
 ) {
@@ -83,12 +105,16 @@ export const getGazetteDataAction = safeFetchAction(async function getGazetteDat
   return fetchGazetteData(resultTermId, sectionId);
 });
 
+export async function getGazetteDataAction(resultTermId: string, sectionId: string) {
+  return getGazetteData(resultTermId, sectionId);
+}
+
 // ============================================
 // Consolidation Status
 // ============================================
 
-export const getConsolidationStatusAction = safeFetchAction(
-  async function getConsolidationStatusAction(resultTermId: string) {
+const getConsolidationStatus = safeFetchAction(
+  async function getConsolidationStatus(resultTermId: string) {
     await requireRole('ADMIN', 'PRINCIPAL');
     const term = await prisma.resultTerm.findUnique({
       where: { id: resultTermId },
@@ -105,12 +131,16 @@ export const getConsolidationStatusAction = safeFetchAction(
   },
 );
 
+export async function getConsolidationStatusAction(resultTermId: string) {
+  return getConsolidationStatus(resultTermId);
+}
+
 // ============================================
 // Section list for a class (used in DMC/gazette page filters)
 // ============================================
 
-export const getSectionsForClassAction = safeFetchAction(
-  async function getSectionsForClassAction(classId: string) {
+const getSectionsForClass = safeFetchAction(
+  async function getSectionsForClass(classId: string) {
     await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
     return prisma.section.findMany({
       where: { classId },
@@ -120,12 +150,16 @@ export const getSectionsForClassAction = safeFetchAction(
   },
 );
 
+export async function getSectionsForClassAction(classId: string) {
+  return getSectionsForClass(classId);
+}
+
 // ============================================
 // Students in a section with consolidation status
 // ============================================
 
-export const getSectionStudentsForDmcAction = safeFetchAction(
-  async function getSectionStudentsForDmcAction(resultTermId: string, sectionId: string) {
+const getSectionStudentsForDmc = safeFetchAction(
+  async function getSectionStudentsForDmc(resultTermId: string, sectionId: string) {
     await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
 
     const summaries = await prisma.consolidatedStudentSummary.findMany({
@@ -155,11 +189,15 @@ export const getSectionStudentsForDmcAction = safeFetchAction(
   },
 );
 
+export async function getSectionStudentsForDmcAction(resultTermId: string, sectionId: string) {
+  return getSectionStudentsForDmc(resultTermId, sectionId);
+}
+
 // ============================================
 // Student own DMC (for student/family role)
 // ============================================
 
-export const getStudentDmcAction = safeFetchAction(async function getStudentDmcAction(
+const getStudentDmc = safeFetchAction(async function getStudentDmc(
   resultTermId: string,
   studentId: string,
 ) {
@@ -193,12 +231,16 @@ export const getStudentDmcAction = safeFetchAction(async function getStudentDmcA
   return fetchDmcData(resultTermId, studentId);
 });
 
+export async function getStudentDmcAction(resultTermId: string, studentId: string) {
+  return getStudentDmc(resultTermId, studentId);
+}
+
 // ============================================
 // Published result terms for student
 // ============================================
 
-export const getPublishedResultTermsForStudentAction = safeFetchAction(
-  async function getPublishedResultTermsForStudentAction(studentId: string) {
+const getPublishedResultTermsForStudent = safeFetchAction(
+  async function getPublishedResultTermsForStudent(studentId: string) {
     await requireRole('STUDENT', 'FAMILY', 'ADMIN', 'PRINCIPAL');
 
     const profile = await prisma.studentProfile.findUnique({
@@ -223,3 +265,7 @@ export const getPublishedResultTermsForStudentAction = safeFetchAction(
     });
   },
 );
+
+export async function getPublishedResultTermsForStudentAction(studentId: string) {
+  return getPublishedResultTermsForStudent(studentId);
+}

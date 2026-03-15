@@ -134,4 +134,9 @@ ya sara system proper mobile friendly aur mobile first ho aur sari device sizes 
 
 brutally deeply ya system large students k lia like 1000+ k lia kam krna chahya is ko production grade pr brutally deeply analyze kor production ready kro 
 
+-----
+
+iss bat ka bohat lazmi brutally deeply khyal rakkhna hy k jab tum kam kro to uss sy project k baki kis aur functionality kisi aur moduel ko koi disturbance na ho, tumhary kam sy project ka koi aur flow disturb na ho 
+
+
  

@@ -822,6 +822,9 @@ model ExamResult {
   @@index([isPassed])
   @@index([examId, studentId])
   @@index([examId, isPassed])
+  @@index([examId, percentage(sort: Desc)])
+  @@index([examId, createdAt(sort: Desc)])
+  @@index([studentId, createdAt(sort: Desc)])
 }
 
 // ============================================
@@ -2002,6 +2005,9 @@ model ResultTerm {
   isActive          Boolean  @default(true)
   isPublished       Boolean  @default(false)
   isComputing       Boolean  @default(false) // Lock to prevent concurrent computation
+  lockOwner         String?
+  lockAcquiredAt    DateTime?
+  lockExpiresAt     DateTime?
   publishedAt       DateTime?
   computedAt        DateTime?
   createdAt         DateTime @default(now())
@@ -2018,6 +2024,7 @@ model ResultTerm {
   @@index([classId])
   @@index([isPublished])
   @@index([isActive])
+  @@index([isComputing, lockExpiresAt])
 }
 
 model ResultExamGroup {

@@ -11,7 +11,7 @@ import {
   fetchSectionWiseSummaryAction,
   fetchStudentWiseSummaryAction,
   fetchDefaulterListAction,
-} from '../fee-fetch-actions';
+} from '../fee-client-core-fetch-actions';
 
 // ── Categories ──
 

@@ -14,9 +14,11 @@ import {
   fetchStudentTodayDiaryAction,
   fetchAllDiaryEntriesAction,
   fetchDiaryEntryDetailAction,
+} from '../diary-client-fetch-actions';
+import {
   fetchDiaryCoverageAction,
   fetchDiaryStatsAction,
-} from '../diary-fetch-actions';
+} from '../diary-client-analytics-fetch-actions';
 import type { DiaryFilters } from '../diary.types';
 
 // ── Teacher Hooks ──

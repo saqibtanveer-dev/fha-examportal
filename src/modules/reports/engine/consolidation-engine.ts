@@ -3,13 +3,12 @@ import type { GroupScore } from '../types/report-types';
 import {
   computeGrade,
   parseGradingScale,
-  isPassing,
-  roundTo2,
   toNum,
 } from './grading-utils';
 import { DEFAULT_PASSING_PERCENTAGE, CONSOLIDATION_BATCH_SIZE } from './report-constants';
 import { computeSubjectGroupScores, type ExamGroupConfig, type RawExamResult } from './subject-score-computer';
 import { assignRanks } from './rank-computer';
+import { processConsolidationBatch } from './consolidation-batch-processor';
 
 type StudentSectionMap = Map<string, string>; // userId → sectionId
 
@@ -19,7 +18,18 @@ type StudentSectionMap = Map<string, string>; // userId → sectionId
 
 export async function computeConsolidatedResults(
   resultTermId: string,
-  options: { sectionId?: string; recompute?: boolean },
+  options: {
+    sectionId?: string;
+    recompute?: boolean;
+    startOffset?: number;
+    onCheckpoint?: (payload: {
+      processed: number;
+      skipped: number;
+      nextOffset: number;
+      totalStudents: number;
+      batchSize: number;
+    }) => Promise<void> | void;
+  },
 ): Promise<{ processed: number; skipped: number }> {
   const term = await prisma.resultTerm.findUnique({
     where: { id: resultTermId },
@@ -59,6 +69,7 @@ export async function computeConsolidatedResults(
       ...(options.sectionId && { sectionId: options.sectionId }),
       user: { isActive: true },
     },
+    orderBy: { userId: 'asc' },
     select: { userId: true, sectionId: true },
   });
 
@@ -155,10 +166,11 @@ export async function computeConsolidatedResults(
   // Process in batches
   let processed = 0;
   let skipped = 0;
+  const startOffset = Math.max(0, Math.min(options.startOffset ?? 0, studentIds.length));
 
-  for (let i = 0; i < studentIds.length; i += CONSOLIDATION_BATCH_SIZE) {
+  for (let i = startOffset; i < studentIds.length; i += CONSOLIDATION_BATCH_SIZE) {
     const batch = studentIds.slice(i, i + CONSOLIDATION_BATCH_SIZE);
-    const result = await processBatch(batch, {
+    const result = await processConsolidationBatch(batch, {
       resultTermId,
       groups,
       sectionMap,
@@ -174,134 +186,25 @@ export async function computeConsolidatedResults(
     });
     processed += result.processed;
     skipped += result.skipped;
+
+    if (options.onCheckpoint) {
+      const nextOffset = Math.min(i + CONSOLIDATION_BATCH_SIZE, studentIds.length);
+      try {
+        await options.onCheckpoint({
+          processed,
+          skipped,
+          nextOffset,
+          totalStudents: studentIds.length,
+          batchSize: CONSOLIDATION_BATCH_SIZE,
+        });
+      } catch (checkpointError) {
+        console.warn('[consolidation] Checkpoint write failed:', checkpointError);
+      }
+    }
   }
 
   // Compute ranks after all results are stored
   await assignRanks(resultTermId);
-
-  return { processed, skipped };
-}
-
-// ============================================
-// Process one batch of students
-// ============================================
-
-async function processBatch(
-  studentIds: string[],
-  ctx: {
-    resultTermId: string;
-    groups: ExamGroupConfig[];
-    sectionMap: StudentSectionMap;
-    resultIndex: Map<string, Map<string, RawExamResult>>;
-    absentIndex: Set<string>;
-    examSubjectMap: Map<string, string>;
-    gradingScale: ReturnType<typeof parseGradingScale>;
-    passingPct: number;
-    recompute: boolean;
-    electiveSubjectIds: Set<string>;
-    enrolledElectives: Set<string>;
-    commonSubjectIds: Set<string>;
-  },
-): Promise<{ processed: number; skipped: number }> {
-  let processed = 0;
-  let skipped = 0;
-
-  for (const studentId of studentIds) {
-    try {
-    const byExam = ctx.resultIndex.get(studentId) ?? new Map<string, RawExamResult>();
-    const sectionId = ctx.sectionMap.get(studentId);
-    if (!sectionId) { skipped++; continue; }
-
-    // Filter subject set per student (elective filtering)
-    const subjectIds = new Set(ctx.commonSubjectIds);
-    for (const subjId of subjectIds) {
-      if (
-        ctx.electiveSubjectIds.has(subjId) &&
-        !ctx.enrolledElectives.has(`${studentId}:${subjId}`)
-      ) {
-        subjectIds.delete(subjId);
-      }
-    }
-
-    const subjectResults: {
-      subjectId: string;
-      groupScores: GroupScore[];
-      totalMarks: number;
-      obtainedMarks: number;
-      percentage: number;
-      isPassed: boolean;
-      grade: string | null;
-    }[] = [];
-
-    for (const subjectId of subjectIds) {
-      const { groupScores, obtainedWeighted, totalScaled } = computeSubjectGroupScores(
-        subjectId,
-        studentId,
-        ctx.groups,
-        byExam,
-        ctx.absentIndex,
-        ctx.examSubjectMap,
-      );
-
-      const percentage = totalScaled > 0 ? roundTo2((obtainedWeighted / totalScaled) * 100) : 0;
-      const grade = computeGrade(percentage, ctx.gradingScale);
-      const passed = isPassing(percentage, ctx.passingPct);
-
-      subjectResults.push({
-        subjectId,
-        groupScores,
-        totalMarks: roundTo2(totalScaled),
-        obtainedMarks: roundTo2(obtainedWeighted),
-        percentage,
-        isPassed: passed,
-        grade,
-      });
-    }
-
-    // All writes for one student in a single transaction (atomicity guarantee)
-    const grandTotal = subjectResults.reduce((s, r) => s + r.totalMarks, 0);
-    const grandObtained = subjectResults.reduce((s, r) => s + r.obtainedMarks, 0);
-    const overallPct = grandTotal > 0 ? roundTo2((grandObtained / grandTotal) * 100) : 0;
-    const overallGrade = computeGrade(overallPct, ctx.gradingScale);
-    // Hybrid pass/fail: overall percentage must pass AND individual fails are flagged on DMC
-    const overallPassed = isPassing(overallPct, ctx.passingPct);
-    const passedCount = subjectResults.filter((r) => r.isPassed).length;
-    const failedCount = subjectResults.filter((r) => !r.isPassed).length;
-
-    await prisma.$transaction(async (tx) => {
-      for (const sr of subjectResults) {
-        const data = {
-          groupScores: sr.groupScores as object[],
-          totalMarks: sr.totalMarks, obtainedMarks: sr.obtainedMarks,
-          percentage: sr.percentage, grade: sr.grade, isPassed: sr.isPassed, isStale: false,
-        };
-        await tx.consolidatedResult.upsert({
-          where: { resultTermId_studentId_subjectId: { resultTermId: ctx.resultTermId, studentId, subjectId: sr.subjectId } },
-          create: { resultTermId: ctx.resultTermId, studentId, subjectId: sr.subjectId, ...data },
-          update: { ...data, computedAt: new Date() },
-        });
-      }
-
-      const summaryData = {
-        sectionId, totalSubjects: subjectResults.length,
-        passedSubjects: passedCount, failedSubjects: failedCount,
-        grandTotalMarks: grandTotal, grandObtainedMarks: grandObtained,
-        overallPercentage: overallPct, overallGrade, isOverallPassed: overallPassed, isStale: false,
-      };
-      await tx.consolidatedStudentSummary.upsert({
-        where: { resultTermId_studentId: { resultTermId: ctx.resultTermId, studentId } },
-        create: { resultTermId: ctx.resultTermId, studentId, ...summaryData },
-        update: { ...summaryData, computedAt: new Date() },
-      });
-    });
-
-    processed++;
-    } catch (err) {
-      // Log but don't crash — one student failure shouldn't block others
-      console.error(`[consolidation] Failed for student ${studentId}:`, err);
-      skipped++;
-    }
-  }
 
   return { processed, skipped };
 }

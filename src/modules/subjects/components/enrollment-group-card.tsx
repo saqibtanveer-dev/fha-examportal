@@ -11,7 +11,7 @@ import { EnrolledStudentsTable } from './enrolled-students-table';
 import {
   fetchUnassignedStudentsAction,
   fetchEnrolledStudentsForGroupAction,
-} from '@/modules/subjects/enrollment-actions';
+} from '@/modules/subjects/enrollment-fetch-actions';
 import { ChevronDown, ChevronUp, Users, UserPlus, Zap } from 'lucide-react';
 
 type SubjectInfo = { id: string; name: string; code: string; enrolledCount: number };

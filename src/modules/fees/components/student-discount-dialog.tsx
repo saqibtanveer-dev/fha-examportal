@@ -15,7 +15,8 @@ import { Spinner } from '@/components/shared';
 import { toast } from 'sonner';
 import { Trash2, Plus } from 'lucide-react';
 import { formatCurrency } from './fee-status-badge';
-import { fetchStudentDiscountsAction, fetchFeeCategoriesAction, fetchStudentFeeAmountsAction } from '@/modules/fees/fee-fetch-actions';
+import { fetchFeeCategoriesAction } from '@/modules/fees/fee-client-core-fetch-actions';
+import { fetchStudentDiscountsAction, fetchStudentFeeAmountsAction } from '@/modules/fees/fee-client-finance-fetch-actions';
 import {
   createStudentFeeDiscountAction,
   updateStudentFeeDiscountAction,

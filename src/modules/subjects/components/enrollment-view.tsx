@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Spinner, EmptyState } from '@/components/shared';
 import { EnrollmentGroupCard } from './enrollment-group-card';
-import { fetchElectiveGroupsAction } from '@/modules/subjects/enrollment-actions';
+import { fetchElectiveGroupsAction } from '@/modules/subjects/enrollment-fetch-actions';
 import { AlertTriangle, CheckCircle2, Zap } from 'lucide-react';
 
 type ElectiveGroup = {

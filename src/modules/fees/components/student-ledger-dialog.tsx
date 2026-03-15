@@ -7,7 +7,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
 import { formatCurrency, formatMonth, FeeStatusBadge } from './fee-status-badge';
-import { fetchStudentLedgerAction } from '@/modules/fees/fee-fetch-actions';
+import { fetchStudentLedgerAction } from '@/modules/fees/fee-client-finance-fetch-actions';
 import type { FeeAssignmentStatus } from '@prisma/client';
 
 type Payment = {

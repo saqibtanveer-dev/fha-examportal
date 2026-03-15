@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Spinner } from '@/components/shared';
 import { formatCurrency } from './fee-status-badge';
-import { fetchCollectionReportAction } from '@/modules/fees/fee-fetch-actions';
+import { fetchCollectionReportAction } from '@/modules/fees/fee-client-core-fetch-actions';
 
 type CollectionRow = {
   paymentMethod: string;

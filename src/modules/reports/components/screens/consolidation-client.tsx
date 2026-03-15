@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Play, Trash2, Globe, GlobeLock, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
+import { Play, Trash2, Globe, GlobeLock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,8 +20,11 @@ import {
   publishResultTermAction,
   unpublishResultTermAction,
 } from '@/modules/reports/actions/result-term-actions';
+import { getConsolidationJobSnapshotAction } from '@/modules/reports/actions/result-term-consolidation-fetch-actions';
 import type { ResultTermSummary } from '@/modules/reports/queries/result-term-queries';
 import { format } from 'date-fns';
+import { ConsolidationJobStatusPanel } from './consolidation-job-status-panel';
+import type { ConsolidationJobSnapshot } from './consolidation-job-types';
 
 type Props = { terms: ResultTermSummary[] };
 
@@ -30,18 +33,63 @@ export function ConsolidationClient({ terms }: Props) {
   const [isPending, startTransition] = useTransition();
   const [selectedTermId, setSelectedTermId] = useState('');
   const [recompute, setRecompute] = useState(false);
+  const [jobSnapshot, setJobSnapshot] = useState<ConsolidationJobSnapshot | null>(null);
+  const [isPolling, setIsPolling] = useState(false);
   const [clearConfirmId, setClearConfirmId] = useState<string | null>(null);
   const [publishConfirmId, setPublishConfirmId] = useState<string | null>(null);
   const [unpublishConfirmId, setUnpublishConfirmId] = useState<string | null>(null);
 
   const selectedTerm = terms.find((t) => t.id === selectedTermId);
+  const isBackgroundActive =
+    jobSnapshot?.status === 'QUEUED' || jobSnapshot?.status === 'RUNNING' || selectedTerm?.isComputing;
+
+  useEffect(() => {
+    if (!selectedTermId) {
+      setJobSnapshot(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchSnapshot = async () => {
+      setIsPolling(true);
+      const res = await getConsolidationJobSnapshotAction(selectedTermId);
+      const snapshot =
+        res && typeof res === 'object' && 'success' in res
+          ? (res.success
+            ? ((res as { data?: ConsolidationJobSnapshot | null }).data ?? null)
+            : null)
+          : (res as ConsolidationJobSnapshot | null);
+
+      if (!cancelled) {
+        setJobSnapshot(snapshot);
+      }
+      if (!cancelled) setIsPolling(false);
+    };
+
+    void fetchSnapshot();
+    const intervalId = setInterval(() => {
+      void fetchSnapshot();
+    }, 7000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
+  }, [selectedTermId]);
+
+  useEffect(() => {
+    if (jobSnapshot?.status === 'COMPLETED' || jobSnapshot?.status === 'FAILED') {
+      router.refresh();
+    }
+  }, [jobSnapshot?.status, router]);
 
   function handleCompute() {
     if (!selectedTermId) { toast.error('Select a result term'); return; }
     startTransition(async () => {
       const res = await computeConsolidatedResultsAction({ resultTermId: selectedTermId, recompute });
       if (res.success && res.data) {
-        toast.success(`Consolidation complete — ${res.data.processed} students processed`);
+        toast.success('Consolidation queued. Processing started in background.');
         router.refresh();
       } else {
         toast.error(res.error ?? 'Consolidation failed');
@@ -107,34 +155,13 @@ export function ConsolidationClient({ terms }: Props) {
           </div>
 
           {selectedTerm && (
-            <div className="rounded-md border p-3 text-sm space-y-1 bg-muted/30">
-              <div className="flex gap-2 flex-wrap">
-                <Badge variant={selectedTerm.isPublished ? 'default' : 'secondary'}>
-                  {selectedTerm.isPublished ? 'Published' : 'Draft'}
-                </Badge>
-                {selectedTerm.isComputing && (
-                  <Badge variant="outline" className="gap-1">
-                    <Loader2 className="h-3 w-3 animate-spin" /> Computing
-                  </Badge>
-                )}
-              </div>
-              <p className="text-muted-foreground">
-                {selectedTerm._count.examGroups} exam groups ·{' '}
-                {selectedTerm._count.consolidatedResults} results computed
-              </p>
-              {selectedTerm.computedAt && (
-                <p className="flex items-center gap-1 text-green-600">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  Last computed: {format(selectedTerm.computedAt, 'dd MMM yyyy, HH:mm')}
-                </p>
-              )}
-              {selectedTerm._count.consolidatedResults > 0 && (
-                <p className="flex items-center gap-1 text-amber-600">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Existing results will be {recompute ? 'overwritten' : 'kept (only new students computed)'}
-                </p>
-              )}
-            </div>
+            <ConsolidationJobStatusPanel
+              selectedTerm={selectedTerm}
+              isBackgroundActive={!!isBackgroundActive}
+              isPolling={isPolling}
+              recompute={recompute}
+              jobSnapshot={jobSnapshot}
+            />
           )}
 
           <div className="flex items-center gap-2">
@@ -147,10 +174,10 @@ export function ConsolidationClient({ terms }: Props) {
           <div className="flex gap-2">
             <Button
               onClick={handleCompute}
-              disabled={!selectedTermId || isPending || selectedTerm?.isPublished || selectedTerm?.isComputing}
+              disabled={!selectedTermId || isPending || selectedTerm?.isPublished || isBackgroundActive}
             >
               {isPending ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Computing...</>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Queueing...</>
               ) : (
                 <><Play className="mr-2 h-4 w-4" /> Run Consolidation</>
               )}

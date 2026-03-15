@@ -123,6 +123,7 @@ export async function calculateResult(sessionId: string) {
     const grade = deriveGrade(percentage);
 
     const now = new Date();
+    const publishedAt = session.exam.showResultAfter === 'MANUAL' ? null : now;
     const result = await tx.examResult.upsert({
       where: { sessionId },
       create: {
@@ -134,7 +135,7 @@ export async function calculateResult(sessionId: string) {
         percentage,
         isPassed,
         grade,
-        publishedAt: now,
+        publishedAt,
       },
       update: {
         obtainedMarks,
@@ -142,7 +143,7 @@ export async function calculateResult(sessionId: string) {
         percentage,
         isPassed,
         grade,
-        publishedAt: now,
+        publishedAt,
       },
     });
 

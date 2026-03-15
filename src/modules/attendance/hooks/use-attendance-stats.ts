@@ -9,7 +9,7 @@ import {
   fetchStudentWiseAttendanceAction,
   fetchSchoolAttendanceForDateAction,
   fetchActiveStudentCountAction,
-} from '../attendance-fetch-actions';
+} from '../attendance-client-stats-fetch-actions';
 
 export function useDailyAttendanceCounts(
   classId: string,

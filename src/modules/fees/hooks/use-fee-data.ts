@@ -5,7 +5,7 @@ import { queryKeys } from '@/lib/query-keys';
 import {
   fetchStudentAssignmentsAction,
   fetchFamilyPaymentsAction,
-} from '../fee-fetch-actions';
+} from '../fee-client-core-fetch-actions';
 import {
   fetchMyFeesAction,
   fetchFamilyChildrenWithFeesAction,
