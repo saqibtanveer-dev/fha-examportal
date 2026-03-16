@@ -13,12 +13,19 @@ import { StudentLedgerDialog } from '@/modules/fees/components/student-ledger-di
 import { DollarSign, TrendingDown, BookOpen, History, ChevronRight, ChevronDown, AlertCircle, User2 } from 'lucide-react';
 import type { fetchFamilyFeesOverviewAction } from '@/modules/fees/fee-self-service-actions';
 
+type DirectPaymentEntry = {
+  id: string; amount: number; receiptNumber: string; paymentMethod: string;
+  referenceNumber: string | null; paidAt: string;
+  feeAssignment: { generatedForMonth: string; studentProfile: { user: { firstName: string; lastName: string } } | null } | null;
+};
+
 type Props = {
   data: Awaited<ReturnType<typeof fetchFamilyFeesOverviewAction>>;
 };
 
 export function FamilyFeesView({ data }: Props) {
   const { children, familyPayments } = data;
+  const directPayments: DirectPaymentEntry[] = ((data as unknown as { directPayments?: DirectPaymentEntry[] }).directPayments) ?? [];
   const [ledgerChild, setLedgerChild] = useState<{ id: string; name: string } | null>(null);
   const [expandedPaymentIds, setExpandedPaymentIds] = useState<Set<string>>(new Set());
 
@@ -107,9 +114,9 @@ export function FamilyFeesView({ data }: Props) {
               <TabsTrigger value="payments" className="flex items-center gap-1.5">
                 <History className="h-3.5 w-3.5" />
                 Ledger
-                {familyPayments.length > 0 && (
+                {(familyPayments.length + directPayments.length) > 0 && (
                   <Badge variant="secondary" className="ml-1 h-4 px-1 text-[10px]">
-                    {familyPayments.length}
+                    {familyPayments.length + directPayments.length}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -230,7 +237,7 @@ export function FamilyFeesView({ data }: Props) {
 
             {/* ── Family Ledger tab ── */}
             <TabsContent value="payments" className="mt-4 space-y-3">
-              {familyPayments.length === 0 ? (
+              {familyPayments.length === 0 && directPayments.length === 0 ? (
                 <Card>
                   <CardContent className="py-8 text-center">
                     <p className="text-sm text-muted-foreground">No payments recorded yet.</p>
@@ -243,12 +250,19 @@ export function FamilyFeesView({ data }: Props) {
                     <div>
                       <p className="text-xs text-muted-foreground">Total Collected</p>
                       <p className="font-mono font-bold text-green-600 dark:text-green-400">
-                        {formatCurrency(familyPayments.reduce((s, p) => s + p.totalAmount, 0))}
+                        {formatCurrency(
+                          familyPayments.reduce((s: number, p) => s + p.totalAmount, 0) +
+                          directPayments.reduce((s: number, p) => s + Number(p.amount), 0)
+                        )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs text-muted-foreground">Payments</p>
+                      <p className="text-xs text-muted-foreground">Family Payments</p>
                       <p className="font-bold">{familyPayments.length}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Individual Payments</p>
+                      <p className="font-bold">{directPayments.length}</p>
                     </div>
                   </div>
 
@@ -371,8 +385,32 @@ export function FamilyFeesView({ data }: Props) {
                     })}
                   </div>
                   <p className="text-xs text-muted-foreground text-center">
-                    Tap any payment to see the per-student allocation
+                    Tap any family payment to see the per-student allocation
                   </p>
+
+                  {/* ── Individual student-wise payments ── */}
+                  {directPayments.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">Individual Student Payments ({directPayments.length})</p>
+                      <div className="rounded-lg border divide-y overflow-hidden">
+                        {directPayments.map((p) => (
+                          <div key={p.id} className="flex items-center gap-3 p-3 hover:bg-muted/20 transition-colors">
+                            <User2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">{p.feeAssignment?.studentProfile ? `${p.feeAssignment.studentProfile.user.firstName} ${p.feeAssignment.studentProfile.user.lastName}` : 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground flex flex-wrap gap-x-2 mt-0.5">
+                                <span>{p.feeAssignment ? formatMonth(p.feeAssignment.generatedForMonth) : '—'}</span>
+                                <span>{p.paymentMethod.replace('_', ' ')}</span>
+                                <span>{new Date(p.paidAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                <span className="font-mono">{p.receiptNumber}</span>
+                              </p>
+                            </div>
+                            <span className="font-mono font-bold text-green-700 dark:text-green-400 shrink-0">{formatCurrency(Number(p.amount))}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </TabsContent>

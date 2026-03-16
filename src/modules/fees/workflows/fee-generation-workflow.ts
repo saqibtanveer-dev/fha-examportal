@@ -123,13 +123,22 @@ export const feeGenerationWorkflow = task({
         .filter((s) => !existingSet.has(s.id) && s.classId)
         .map((s) => s.id);
 
-      const allDiscounts = await findActiveDiscountsForStudents(eligibleStudentIds, academicSessionId);
+      const [allDiscounts, familyLinks] = await Promise.all([
+        findActiveDiscountsForStudents(eligibleStudentIds, academicSessionId),
+        prisma.familyStudentLink.findMany({
+          where: { studentProfileId: { in: eligibleStudentIds }, isActive: true },
+          select: { studentProfileId: true, familyProfileId: true },
+        }),
+      ]);
+
       const studentDiscountMap = new Map<string, typeof allDiscounts>();
       for (const d of allDiscounts) {
         const list = studentDiscountMap.get(d.studentProfileId) ?? [];
         list.push(d);
         studentDiscountMap.set(d.studentProfileId, list);
       }
+
+      const familyLinkMap = new Map(familyLinks.map((l) => [l.studentProfileId, l.familyProfileId]));
 
       let skipped = 0;
       for (const student of students) {
@@ -217,6 +226,7 @@ export const feeGenerationWorkflow = task({
               if (data.balanceAmount > 0) {
                 await applyCreditsToAssignment(
                   data.studentProfileId, assignment.id, data.balanceAmount, academicSessionId,
+                  familyLinkMap.get(data.studentProfileId) ?? null,
                 ).catch((err) => logger.error({ err }, 'Credit auto-apply failed'));
               }
               return assignment;

@@ -1903,7 +1903,7 @@ model FeeSettings {
 // Advance credit: stores excess payments for auto-apply on next fee generation
 model FeeCredit {
   id                String        @id @default(uuid())
-  studentProfileId  String
+  studentProfileId  String?       // null = family-pool credit shared across all children
   familyProfileId   String?
   academicSessionId String
   amount            Decimal       @db.Decimal(12, 2)
@@ -1915,7 +1915,7 @@ model FeeCredit {
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
 
-  studentProfile  StudentProfile   @relation(fields: [studentProfileId], references: [id])
+  studentProfile  StudentProfile?  @relation(fields: [studentProfileId], references: [id])
   familyProfile   FamilyProfile?   @relation(fields: [familyProfileId], references: [id])
   academicSession AcademicSession  @relation(fields: [academicSessionId], references: [id])
   createdBy       User             @relation("CreditCreatedBy", fields: [createdById], references: [id])

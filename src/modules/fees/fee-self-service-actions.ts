@@ -42,7 +42,8 @@ export const fetchFamilyChildrenWithFeesAction = safeFetchAction(
       where: {
         studentProfileId: { in: childIds },
         academicSessionId: sessionId,
-        status: { not: 'CANCELLED' },
+        status: { in: ['PENDING', 'PARTIAL', 'OVERDUE'] },
+        balanceAmount: { gt: 0 },
       },
       include: { lineItems: { select: { id: true, categoryName: true, amount: true } } },
       orderBy: [{ generatedForMonth: 'asc' }, { dueDate: 'asc' }],
@@ -147,7 +148,7 @@ export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
   if (!profile) throw new Error('Family profile not found');
 
   const sessionId = await getCurrentAcademicSessionId();
-  if (!sessionId) return { children: [], familyPayments: [] };
+  if (!sessionId) return { children: [], familyPayments: [], directPayments: [] };
 
   // Batch fetch all assignments for all children at once (avoids N+1)
   const childIds = profile.studentLinks.map((l) => l.studentProfile.id);
@@ -168,8 +169,8 @@ export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
     assignments: serialize(byStudent.get(link.studentProfile.id) ?? []),
   }));
 
-  const familyPayments = serialize(
-    await prisma.familyPayment.findMany({
+  const [familyPayments, directPayments] = await Promise.all([
+    prisma.familyPayment.findMany({
       where: { familyProfileId: profile.id },
       include: {
         recordedBy: { select: { firstName: true, lastName: true } },
@@ -189,9 +190,33 @@ export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
       orderBy: { paidAt: 'desc' },
       take: 100,
     }),
-  );
+    childIds.length > 0
+      ? prisma.feePayment.findMany({
+          where: {
+            familyPaymentId: null,
+            status: 'COMPLETED',
+            feeAssignment: { studentProfileId: { in: childIds } },
+          },
+          select: {
+            id: true, amount: true, receiptNumber: true,
+            paymentMethod: true, referenceNumber: true, paidAt: true,
+            recordedBy: { select: { firstName: true, lastName: true } },
+            feeAssignment: {
+              select: {
+                generatedForMonth: true,
+                studentProfile: {
+                  select: { rollNumber: true, user: { select: { firstName: true, lastName: true } } },
+                },
+              },
+            },
+          },
+          orderBy: { paidAt: 'desc' },
+          take: 100,
+        })
+      : Promise.resolve([]),
+  ]);
 
-  return { children, familyPayments };
+  return { children, familyPayments: serialize(familyPayments), directPayments: serialize(directPayments) };
 });
 
 // ── Family Fee Summary — lightweight for dashboard widget ──

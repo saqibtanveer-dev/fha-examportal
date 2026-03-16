@@ -93,9 +93,15 @@ export const collectStudentFeeAction = safeAction(
 
       // Overpayment credit INSIDE transaction for atomicity
       if (excessPayment > 0) {
+        const familyLink = await tx.familyStudentLink.findFirst({
+          where: { studentProfileId: assignment.studentProfileId, isActive: true },
+          select: { familyProfileId: true },
+        });
         await tx.feeCredit.create({
           data: {
-            studentProfileId: assignment.studentProfileId, academicSessionId,
+            studentProfileId: assignment.studentProfileId,
+            familyProfileId: familyLink?.familyProfileId ?? null,
+            academicSessionId,
             amount: excessPayment, remainingAmount: excessPayment,
             reason: `Overpayment credit from receipt ${receiptNumber}`,
             referenceNumber: receiptNumber, createdById: session.user.id,
