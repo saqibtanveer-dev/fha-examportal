@@ -22,16 +22,42 @@ export const startTestSessionAction = safeAction(async function startTestSession
   const parsed = startTestSessionSchema.safeParse(input);
   if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
 
-  const rl = checkRateLimit(`admission:start:${parsed.data.token}`, RATE_LIMITS.ADMISSION_START_TEST);
-  if (!rl.allowed) return actionError('Too many attempts. Please try again later.');
+  const token = parsed.data.token.trim();
 
   const headersList = await headers();
-  const ip = headersList.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown';
-  const ipRl = checkRateLimit(`admission:start:ip:${ip}`, { maxAttempts: 20, windowMs: 60_000 });
-  if (!ipRl.allowed) return actionError('Too many attempts. Please try again later.');
+  const forwardedFor = headersList.get('x-forwarded-for')?.split(',')[0]?.trim();
+  const realIp = headersList.get('x-real-ip')?.trim();
+  const cfIp = headersList.get('cf-connecting-ip')?.trim();
+  const ip = forwardedFor || realIp || cfIp || 'unknown';
 
-  const applicant = await getApplicantByToken(parsed.data.token);
-  if (!applicant) return actionError(ADMISSION_ERRORS.INVALID_TOKEN);
+  // Burst limiter (global/IP) to protect infra from floods.
+  const ipBurstRl = checkRateLimit(`admission:start:ip-burst:${ip}`, { maxAttempts: 60, windowMs: 60_000 });
+  if (!ipBurstRl.allowed) return actionError('Too many attempts. Please try again later.');
+
+  const applicant = await getApplicantByToken(token);
+  if (!applicant) {
+    // Strict rate limit only for invalid PIN attempts.
+    const invalidIpRl = checkRateLimit(
+      `admission:start:invalid:ip:${ip}`,
+      RATE_LIMITS.ADMISSION_START_TEST_INVALID_IP,
+    );
+    if (!invalidIpRl.allowed) return actionError('Too many attempts. Please try again later.');
+
+    const invalidTokenRl = checkRateLimit(
+      `admission:start:invalid:token:${token}`,
+      RATE_LIMITS.ADMISSION_START_TEST_INVALID_TOKEN,
+    );
+    if (!invalidTokenRl.allowed) return actionError('Too many attempts. Please try again later.');
+
+    return actionError(ADMISSION_ERRORS.INVALID_TOKEN);
+  }
+
+  // Valid candidate limiter: lenient enough for refresh/resume and mobile reconnects.
+  const applicantRl = checkRateLimit(
+    `admission:start:applicant:${applicant.id}`,
+    RATE_LIMITS.ADMISSION_START_TEST,
+  );
+  if (!applicantRl.allowed) return actionError('Too many attempts. Please try again in a few minutes.');
 
   const campaign = await prisma.testCampaign.findUnique({
     where: { id: applicant.campaignId },

@@ -30,6 +30,7 @@ export function useTestSession(accessToken: string) {
   const [violationWarning, setViolationWarning] = useState('');
 
   const sessionIdRef = useRef<string | null>(null);
+  const startRequestedTokenRef = useRef<string | null>(null);
   const pendingSaveRef = useRef<Set<string>>(new Set());
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const savingRef = useRef(false);
@@ -57,6 +58,9 @@ export function useTestSession(accessToken: string) {
 
   // ── Start session ──
   useEffect(() => {
+    if (startRequestedTokenRef.current === accessToken) return;
+    startRequestedTokenRef.current = accessToken;
+
     let cancelled = false;
     (async () => {
       const result = await startTestSessionAction({ token: accessToken });

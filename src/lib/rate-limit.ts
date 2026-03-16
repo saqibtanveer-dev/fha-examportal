@@ -91,8 +91,12 @@ export const RATE_LIMITS = {
   API: { maxAttempts: 100, windowMs: 60 * 1000 } as RateLimitConfig,
 
   // ── Admission Portal Rate Limits ──
-  /** Start test: 3 per day per PIN */
-  ADMISSION_START_TEST: { maxAttempts: 3, windowMs: 24 * 60 * 60 * 1000 } as RateLimitConfig,
+  /** Start test (valid applicant): allows resume/retry without daily lockout */
+  ADMISSION_START_TEST: { maxAttempts: 12, windowMs: 15 * 60 * 1000 } as RateLimitConfig,
+  /** Invalid PIN attempts from same IP */
+  ADMISSION_START_TEST_INVALID_IP: { maxAttempts: 20, windowMs: 15 * 60 * 1000 } as RateLimitConfig,
+  /** Invalid PIN attempts for a specific PIN value */
+  ADMISSION_START_TEST_INVALID_TOKEN: { maxAttempts: 6, windowMs: 15 * 60 * 1000 } as RateLimitConfig,
   /** Submit answer: 120 per hour per session */
   ADMISSION_SUBMIT_ANSWER: { maxAttempts: 120, windowMs: 60 * 60 * 1000 } as RateLimitConfig,
   /** Submit test: 3 per day per session */

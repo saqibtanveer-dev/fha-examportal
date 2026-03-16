@@ -123,6 +123,22 @@ export const createCampaignQuestionSchema = z.object({
 });
 export type CreateCampaignQuestionInput = z.infer<typeof createCampaignQuestionSchema>;
 
+export const updateCampaignQuestionSchema = z.object({
+  campaignQuestionId: z.string().uuid(),
+  title: z.string().min(3).max(1000),
+  description: z.string().max(2000).optional(),
+  options: z.tuple([
+    z.object({ text: z.string().min(1).max(500) }),
+    z.object({ text: z.string().min(1).max(500) }),
+    z.object({ text: z.string().min(1).max(500) }),
+    z.object({ text: z.string().min(1).max(500) }),
+  ]),
+  correctOption: z.enum(['A', 'B', 'C', 'D']),
+  marks: z.number().positive().default(1),
+  sectionLabel: z.string().max(100).optional(),
+});
+export type UpdateCampaignQuestionInput = z.infer<typeof updateCampaignQuestionSchema>;
+
 /**
  * CSV bulk import questions for a campaign.
  * Each row: title, optionA, optionB, optionC, optionD, correctOption (A/B/C/D), marks

@@ -1,8 +1,10 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState, Spinner } from '@/components/shared';
 import { useMeritListQuery } from '@/modules/admissions/hooks/use-admissions-query';
 import { MeritListTable } from '@/modules/admissions/components/merit-list-table';
@@ -19,6 +21,7 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
   const { data, isLoading } = useMeritListQuery(campaignId);
   const invalidate = useInvalidateCache();
   const [isPending, startTransition] = useTransition();
+  const [search, setSearch] = useState('');
 
   function handleGenerateMerit() {
     startTransition(async () => {
@@ -48,6 +51,25 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
 
   const result = data;
   const meritList = result?.success ? (result.data ?? []) : [];
+
+  const filteredMeritList = useMemo(() => {
+    const needle = search.trim().toLowerCase();
+    if (!needle) return meritList;
+    return meritList.filter((entry: any) => {
+      const fullName = `${entry.applicant?.firstName ?? ''} ${entry.applicant?.lastName ?? ''}`.toLowerCase();
+      return fullName.includes(needle)
+        || String(entry.applicant?.applicationNumber ?? '').toLowerCase().includes(needle)
+        || String(entry.applicant?.email ?? '').toLowerCase().includes(needle);
+    });
+  }, [meritList, search]);
+
+  const meritStats = useMemo(() => {
+    const ranked = meritList.length;
+    const passed = meritList.filter((entry: any) => entry.isPassed).length;
+    const scholarships = meritList.filter((entry: any) => !!entry.applicant?.scholarship).length;
+    const accepted = meritList.filter((entry: any) => entry.applicant?.status === 'ACCEPTED').length;
+    return { ranked, passed, scholarships, accepted };
+  }, [meritList]);
 
   const canGenerate = ['TEST_CLOSED', 'GRADING', 'RESULTS_READY', 'RESULTS_PUBLISHED'].includes(campaignStatus);
 
@@ -84,7 +106,26 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
           </Button>
         </div>
       </div>
-      <MeritListTable entries={meritList} />
+
+      <div className="grid gap-2 sm:grid-cols-4">
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Ranked</p><p className="text-xl font-semibold">{meritStats.ranked}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Passed</p><p className="text-xl font-semibold">{meritStats.passed}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Scholarships</p><p className="text-xl font-semibold">{meritStats.scholarships}</p></CardContent></Card>
+        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">Accepted</p><p className="text-xl font-semibold">{meritStats.accepted}</p></CardContent></Card>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          placeholder="Search by name, email, or application #"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <div className="flex items-center rounded-md border px-3 text-sm text-muted-foreground">
+          Showing {filteredMeritList.length} of {meritList.length}
+        </div>
+      </div>
+
+      <MeritListTable entries={filteredMeritList} />
     </div>
   );
 }

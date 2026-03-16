@@ -61,6 +61,7 @@ export async function getCampaignById(id: string) {
       createdBy: { select: { id: true, firstName: true, lastName: true } },
       campaignQuestions: {
         include: {
+          _count: { select: { applicantAnswers: true } },
           question: {
             include: {
               subject: { select: { name: true, code: true } },

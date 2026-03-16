@@ -35,6 +35,7 @@ export async function lockTransactionKeys(tx: Tx, keys: string[]): Promise<void>
 export async function runSerializableTransaction<T>(
   operation: (tx: Tx) => Promise<T>,
   maxRetries = 3,
+  transactionOptions?: { timeout?: number; maxWait?: number },
 ): Promise<T> {
   let attempt = 0;
 
@@ -42,7 +43,10 @@ export async function runSerializableTransaction<T>(
     try {
       return await prisma.$transaction(
         async (tx) => operation(tx),
-        { isolationLevel: 'Serializable' },
+        {
+          isolationLevel: 'Serializable',
+          ...(transactionOptions ?? {}),
+        },
       );
     } catch (error) {
       if (!isRetriableSerializationError(error) || attempt === maxRetries) {

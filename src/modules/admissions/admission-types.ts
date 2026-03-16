@@ -25,6 +25,7 @@ export type CampaignDetail = Prisma.TestCampaignGetPayload<{
     createdBy: { select: { id: true; firstName: true; lastName: true } };
     campaignQuestions: {
       include: {
+        _count: { select: { applicantAnswers: true } };
         question: {
           include: {
             subject: { select: { name: true; code: true } };

@@ -104,31 +104,49 @@ export function safeFetchAction<TArgs extends unknown[], TResult>(
   action: (...args: TArgs) => Promise<TResult>,
 ): (...args: TArgs) => Promise<TResult> {
   return async (...args: TArgs): Promise<TResult> => {
-    try {
-      return await action(...args);
-    } catch (error: unknown) {
-      if (isNextRedirect(error)) throw error;
+    const maxRetries = 2;
 
-      // P1001 = Neon serverless cold-start — retry once after 600ms
-      if (isPrismaError(error) && error.code === 'P1001') {
-        logger.warn({ prismaCode: 'P1001' }, 'DB unreachable (cold start) — retrying in 600ms');
-        await new Promise((res) => setTimeout(res, 600));
-        try {
-          return await action(...args);
-        } catch (retryError: unknown) {
-          if (isNextRedirect(retryError)) throw retryError;
-          logger.error({ err: retryError }, 'Retry failed after P1001');
-          throw new Error('Database is waking up. Please try again in a moment.');
+    for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+      try {
+        return await action(...args);
+      } catch (error: unknown) {
+        if (isNextRedirect(error)) throw error;
+
+        const shouldRetry =
+          (isPrismaError(error) && (error.code === 'P1001' || error.code === 'P2028')) ||
+          isTransientNetworkError(error);
+
+        if (shouldRetry && attempt < maxRetries) {
+          const delayMs = 400 * (attempt + 1);
+          logger.warn({ attempt: attempt + 1, delayMs }, 'Transient fetch failure — retrying');
+          await new Promise((res) => setTimeout(res, delayMs));
+          continue;
         }
-      }
 
-      if (isPrismaError(error)) {
-        logger.error({ prismaCode: error.code, meta: error.meta }, 'Prisma error in fetch action');
+        if (isPrismaError(error)) {
+          logger.error({ prismaCode: error.code, meta: error.meta }, 'Prisma error in fetch action');
+          if (error.code === 'P1001' || error.code === 'P2028') {
+            throw new Error('Database is waking up. Please try again in a moment.');
+          }
+          throw new Error('Failed to load data. Please try again.');
+        }
+
+        logger.error({ err: error }, 'Unhandled error in fetch action');
         throw new Error('Failed to load data. Please try again.');
       }
-
-      logger.error({ err: error }, 'Unhandled error in fetch action');
-      throw new Error('Failed to load data. Please try again.');
     }
+
+    throw new Error('Failed to load data. Please try again.');
   };
+}
+
+function isTransientNetworkError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const message =
+    ('message' in error && typeof (error as { message?: unknown }).message === 'string'
+      ? ((error as { message: string }).message)
+      : '');
+
+  return /(network error|non-101|connection terminated unexpectedly|fetch failed|socket|econnreset)/i.test(message);
 }

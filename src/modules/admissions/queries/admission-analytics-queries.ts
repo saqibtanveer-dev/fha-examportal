@@ -103,7 +103,15 @@ export async function getCampaignAnalytics(campaignId: string) {
   const campaignQuestions = await prisma.campaignQuestion.findMany({
     where: { campaignId },
     include: {
-      question: { select: { id: true, title: true, type: true, marks: true } },
+      question: {
+        select: {
+          id: true,
+          title: true,
+          type: true,
+          marks: true,
+          subject: { select: { name: true, code: true } },
+        },
+      },
     },
   });
 
@@ -127,6 +135,10 @@ export async function getCampaignAnalytics(campaignId: string) {
         questionId: cq.questionId,
         title: cq.question.title.substring(0, 80),
         type: cq.question.type,
+        subjectName: cq.question.subject.name,
+        subjectCode: cq.question.subject.code,
+        paperVersion: cq.paperVersion,
+        sectionLabel: cq.sectionLabel,
         totalAttempts,
         correctCount,
         accuracy:
@@ -137,6 +149,68 @@ export async function getCampaignAnalytics(campaignId: string) {
       };
     }),
   );
+
+  const subjectCoverageMap = new Map<string, {
+    subjectName: string;
+    subjectCode: string;
+    questionCount: number;
+    totalAttempts: number;
+    accuracySum: number;
+    totalMarks: number;
+  }>();
+
+  const versionCoverageMap = new Map<string, {
+    paperVersion: string;
+    questionCount: number;
+    totalAttempts: number;
+    accuracySum: number;
+    totalMarks: number;
+  }>();
+
+  for (const qa of questionAnalytics) {
+    const subjectKey = `${qa.subjectCode}:${qa.subjectName}`;
+    const subjectRow = subjectCoverageMap.get(subjectKey) ?? {
+      subjectName: qa.subjectName,
+      subjectCode: qa.subjectCode,
+      questionCount: 0,
+      totalAttempts: 0,
+      accuracySum: 0,
+      totalMarks: 0,
+    };
+    subjectRow.questionCount += 1;
+    subjectRow.totalAttempts += qa.totalAttempts;
+    subjectRow.accuracySum += qa.accuracy;
+    subjectRow.totalMarks += qa.maxMarks;
+    subjectCoverageMap.set(subjectKey, subjectRow);
+
+    const versionKey = qa.paperVersion ?? 'A';
+    const versionRow = versionCoverageMap.get(versionKey) ?? {
+      paperVersion: versionKey,
+      questionCount: 0,
+      totalAttempts: 0,
+      accuracySum: 0,
+      totalMarks: 0,
+    };
+    versionRow.questionCount += 1;
+    versionRow.totalAttempts += qa.totalAttempts;
+    versionRow.accuracySum += qa.accuracy;
+    versionRow.totalMarks += qa.maxMarks;
+    versionCoverageMap.set(versionKey, versionRow);
+  }
+
+  const subjectCoverage = [...subjectCoverageMap.values()]
+    .map((row) => ({
+      ...row,
+      avgAccuracy: row.questionCount > 0 ? Math.round(row.accuracySum / row.questionCount) : 0,
+    }))
+    .sort((a, b) => b.questionCount - a.questionCount);
+
+  const versionCoverage = [...versionCoverageMap.values()]
+    .map((row) => ({
+      ...row,
+      avgAccuracy: row.questionCount > 0 ? Math.round(row.accuracySum / row.questionCount) : 0,
+    }))
+    .sort((a, b) => a.paperVersion.localeCompare(b.paperVersion));
 
   // Summary
   const percentages = results.map((r) => Number(r.percentage));
@@ -149,6 +223,8 @@ export async function getCampaignAnalytics(campaignId: string) {
     funnel: stats,
     scoreDistribution,
     questionAnalytics,
+    subjectCoverage,
+    versionCoverage,
     summary: {
       totalGraded: results.length,
       avgPercentage: Number(avg.toFixed(1)),

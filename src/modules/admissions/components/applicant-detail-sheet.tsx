@@ -20,6 +20,7 @@ import { updateCandidateAction, regenerateTestPinAction } from '../admission-act
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Copy, Check, RefreshCw, Pencil, KeyRound } from 'lucide-react';
 import type { UpdateCandidateInput } from '../admission-schemas';
+import { ApplicantQuestionAttempts } from './applicant-question-attempts';
 
 type ApplicantDetail = {
   id: string;
@@ -38,6 +39,7 @@ type ApplicantDetail = {
   accessToken?: string;
   status: string;
   createdAt?: string;
+  campaign?: { id: string };
   result?: {
     obtainedMarks: number;
     totalMarks: number;
@@ -53,16 +55,43 @@ type ApplicantDetail = {
     startedAt: string | null;
     submittedAt: string | null;
     timeSpent: number | null;
+    applicantAnswers?: Array<{
+      id: string;
+      selectedOptionId?: string | null;
+      answerText?: string | null;
+      isMarkedForReview: boolean;
+      answeredAt?: string | null;
+      timeSpent?: number | null;
+      campaignQuestion: {
+        sectionLabel?: string | null;
+        marks: number;
+        question: {
+          title: string;
+          mcqOptions: Array<{
+            id: string;
+            label: string;
+            text: string;
+            isCorrect: boolean;
+          }>;
+        };
+      };
+      grade?: {
+        marksAwarded: number;
+        maxMarks: number;
+        negativeMarks?: number;
+      } | null;
+    }>;
   } | null;
 };
 
 type Props = {
   applicant: ApplicantDetail | null;
+  isLoading?: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
+export function ApplicantDetailSheet({ applicant, isLoading = false, open, onOpenChange }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [pin, setPin] = useState(applicant?.accessToken ?? '');
@@ -73,7 +102,7 @@ export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
     if (applicant) { setPin(applicant.accessToken ?? ''); setIsEditing(false); }
   }, [applicant]);
 
-  if (!applicant) return null;
+  if (!applicant && !isLoading) return null;
 
   function handleCopyPin() {
     navigator.clipboard.writeText(pin);
@@ -89,7 +118,11 @@ export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
         const d = result.data as { testPin: string };
         setPin(d.testPin);
         toast.success('New PIN generated');
-        invalidate.afterDecision(applicant!.id);
+        if (applicant?.campaign?.id) {
+          invalidate.afterDecision(applicant.campaign.id);
+        } else {
+          invalidate.applicants();
+        }
       } else {
         toast.error(result.error ?? 'Failed to regenerate PIN');
       }
@@ -99,6 +132,10 @@ export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="overflow-y-auto sm:max-w-lg">
+        {isLoading || !applicant ? (
+          <div className="py-8 text-center text-sm text-muted-foreground">Loading applicant details...</div>
+        ) : (
+          <>
         <SheetHeader>
           <SheetTitle>{applicant.firstName} {applicant.lastName}</SheetTitle>
           <SheetDescription>Application #{applicant.applicationNumber}</SheetDescription>
@@ -133,6 +170,13 @@ export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
             </>
           )}
 
+          {applicant.testSession?.applicantAnswers && applicant.testSession.applicantAnswers.length > 0 && (
+            <>
+              <ApplicantQuestionAttempts attempts={applicant.testSession.applicantAnswers} />
+              <Separator />
+            </>
+          )}
+
           {/* Editable info */}
           {isEditing ? (
             <EditForm applicant={applicant} onDone={() => { setIsEditing(false); invalidate.afterDecision(applicant.id); }} />
@@ -140,6 +184,8 @@ export function ApplicantDetailSheet({ applicant, open, onOpenChange }: Props) {
             <InfoDisplay applicant={applicant} onEdit={() => setIsEditing(true)} />
           )}
         </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );

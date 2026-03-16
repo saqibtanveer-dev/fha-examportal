@@ -22,6 +22,7 @@ export {
 
 export {
   createCampaignQuestionAction,
+  updateCampaignQuestionAction,
   importCsvQuestionsAction,
   removeQuestionsFromCampaignAction,
   configureScholarshipTiersAction,

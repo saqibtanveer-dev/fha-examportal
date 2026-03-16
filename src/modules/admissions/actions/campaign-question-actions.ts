@@ -14,17 +14,22 @@ import type { ActionResult } from '@/types/action-result';
 import { actionError, actionSuccess } from '@/types/action-result';
 import { ADMISSION_ERRORS } from '../admission-types';
 import { sanitizeString } from '@/lib/admission-utils';
+import { runSerializableTransaction } from '@/lib/transaction-locks';
 import {
   removeQuestionsFromCampaignSchema,
   createCampaignQuestionSchema,
+  updateCampaignQuestionSchema,
   csvImportQuestionsSchema,
   campaignScholarshipTiersSchema,
   type CreateCampaignQuestionInput,
+  type UpdateCampaignQuestionInput,
   type CsvImportQuestionsInput,
 } from '../admission-schemas';
 
 import { logger } from '@/lib/logger';
 const OPTION_LABELS = ['A', 'B', 'C', 'D'] as const;
+
+const CSV_IMPORT_BATCH_SIZE = 50;
 
 /** Find or create a "General" subject for admission-specific questions. */
 async function getOrCreateGeneralSubject(): Promise<string> {
@@ -86,7 +91,7 @@ export const createCampaignQuestionAction = safeAction(async function createCamp
   const nextSort = await getNextSortOrder(parsed.data.campaignId, parsed.data.paperVersion);
   const correctIdx = OPTION_LABELS.indexOf(parsed.data.correctOption);
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await runSerializableTransaction(async (tx) => {
     // 1. Create Question record
     const question = await tx.question.create({
       data: {
@@ -126,7 +131,7 @@ export const createCampaignQuestionAction = safeAction(async function createCamp
     });
 
     return question;
-  });
+  }, 4, { timeout: 20_000, maxWait: 10_000 });
 
   await syncCampaignTotalMarks(parsed.data.campaignId);
 
@@ -155,66 +160,106 @@ export const importCsvQuestionsAction = safeAction(async function importCsvQuest
 
   const subjectId = await getOrCreateGeneralSubject();
   const defaultVersion = parsed.data.defaultPaperVersion;
-  const targetCampaignId = parsed.data.campaignId;
+  const rows = parsed.data.questions.map((row) => ({
+    ...row,
+    paperVersion: row.paperVersion ?? defaultVersion,
+  }));
+  const versions = [...new Set(rows.map((r) => r.paperVersion))];
 
-  // Track next sortOrder per paper version
-  const sortOrders = new Map<string, number>();
-
-  async function getSortForVersion(version: string): Promise<number> {
-    if (!sortOrders.has(version)) {
-      const max = await prisma.campaignQuestion.aggregate({
-        where: { campaignId: targetCampaignId, paperVersion: version },
-        _max: { sortOrder: true },
-      });
-      sortOrders.set(version, (max._max.sortOrder ?? 0) + 1);
-    }
-    const current = sortOrders.get(version)!;
-    sortOrders.set(version, current + 1);
-    return current;
-  }
-
-  await prisma.$transaction(async (tx) => {
-    for (const row of parsed.data.questions) {
-      const correctIdx = OPTION_LABELS.indexOf(row.correctOption);
-      const options = [row.optionA, row.optionB, row.optionC, row.optionD];
-      const version = row.paperVersion ?? defaultVersion;
-      const sortOrder = await getSortForVersion(version);
-
-      const question = await tx.question.create({
-        data: {
-          subjectId,
-          createdById: session.user.id,
-          type: 'MCQ',
-          title: sanitizeString(row.title),
-          difficulty: 'MEDIUM',
-          marks: row.marks,
-          isActive: true,
-        },
-      });
-
-      await tx.mcqOption.createMany({
-        data: options.map((text, i) => ({
-          questionId: question.id,
-          label: OPTION_LABELS[i]!,
-          text: sanitizeString(text),
-          isCorrect: i === correctIdx,
-          sortOrder: i + 1,
-        })),
-      });
-
-      await tx.campaignQuestion.create({
-        data: {
-          campaignId: parsed.data.campaignId,
-          questionId: question.id,
-          sortOrder,
-          marks: row.marks,
-          isRequired: true,
-          sectionLabel: row.sectionLabel?.trim() || null,
-          paperVersion: version,
-        },
-      });
-    }
+  const versionMaxRows = await prisma.campaignQuestion.groupBy({
+    by: ['paperVersion'],
+    where: {
+      campaignId: parsed.data.campaignId,
+      paperVersion: { in: versions },
+    },
+    _max: { sortOrder: true },
   });
+
+  const sortCursor = new Map<string, number>(
+    versions.map((version) => {
+      const matched = versionMaxRows.find((r) => r.paperVersion === version);
+      return [version, (matched?._max.sortOrder ?? 0) + 1];
+    }),
+  );
+
+  for (let i = 0; i < rows.length; i += CSV_IMPORT_BATCH_SIZE) {
+    const chunk = rows.slice(i, i + CSV_IMPORT_BATCH_SIZE);
+
+    const questionsData: Array<{
+      id: string;
+      subjectId: string;
+      createdById: string;
+      type: 'MCQ';
+      title: string;
+      difficulty: 'MEDIUM';
+      marks: number;
+      isActive: true;
+    }> = [];
+
+    const optionsData: Array<{
+      questionId: string;
+      label: 'A' | 'B' | 'C' | 'D';
+      text: string;
+      isCorrect: boolean;
+      sortOrder: number;
+    }> = [];
+
+    const campaignQuestionsData: Array<{
+      campaignId: string;
+      questionId: string;
+      sortOrder: number;
+      marks: number;
+      isRequired: true;
+      sectionLabel: string | null;
+      paperVersion: string;
+    }> = [];
+
+    for (const row of chunk) {
+      const questionId = crypto.randomUUID();
+      const correctIdx = OPTION_LABELS.indexOf(row.correctOption);
+      const version = row.paperVersion;
+      const sortOrder = sortCursor.get(version) ?? 1;
+      sortCursor.set(version, sortOrder + 1);
+
+      questionsData.push({
+        id: questionId,
+        subjectId,
+        createdById: session.user.id,
+        type: 'MCQ',
+        title: sanitizeString(row.title),
+        difficulty: 'MEDIUM',
+        marks: row.marks,
+        isActive: true,
+      });
+
+      const options = [row.optionA, row.optionB, row.optionC, row.optionD];
+      options.forEach((text, idx) => {
+        optionsData.push({
+          questionId,
+          label: OPTION_LABELS[idx]!,
+          text: sanitizeString(text),
+          isCorrect: idx === correctIdx,
+          sortOrder: idx + 1,
+        });
+      });
+
+      campaignQuestionsData.push({
+        campaignId: parsed.data.campaignId,
+        questionId,
+        sortOrder,
+        marks: row.marks,
+        isRequired: true,
+        sectionLabel: row.sectionLabel?.trim() || null,
+        paperVersion: version,
+      });
+    }
+
+    await runSerializableTransaction(async (tx) => {
+      await tx.question.createMany({ data: questionsData });
+      await tx.mcqOption.createMany({ data: optionsData });
+      await tx.campaignQuestion.createMany({ data: campaignQuestionsData });
+    }, 4, { timeout: 20_000, maxWait: 10_000 });
+  }
 
   await syncCampaignTotalMarks(parsed.data.campaignId);
 
@@ -224,6 +269,75 @@ export const importCsvQuestionsAction = safeAction(async function importCsvQuest
 
   revalidatePath('/admin/admissions');
   return actionSuccess({ imported: parsed.data.questions.length });
+});
+
+export const updateCampaignQuestionAction = safeAction(async function updateCampaignQuestionAction(
+  input: UpdateCampaignQuestionInput,
+): Promise<ActionResult> {
+  const session = await requireRole('ADMIN');
+  const parsed = updateCampaignQuestionSchema.safeParse(input);
+  if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
+
+  const campaignQuestion = await prisma.campaignQuestion.findUnique({
+    where: { id: parsed.data.campaignQuestionId },
+    include: {
+      campaign: { select: { id: true, status: true, name: true } },
+      question: { select: { id: true } },
+      _count: { select: { applicantAnswers: true } },
+    },
+  });
+
+  if (!campaignQuestion) return actionError('Campaign question not found');
+
+  const hasAttempts = campaignQuestion._count.applicantAnswers > 0;
+  if (hasAttempts) {
+    return actionError('Cannot edit question after candidate attempts have started');
+  }
+
+  const correctIdx = OPTION_LABELS.indexOf(parsed.data.correctOption);
+
+  await runSerializableTransaction(async (tx) => {
+    await tx.question.update({
+      where: { id: campaignQuestion.question.id },
+      data: {
+        title: sanitizeString(parsed.data.title),
+        description: parsed.data.description ? sanitizeString(parsed.data.description) : null,
+        marks: parsed.data.marks,
+      },
+    });
+
+    await tx.mcqOption.deleteMany({ where: { questionId: campaignQuestion.question.id } });
+    await tx.mcqOption.createMany({
+      data: parsed.data.options.map((opt, idx) => ({
+        questionId: campaignQuestion.question.id,
+        label: OPTION_LABELS[idx]!,
+        text: sanitizeString(opt.text),
+        isCorrect: idx === correctIdx,
+        sortOrder: idx + 1,
+      })),
+    });
+
+    await tx.campaignQuestion.update({
+      where: { id: campaignQuestion.id },
+      data: {
+        marks: parsed.data.marks,
+        sectionLabel: parsed.data.sectionLabel?.trim() || null,
+      },
+    });
+  }, 4, { timeout: 20_000, maxWait: 10_000 });
+
+  await syncCampaignTotalMarks(campaignQuestion.campaign.id);
+
+  createAuditLog(
+    session.user.id,
+    'UPDATE_CAMPAIGN_QUESTION',
+    'TEST_CAMPAIGN',
+    campaignQuestion.campaign.id,
+    { campaignQuestionId: campaignQuestion.id, questionId: campaignQuestion.question.id },
+  ).catch((err) => logger.error({ err }, 'Audit log failed'));
+
+  revalidatePath('/admin/admissions');
+  return actionSuccess();
 });
 
 export const removeQuestionsFromCampaignAction = safeAction(async function removeQuestionsFromCampaignAction(
