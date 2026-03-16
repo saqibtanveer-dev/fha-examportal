@@ -52,6 +52,41 @@ export const closeRegistrationAction = safeAction(async function closeRegistrati
   return actionSuccess();
 });
 
+export const revertCampaignToDraftAction = safeAction(async function revertCampaignToDraftAction(
+  campaignId: string,
+): Promise<ActionResult> {
+  const session = await requireRole('ADMIN');
+  const campaign = await prisma.testCampaign.findUnique({ where: { id: campaignId } });
+  if (!campaign) return actionError(ADMISSION_ERRORS.CAMPAIGN_NOT_FOUND);
+
+  const allowed = ['REGISTRATION_OPEN', 'REGISTRATION_CLOSED', 'TEST_ACTIVE'];
+  if (!allowed.includes(campaign.status)) {
+    return actionError('Campaign can be moved back to DRAFT only from REGISTRATION_OPEN, REGISTRATION_CLOSED, or TEST_ACTIVE');
+  }
+
+  if (campaign.status === 'TEST_ACTIVE') {
+    const startedSessionsCount = await prisma.applicantTestSession.count({
+      where: {
+        campaignId,
+        status: { in: ['IN_PROGRESS', 'SUBMITTED', 'TIMED_OUT'] },
+      },
+    });
+
+    if (startedSessionsCount > 0) {
+      return actionError('Cannot move to DRAFT because some candidates have already started or submitted the test');
+    }
+  }
+
+  await prisma.testCampaign.update({
+    where: { id: campaignId },
+    data: { status: 'DRAFT' },
+  });
+
+  createAuditLog(session.user.id, 'REVERT_CAMPAIGN_TO_DRAFT', 'TEST_CAMPAIGN', campaignId).catch((err) => logger.error({ err }, 'Audit log failed'));
+  revalidatePath('/admin/admissions');
+  return actionSuccess();
+});
+
 export const activateTestAction = safeAction(async function activateTestAction(
   campaignId: string,
 ): Promise<ActionResult> {

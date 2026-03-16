@@ -97,6 +97,7 @@ export function ApplicantDetailSheet({ applicant, isLoading = false, open, onOpe
   const [pin, setPin] = useState(applicant?.accessToken ?? '');
   const [copied, setCopied] = useState(false);
   const invalidate = useInvalidateCache();
+  const campaignId = applicant?.campaign?.id;
 
   useEffect(() => {
     if (applicant) { setPin(applicant.accessToken ?? ''); setIsEditing(false); }
@@ -131,59 +132,68 @@ export function ApplicantDetailSheet({ applicant, isLoading = false, open, onOpe
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto sm:max-w-lg">
+      <SheetContent className="w-full overflow-y-auto p-0 sm:max-w-2xl">
         {isLoading || !applicant ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">Loading applicant details...</div>
+          <div className="flex min-h-55 items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Spinner size="sm" />
+            Loading applicant details...
+          </div>
         ) : (
           <>
-        <SheetHeader>
-          <SheetTitle>{applicant.firstName} {applicant.lastName}</SheetTitle>
-          <SheetDescription>Application #{applicant.applicationNumber}</SheetDescription>
-        </SheetHeader>
+            <SheetHeader className="border-b bg-muted/20 px-5 py-4 text-left">
+              <SheetTitle className="text-lg">{applicant.firstName} {applicant.lastName}</SheetTitle>
+              <SheetDescription>Application #{applicant.applicationNumber ?? '—'}</SheetDescription>
+            </SheetHeader>
 
-        <div className="mt-4 space-y-6">
-          {/* Status + PIN */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <ApplicantStatusBadge status={applicant.status} />
-              {applicant.testSession?.isFlagged && <Badge variant="destructive">Flagged</Badge>}
+            <div className="space-y-4 px-4 py-4 sm:px-5">
+              <section className="space-y-3 rounded-lg border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <ApplicantStatusBadge status={applicant.status} />
+                  {applicant.testSession?.isFlagged && <Badge variant="destructive">Flagged</Badge>}
+                </div>
+                <PinDisplay
+                  pin={pin}
+                  copied={copied}
+                  onCopy={handleCopyPin}
+                  onRegenerate={handleRegeneratePin}
+                  isPending={isPending}
+                  canRegenerate={['VERIFIED', 'TEST_IN_PROGRESS'].includes(applicant.status)}
+                />
+              </section>
+
+              {applicant.testSession && (
+                <section className="rounded-lg border bg-card p-4">
+                  <SessionInfo session={applicant.testSession} />
+                </section>
+              )}
+
+              {applicant.result && (
+                <section className="rounded-lg border bg-card p-4">
+                  <ResultInfo result={applicant.result} />
+                </section>
+              )}
+
+              {applicant.testSession?.applicantAnswers && applicant.testSession.applicantAnswers.length > 0 && (
+                <section className="rounded-lg border bg-card p-4">
+                  <ApplicantQuestionAttempts attempts={applicant.testSession.applicantAnswers} />
+                </section>
+              )}
+
+              <Separator />
+
+              {isEditing ? (
+                <EditForm
+                  applicant={applicant}
+                  onDone={() => {
+                    setIsEditing(false);
+                    if (campaignId) invalidate.afterDecision(campaignId);
+                    else invalidate.applicants();
+                  }}
+                />
+              ) : (
+                <InfoDisplay applicant={applicant} onEdit={() => setIsEditing(true)} />
+              )}
             </div>
-            <PinDisplay pin={pin} copied={copied} onCopy={handleCopyPin}
-              onRegenerate={handleRegeneratePin} isPending={isPending} canRegenerate={['VERIFIED', 'TEST_IN_PROGRESS'].includes(applicant.status)} />
-          </div>
-
-          <Separator />
-
-          {/* Test session info */}
-          {applicant.testSession && (
-            <>
-              <SessionInfo session={applicant.testSession} />
-              <Separator />
-            </>
-          )}
-
-          {/* Result */}
-          {applicant.result && (
-            <>
-              <ResultInfo result={applicant.result} />
-              <Separator />
-            </>
-          )}
-
-          {applicant.testSession?.applicantAnswers && applicant.testSession.applicantAnswers.length > 0 && (
-            <>
-              <ApplicantQuestionAttempts attempts={applicant.testSession.applicantAnswers} />
-              <Separator />
-            </>
-          )}
-
-          {/* Editable info */}
-          {isEditing ? (
-            <EditForm applicant={applicant} onDone={() => { setIsEditing(false); invalidate.afterDecision(applicant.id); }} />
-          ) : (
-            <InfoDisplay applicant={applicant} onEdit={() => setIsEditing(true)} />
-          )}
-        </div>
           </>
         )}
       </SheetContent>
@@ -195,26 +205,32 @@ function PinDisplay({ pin, copied, onCopy, onRegenerate, isPending, canRegenerat
   pin: string; copied: boolean; onCopy: () => void; onRegenerate: () => void; isPending: boolean; canRegenerate: boolean;
 }) {
   return (
-    <div className="flex items-center gap-2 rounded-md border bg-muted/50 p-3">
-      <KeyRound className="h-4 w-4 text-muted-foreground shrink-0" />
-      <span className="font-mono text-xl font-bold tracking-[0.2em]">{pin}</span>
-      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onCopy}>
-        {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-      </Button>
-      {canRegenerate && (
-        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={onRegenerate} disabled={isPending}>
-          {isPending ? <Spinner size="sm" /> : <RefreshCw className="h-3.5 w-3.5" />}
+    <div className="rounded-md border bg-muted/40 p-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="inline-flex items-center gap-2 rounded-md bg-background px-2.5 py-2">
+          <KeyRound className="h-4 w-4 text-muted-foreground" />
+          <span className="font-mono text-lg font-bold tracking-[0.2em]">{pin || '—'}</span>
+        </span>
+        <Button size="sm" variant="outline" onClick={onCopy}>
+          {copied ? <Check className="mr-1 h-3.5 w-3.5" /> : <Copy className="mr-1 h-3.5 w-3.5" />}
+          {copied ? 'Copied' : 'Copy PIN'}
         </Button>
-      )}
+        {canRegenerate && (
+          <Button size="sm" variant="ghost" onClick={onRegenerate} disabled={isPending}>
+            {isPending ? <Spinner size="sm" className="mr-1" /> : <RefreshCw className="mr-1 h-3.5 w-3.5" />}
+            Regenerate
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
 
 function SessionInfo({ session }: { session: NonNullable<ApplicantDetail['testSession']> }) {
   return (
-    <div className="space-y-2">
-      <h4 className="text-sm font-medium">Test Session</h4>
-      <div className="grid grid-cols-2 gap-2 text-sm">
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold">Test Session</h4>
+      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
         <InfoItem label="Status" value={session.status} />
         <InfoItem label="Tab Switches" value={String(session.tabSwitchCount)} />
         <InfoItem label="Fullscreen Exits" value={String(session.fullscreenExits)} />
@@ -228,9 +244,9 @@ function SessionInfo({ session }: { session: NonNullable<ApplicantDetail['testSe
 
 function ResultInfo({ result }: { result: NonNullable<ApplicantDetail['result']> }) {
   return (
-    <div className="space-y-2">
-      <h4 className="text-sm font-medium">Result</h4>
-      <div className="grid grid-cols-2 gap-2 text-sm">
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold">Result</h4>
+      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
         <InfoItem label="Score" value={`${result.obtainedMarks}/${result.totalMarks}`} />
         <InfoItem label="Percentage" value={`${Number(result.percentage).toFixed(1)}%`} />
         <InfoItem label="Rank" value={result.rank ? `#${result.rank}` : '—'} />
@@ -242,21 +258,21 @@ function ResultInfo({ result }: { result: NonNullable<ApplicantDetail['result']>
 
 function InfoItem({ label, value }: { label: string; value: string }) {
   return (
-    <div>
+    <div className="rounded-md border bg-background p-3">
       <span className="text-xs text-muted-foreground">{label}</span>
-      <p className="font-medium">{value}</p>
+      <p className="mt-1 font-medium leading-snug">{value}</p>
     </div>
   );
 }
 
 function InfoDisplay({ applicant, onEdit }: { applicant: ApplicantDetail; onEdit: () => void }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-3 rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-medium">Personal Info</h4>
-        <Button size="sm" variant="ghost" onClick={onEdit}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button>
+        <h4 className="text-sm font-semibold">Personal Info</h4>
+        <Button size="sm" variant="outline" onClick={onEdit}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button>
       </div>
-      <div className="grid grid-cols-2 gap-2 text-sm">
+      <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
         <InfoItem label="Email" value={applicant.email} />
         <InfoItem label="Phone" value={applicant.phone ?? '—'} />
         <InfoItem label="Gender" value={applicant.gender ?? '—'} />
@@ -296,13 +312,18 @@ function EditForm({ applicant, onDone }: { applicant: ApplicantDetail; onDone: (
   }
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-3">
-      <div className="grid grid-cols-2 gap-3">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 rounded-lg border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-semibold">Edit Candidate</h4>
+        <Button type="button" variant="ghost" size="sm" onClick={onDone}>Cancel</Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="First Name"><Input {...form.register('firstName')} /></Field>
         <Field label="Last Name"><Input {...form.register('lastName')} /></Field>
       </div>
       <Field label="Email"><Input {...form.register('email')} type="email" /></Field>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Phone"><Input {...form.register('phone')} /></Field>
         <Field label="Gender">
           <Select defaultValue={applicant.gender ?? undefined} onValueChange={(v) => form.setValue('gender', v as 'MALE' | 'FEMALE' | 'OTHER')}>
@@ -315,16 +336,16 @@ function EditForm({ applicant, onDone }: { applicant: ApplicantDetail; onDone: (
           </Select>
         </Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Guardian"><Input {...form.register('guardianName')} /></Field>
         <Field label="Guardian Phone"><Input {...form.register('guardianPhone')} /></Field>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Prev School"><Input {...form.register('previousSchool')} /></Field>
         <Field label="Prev Class"><Input {...form.register('previousClass')} /></Field>
       </div>
-      <div className="flex gap-2 justify-end pt-2">
-        <Button type="button" variant="outline" size="sm" onClick={onDone}>Cancel</Button>
+
+      <div className="flex justify-end pt-2">
         <Button type="submit" size="sm" disabled={isPending}>
           {isPending && <Spinner size="sm" className="mr-1" />}Save
         </Button>
@@ -334,5 +355,5 @@ function EditForm({ applicant, onDone }: { applicant: ApplicantDetail; onDone: (
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="space-y-1"><Label className="text-xs">{label}</Label>{children}</div>;
+  return <div className="space-y-1.5"><Label className="text-xs text-muted-foreground">{label}</Label>{children}</div>;
 }

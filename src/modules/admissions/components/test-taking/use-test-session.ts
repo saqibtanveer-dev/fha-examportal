@@ -7,9 +7,9 @@ import {
   submitTestAction,
   heartbeatAction,
 } from '@/modules/admissions/portal/portal-test-actions';
-import { startTestSessionAction } from '@/modules/admissions/portal/portal-test-start-actions';
 import { useAntiCheat } from './use-anti-cheat';
 import type { Question, AnswerState } from './test-taking-types';
+import { bootstrapTestSession } from './start-test-bootstrap';
 
 const HEARTBEAT_INTERVAL = 30_000;
 const AUTO_SAVE_DEBOUNCE = 2_000;
@@ -28,6 +28,7 @@ export function useTestSession(accessToken: string) {
   const [applicationNumber, setApplicationNumber] = useState('');
   const [markedForReview, setMarkedForReview] = useState<Set<string>>(new Set());
   const [violationWarning, setViolationWarning] = useState('');
+  const [startNonce, setStartNonce] = useState(0);
 
   const sessionIdRef = useRef<string | null>(null);
   const startRequestedTokenRef = useRef<string | null>(null);
@@ -58,15 +59,19 @@ export function useTestSession(accessToken: string) {
 
   // ── Start session ──
   useEffect(() => {
-    if (startRequestedTokenRef.current === accessToken) return;
-    startRequestedTokenRef.current = accessToken;
+    const startKey = `${accessToken}:${startNonce}`;
+    if (startRequestedTokenRef.current === startKey) return;
+    startRequestedTokenRef.current = startKey;
+
+    setIsStarting(true);
+    setStartError(null);
 
     let cancelled = false;
     (async () => {
-      const result = await startTestSessionAction({ token: accessToken });
+      const result = await bootstrapTestSession(accessToken);
       if (cancelled) return;
-      if (!result.success || !result.data) {
-        setStartError(result.error ?? 'Failed to start test');
+      if (!result.ok) {
+        setStartError(result.error);
         setIsStarting(false);
         return;
       }
@@ -94,7 +99,11 @@ export function useTestSession(accessToken: string) {
       setIsStarting(false);
     })();
     return () => { cancelled = true; };
-  }, [accessToken]);
+  }, [accessToken, startNonce]);
+
+  function retryStart() {
+    setStartNonce((prev) => prev + 1);
+  }
 
   // Ref for submit handler — avoids stale closure in timer
   const handleSubmitRef = useRef<() => void>(() => {});
@@ -283,6 +292,7 @@ export function useTestSession(accessToken: string) {
     updateAnswer,
     toggleReview,
     handleSubmitTest,
+    retryStart,
     formatTime,
   };
 }

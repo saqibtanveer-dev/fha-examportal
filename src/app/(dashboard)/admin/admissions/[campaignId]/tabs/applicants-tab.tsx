@@ -47,8 +47,6 @@ export function ApplicantsTabContent({ campaignId }: Props) {
   const invalidate = useInvalidateCache();
   const [isPending, startTransition] = useTransition();
 
-  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
-
   const result = data;
   const applicants = result?.success ? (result.data?.data ?? []) : [];
 
@@ -86,6 +84,8 @@ export function ApplicantsTabContent({ campaignId }: Props) {
     applicantDetailResult?.success && applicantDetailResult.data
       ? applicantDetailResult.data
       : null;
+
+  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
 
   function handleBulkAction(ids: string[], decision: string) {
     startTransition(async () => {

@@ -82,29 +82,30 @@ export function AnalyticsTab({ campaignId }: Props) {
   const [subjectFilter, setSubjectFilter] = useState<'ALL' | string>('ALL');
   const [versionFilter, setVersionFilter] = useState<'ALL' | string>('ALL');
 
-  if (isLoading) return <AnalyticsSkeleton />;
-
   const analytics = res?.success ? (res.data as AnalyticsData) : null;
-  if (!analytics) return <p className="text-sm text-muted-foreground">No analytics available yet.</p>;
 
-  const funnelData = FUNNEL_STEPS.map((step) => ({
-    label: step.label,
-    value: analytics.funnel[step.key] ?? 0,
-    color: step.color,
-  }));
+  const funnelData = useMemo(
+    () => FUNNEL_STEPS.map((step) => ({
+      label: step.label,
+      value: analytics?.funnel?.[step.key] ?? 0,
+      color: step.color,
+    })),
+    [analytics],
+  );
 
   const subjectOptions = useMemo(
-    () => analytics.subjectCoverage.map((s) => s.subjectName),
-    [analytics.subjectCoverage],
+    () => analytics?.subjectCoverage.map((s) => s.subjectName) ?? [],
+    [analytics],
   );
   const versionOptions = useMemo(
-    () => analytics.versionCoverage.map((v) => v.paperVersion),
-    [analytics.versionCoverage],
+    () => analytics?.versionCoverage.map((v) => v.paperVersion) ?? [],
+    [analytics],
   );
 
   const filteredQuestionAnalytics = useMemo(() => {
+    const source = analytics?.questionAnalytics ?? [];
     const needle = search.trim().toLowerCase();
-    return analytics.questionAnalytics.filter((q) => {
+    return source.filter((q) => {
       if (subjectFilter !== 'ALL' && q.subjectName !== subjectFilter) return false;
       if (versionFilter !== 'ALL' && q.paperVersion !== versionFilter) return false;
       if (!needle) return true;
@@ -115,9 +116,12 @@ export function AnalyticsTab({ campaignId }: Props) {
         || String(q.sectionLabel ?? '').toLowerCase().includes(needle)
       );
     });
-  }, [analytics.questionAnalytics, search, subjectFilter, versionFilter]);
+  }, [analytics, search, subjectFilter, versionFilter]);
 
-  const actionItems = buildActionItems(analytics.funnel);
+  const actionItems = useMemo(() => buildActionItems(analytics?.funnel ?? {}), [analytics]);
+
+  if (isLoading) return <AnalyticsSkeleton />;
+  if (!analytics) return <p className="text-sm text-muted-foreground">No analytics available yet.</p>;
 
   return (
     <div className="space-y-6">

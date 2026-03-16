@@ -12,6 +12,7 @@ export {
 export {
   openRegistrationAction,
   closeRegistrationAction,
+  revertCampaignToDraftAction,
   activateTestAction,
   closeTestAction,
   triggerGradingAction,

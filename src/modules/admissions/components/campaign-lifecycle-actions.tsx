@@ -21,11 +21,13 @@ import {
   CheckCircle,
   Archive,
   Send,
+  RotateCcw,
 } from 'lucide-react';
 import { CampaignStatusBadge } from './campaign-status-badge';
 import {
   openRegistrationAction,
   closeRegistrationAction,
+  revertCampaignToDraftAction,
   activateTestAction,
   closeTestAction,
   triggerGradingAction,
@@ -51,13 +53,16 @@ const transitions: Record<string, Array<{
     { label: 'Open Registration', action: 'OPEN_REGISTRATION', icon: UserPlus },
   ],
   REGISTRATION_OPEN: [
+    { label: 'Reopen for Editing', action: 'REVERT_TO_DRAFT', icon: RotateCcw },
     { label: 'Activate Test', action: 'ACTIVATE_TEST', icon: TestTube },
     { label: 'Close Registration', action: 'CLOSE_REGISTRATION', icon: UserX },
   ],
   REGISTRATION_CLOSED: [
+    { label: 'Reopen for Editing', action: 'REVERT_TO_DRAFT', icon: RotateCcw },
     { label: 'Activate Test', action: 'ACTIVATE_TEST', icon: TestTube },
   ],
   TEST_ACTIVE: [
+    { label: 'Reopen for Editing', action: 'REVERT_TO_DRAFT', icon: RotateCcw },
     { label: 'Close Test', action: 'CLOSE_TEST', icon: XCircle, variant: 'destructive' },
   ],
   TEST_CLOSED: [
@@ -80,6 +85,7 @@ const transitions: Record<string, Array<{
 const actionMap: Record<string, (id: string) => Promise<unknown>> = {
   OPEN_REGISTRATION: openRegistrationAction,
   CLOSE_REGISTRATION: closeRegistrationAction,
+  REVERT_TO_DRAFT: revertCampaignToDraftAction,
   ACTIVATE_TEST: activateTestAction,
   CLOSE_TEST: closeTestAction,
   TRIGGER_GRADING: triggerGradingAction,

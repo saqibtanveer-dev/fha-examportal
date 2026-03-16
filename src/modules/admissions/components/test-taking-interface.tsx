@@ -20,7 +20,7 @@ export function TestTakingInterface({ accessToken, campaignName, onAuthError }: 
     isPending, questions, answers, currentIndex, setCurrentIndex,
     remainingSeconds, isStarting, startError, isSubmitted,
     applicationNumber, markedForReview, violationWarning,
-    updateAnswer, toggleReview, handleSubmitTest, formatTime,
+    updateAnswer, toggleReview, handleSubmitTest, retryStart, formatTime,
   } = useTestSession(accessToken);
 
   if (isStarting) {
@@ -41,7 +41,10 @@ export function TestTakingInterface({ accessToken, campaignName, onAuthError }: 
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground">{startError}</p>
-            {onAuthError && <Button onClick={onAuthError} variant="outline">Try a different PIN</Button>}
+            <div className="flex items-center justify-center gap-2">
+              <Button onClick={retryStart}>Retry</Button>
+              {onAuthError && <Button onClick={onAuthError} variant="outline">Try a different PIN</Button>}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -51,7 +54,27 @@ export function TestTakingInterface({ accessToken, campaignName, onAuthError }: 
   if (isSubmitted) return <TestSubmittedView applicationNumber={applicationNumber} />;
 
   const current = questions[currentIndex];
-  if (!current) return null;
+  if (!current) {
+    return (
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="max-w-md text-center">
+          <CardHeader>
+            <AlertCircle className="mx-auto mb-2 h-12 w-12 text-destructive" />
+            <CardTitle>Test Could Not Load</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Questions are not available right now. Please retry in a moment.
+            </p>
+            <div className="flex items-center justify-center gap-2">
+              <Button onClick={retryStart}>Retry</Button>
+              {onAuthError && <Button onClick={onAuthError} variant="outline">Try a different PIN</Button>}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const answeredCount = Object.keys(answers).filter(
     (cqId) => answers[cqId]?.selectedOptionId || answers[cqId]?.answerText,

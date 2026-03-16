@@ -2,15 +2,23 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+import type { ComponentProps } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState, Spinner } from '@/components/shared';
-import { useMeritListQuery } from '@/modules/admissions/hooks/use-admissions-query';
+import { useApplicantDetailQuery, useMeritListQuery } from '@/modules/admissions/hooks/use-admissions-query';
 import { MeritListTable } from '@/modules/admissions/components/merit-list-table';
+import type { ApplicantDetailSheet as _ADS } from '@/modules/admissions/components/applicant-detail-sheet';
 import { generateMeritListAction, autoAssignScholarshipsAction } from '@/modules/admissions/admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Trophy, Award, RefreshCw } from 'lucide-react';
+
+const ApplicantDetailSheet = dynamic<ComponentProps<typeof _ADS>>(
+  () => import('@/modules/admissions/components/applicant-detail-sheet').then(m => ({ default: m.ApplicantDetailSheet })),
+  { ssr: false },
+);
 
 type Props = {
   campaignId: string;
@@ -22,6 +30,13 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
   const invalidate = useInvalidateCache();
   const [isPending, startTransition] = useTransition();
   const [search, setSearch] = useState('');
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string | null>(null);
+  const { data: applicantDetailResult, isLoading: isApplicantDetailLoading } = useApplicantDetailQuery(
+    selectedApplicantId ?? undefined,
+  );
+
+  const result = data;
+  const meritList = result?.success ? (result.data ?? []) : [];
 
   function handleGenerateMerit() {
     startTransition(async () => {
@@ -47,11 +62,6 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
     });
   }
 
-  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
-
-  const result = data;
-  const meritList = result?.success ? (result.data ?? []) : [];
-
   const filteredMeritList = useMemo(() => {
     const needle = search.trim().toLowerCase();
     if (!needle) return meritList;
@@ -70,6 +80,13 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
     const accepted = meritList.filter((entry: any) => entry.applicant?.status === 'ACCEPTED').length;
     return { ranked, passed, scholarships, accepted };
   }, [meritList]);
+
+  const selectedApplicant =
+    applicantDetailResult?.success && applicantDetailResult.data
+      ? applicantDetailResult.data
+      : null;
+
+  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
 
   const canGenerate = ['TEST_CLOSED', 'GRADING', 'RESULTS_READY', 'RESULTS_PUBLISHED'].includes(campaignStatus);
 
@@ -125,7 +142,14 @@ export function MeritTabContent({ campaignId, campaignStatus }: Props) {
         </div>
       </div>
 
-      <MeritListTable entries={filteredMeritList} />
+      <MeritListTable entries={filteredMeritList} onViewDetail={setSelectedApplicantId} />
+
+      <ApplicantDetailSheet
+        applicant={selectedApplicant}
+        open={!!selectedApplicantId}
+        isLoading={isApplicantDetailLoading}
+        onOpenChange={(open) => { if (!open) setSelectedApplicantId(null); }}
+      />
     </div>
   );
 }

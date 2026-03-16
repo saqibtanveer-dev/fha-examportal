@@ -39,6 +39,7 @@ type MeritEntry = {
 
 type Props = {
   entries: MeritEntry[];
+  onViewDetail?: (applicantId: string) => void;
 };
 
 const tierColors: Record<string, string> = {
@@ -57,13 +58,18 @@ const tierLabels: Record<string, string> = {
   NONE: 'None',
 };
 
-export function MeritListTable({ entries }: Props) {
+export function MeritListTable({ entries, onViewDetail }: Props) {
   return (
     <>
       {/* ── Mobile Card View ── */}
       <div className="space-y-2 md:hidden">
         {entries.map((e) => (
-          <div key={e.id} className={`rounded-lg border bg-card p-3 space-y-1.5 ${!e.isPassed ? 'opacity-60' : ''}`}>
+          <button
+            key={e.id}
+            type="button"
+            onClick={() => onViewDetail?.(e.applicant.id)}
+            className={`w-full rounded-lg border bg-card p-3 text-left space-y-1.5 transition-colors hover:bg-muted/40 ${!e.isPassed ? 'opacity-60' : ''}`}
+          >
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 {e.rank != null && e.rank <= 3 && (
@@ -85,7 +91,7 @@ export function MeritListTable({ entries }: Props) {
                 </span>
               )}
             </div>
-          </div>
+          </button>
         ))}
       </div>
 
@@ -106,7 +112,11 @@ export function MeritListTable({ entries }: Props) {
         </TableHeader>
         <TableBody>
           {entries.map((e) => (
-            <TableRow key={e.id} className={!e.isPassed ? 'opacity-60' : ''}>
+            <TableRow
+              key={e.id}
+              className={`cursor-pointer ${!e.isPassed ? 'opacity-60' : ''}`}
+              onClick={() => onViewDetail?.(e.applicant.id)}
+            >
               <TableCell>
                 <div className="flex items-center gap-1">
                   {e.rank != null && e.rank <= 3 ? (

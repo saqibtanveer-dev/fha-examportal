@@ -39,8 +39,6 @@ export function QuestionsTabContent({ campaignId, isDraft }: Props) {
   const [subjectFilter, setSubjectFilter] = useState<'ALL' | string>('ALL');
   const [sectionFilter, setSectionFilter] = useState<'ALL' | string>('ALL');
 
-  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
-
   const result = data;
   const campaign = result?.success ? result.data : null;
   const questions = campaign?.campaignQuestions ?? [];
@@ -89,6 +87,8 @@ export function QuestionsTabContent({ campaignId, isDraft }: Props) {
   const editQuestion = editQuestionId
     ? questions.find((cq: any) => cq.id === editQuestionId) ?? null
     : null;
+
+  if (isLoading) return <div className="flex justify-center py-8"><Spinner /></div>;
 
   function handleRemove(questionId: string) {
     startTransition(async () => {
