@@ -1,9 +1,17 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaNeon } from '@prisma/adapter-neon';
+import { neonConfig } from '@neondatabase/serverless';
+import ws from 'ws';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
+
+// Trigger.dev hosted Node runtimes may not expose a global WebSocket.
+// Neon Pool/Client transport needs an explicit constructor in that case.
+if (typeof WebSocket === 'undefined') {
+  neonConfig.webSocketConstructor = ws;
+}
 
 function createPrismaClient(): PrismaClient {
   const url = process.env.DATABASE_URL;
