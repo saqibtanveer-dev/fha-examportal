@@ -182,7 +182,7 @@ export async function findPaymentByReceiptNumber(receiptNumber: string) {
   });
 }
 
-export async function findFamilyPayments(familyProfileId: string, limit = 50) {
+export async function findFamilyPayments(familyProfileId: string, limit = 100) {
   return prisma.familyPayment.findMany({
     where: { familyProfileId },
     include: {

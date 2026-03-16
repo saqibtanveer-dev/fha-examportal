@@ -150,3 +150,86 @@ export const fetchFeeSettingsAction = safeFetchAction(async () => {
   return serialize(await findFeeSettings(sessionId));
 });
 
+// ── Family Full Ledger — FamilyPayments + direct student-wise FeePayments ──
+// Fixes the bug where student-wise fee collection is invisible in the family ledger.
+export const fetchFamilyFullLedgerAction = safeFetchAction(
+  async (familyProfileId: string) => {
+    const session = await requireRole('ADMIN', 'FAMILY');
+
+    if (session.user.role === 'FAMILY') {
+      const profile = await prisma.familyProfile.findFirst({
+        where: { userId: session.user.id },
+        select: { id: true },
+      });
+      if (!profile || profile.id !== familyProfileId) {
+        throw new Error('Access denied');
+      }
+    }
+
+    const links = await prisma.familyStudentLink.findMany({
+      where: { familyProfileId, isActive: true },
+      select: { studentProfileId: true },
+    });
+    const childIds = links.map((l) => l.studentProfileId);
+
+    const childPaymentSelect = {
+      id: true,
+      amount: true,
+      receiptNumber: true,
+      feeAssignment: {
+        select: {
+          generatedForMonth: true,
+          studentProfile: {
+            select: { rollNumber: true, user: { select: { firstName: true, lastName: true } } },
+          },
+        },
+      },
+    } as const;
+
+    const [familyPayments, directPayments] = await Promise.all([
+      prisma.familyPayment.findMany({
+        where: { familyProfileId },
+        include: {
+          recordedBy: { select: { firstName: true, lastName: true } },
+          childPayments: {
+            where: { status: 'COMPLETED' },
+            select: childPaymentSelect,
+          },
+        },
+        orderBy: { paidAt: 'desc' },
+        take: 100,
+      }),
+      childIds.length > 0
+        ? prisma.feePayment.findMany({
+            where: {
+              familyPaymentId: null,
+              status: 'COMPLETED',
+              feeAssignment: { studentProfileId: { in: childIds } },
+            },
+            select: {
+              id: true,
+              amount: true,
+              receiptNumber: true,
+              paymentMethod: true,
+              referenceNumber: true,
+              paidAt: true,
+              recordedBy: { select: { firstName: true, lastName: true } },
+              feeAssignment: {
+                select: {
+                  generatedForMonth: true,
+                  studentProfile: {
+                    select: { rollNumber: true, user: { select: { firstName: true, lastName: true } } },
+                  },
+                },
+              },
+            },
+            orderBy: { paidAt: 'desc' },
+            take: 100,
+          })
+        : Promise.resolve([]),
+    ]);
+
+    return serialize({ familyPayments, directPayments });
+  },
+);
+
