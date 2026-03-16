@@ -124,17 +124,21 @@ export const consolidationWorkflow = task({
         skipped: result.skipped,
       };
     } catch (error: unknown) {
-      await createAuditLog(
-        payload.requestedByUserId,
-        'COMPUTE_CONSOLIDATED_RESULTS_FAILED',
-        'RESULT_TERM',
-        payload.resultTermId,
-        {
-          sectionId: payload.sectionId ?? null,
-          recompute: payload.recompute,
-          error: error instanceof Error ? error.message : 'Unknown workflow error',
-        },
-      );
+      try {
+        await createAuditLog(
+          payload.requestedByUserId,
+          'COMPUTE_CONSOLIDATED_RESULTS_FAILED',
+          'RESULT_TERM',
+          payload.resultTermId,
+          {
+            sectionId: payload.sectionId ?? null,
+            recompute: payload.recompute,
+            error: error instanceof Error ? error.message : 'Unknown workflow error',
+          },
+        );
+      } catch {
+        // Audit log failure must never mask the original error
+      }
 
       throw error;
     } finally {

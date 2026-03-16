@@ -6,7 +6,7 @@ import {
   findActiveDiscountsForStudents,
   computeDiscountForLineItems,
 } from '../student-discount-queries';
-import { applyCreditsToAssignment } from '../advance-payment-actions';
+import { applyCreditsToAssignment } from '../fee-credit-utils';
 
 type FeeGenerationPayload = {
   generatedForMonth: string;
@@ -249,13 +249,17 @@ export const feeGenerationWorkflow = task({
 
       return { success: true, generated, skipped };
     } catch (error: unknown) {
-      await createAuditLog(
-        requestedByUserId,
-        'GENERATE_FEES_FAILED',
-        'FEE_ASSIGNMENT',
-        generatedForMonth,
-        { error: error instanceof Error ? error.message : 'Unknown workflow error' },
-      );
+      try {
+        await createAuditLog(
+          requestedByUserId,
+          'GENERATE_FEES_FAILED',
+          'FEE_ASSIGNMENT',
+          generatedForMonth,
+          { error: error instanceof Error ? error.message : 'Unknown workflow error' },
+        );
+      } catch {
+        // Audit log failure must never mask the original error
+      }
       throw error;
     }
   },
