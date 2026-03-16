@@ -9,7 +9,6 @@ import type { ActionResult } from '@/types/action-result';
 import { actionSuccess, actionError } from '@/types/action-result';
 import { safeAction } from '@/lib/safe-action';
 import { getCurrentAcademicSessionId } from './fee-queries';
-export { applyCreditsToAssignment } from './fee-credit-utils';
 
 const FEE_PATHS = ['/admin/fees', '/student/fees', '/family/fees'];
 const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
