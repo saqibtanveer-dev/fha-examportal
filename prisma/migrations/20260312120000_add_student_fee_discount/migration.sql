@@ -1,8 +1,14 @@
 -- CreateEnum
-CREATE TYPE "StudentDiscountType" AS ENUM ('FLAT', 'PERCENTAGE');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'StudentDiscountType') THEN
+        CREATE TYPE "StudentDiscountType" AS ENUM ('FLAT', 'PERCENTAGE');
+    END IF;
+END
+$$;
 
 -- CreateTable
-CREATE TABLE "StudentFeeDiscount" (
+CREATE TABLE IF NOT EXISTS "StudentFeeDiscount" (
     "id" TEXT NOT NULL,
     "studentProfileId" TEXT NOT NULL,
     "academicSessionId" TEXT NOT NULL,
@@ -21,22 +27,46 @@ CREATE TABLE "StudentFeeDiscount" (
 );
 
 -- CreateIndex
-CREATE INDEX "StudentFeeDiscount_studentProfileId_academicSessionId_isActi_idx" ON "StudentFeeDiscount"("studentProfileId", "academicSessionId", "isActive");
+CREATE INDEX IF NOT EXISTS "StudentFeeDiscount_studentProfileId_academicSessionId_isActi_idx" ON "StudentFeeDiscount"("studentProfileId", "academicSessionId", "isActive");
 
 -- CreateIndex
-CREATE INDEX "StudentFeeDiscount_academicSessionId_idx" ON "StudentFeeDiscount"("academicSessionId");
+CREATE INDEX IF NOT EXISTS "StudentFeeDiscount_academicSessionId_idx" ON "StudentFeeDiscount"("academicSessionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "StudentFeeDiscount_studentProfileId_academicSessionId_fee_key" ON "StudentFeeDiscount"("studentProfileId", "academicSessionId", "feeCategoryId");
+CREATE UNIQUE INDEX IF NOT EXISTS "StudentFeeDiscount_studentProfileId_academicSessionId_fee_key" ON "StudentFeeDiscount"("studentProfileId", "academicSessionId", "feeCategoryId");
 
 -- AddForeignKey
-ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_studentProfileId_fkey" FOREIGN KEY ("studentProfileId") REFERENCES "StudentProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'StudentFeeDiscount_studentProfileId_fkey') THEN
+        ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_studentProfileId_fkey" FOREIGN KEY ("studentProfileId") REFERENCES "StudentProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
 -- AddForeignKey
-ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_academicSessionId_fkey" FOREIGN KEY ("academicSessionId") REFERENCES "AcademicSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'StudentFeeDiscount_academicSessionId_fkey') THEN
+        ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_academicSessionId_fkey" FOREIGN KEY ("academicSessionId") REFERENCES "AcademicSession"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
 -- AddForeignKey
-ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_feeCategoryId_fkey" FOREIGN KEY ("feeCategoryId") REFERENCES "FeeCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'StudentFeeDiscount_feeCategoryId_fkey') THEN
+        ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_feeCategoryId_fkey" FOREIGN KEY ("feeCategoryId") REFERENCES "FeeCategory"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+    END IF;
+END
+$$;
 
 -- AddForeignKey
-ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'StudentFeeDiscount_approvedById_fkey') THEN
+        ALTER TABLE "StudentFeeDiscount" ADD CONSTRAINT "StudentFeeDiscount_approvedById_fkey" FOREIGN KEY ("approvedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+    END IF;
+END
+$$;
