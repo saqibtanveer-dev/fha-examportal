@@ -86,6 +86,10 @@ function handlePrismaError(error: { code: string; meta?: Record<string, unknown>
     case 'P2028':
       logger.warn({ prismaCode: error.code }, 'Transaction timeout (P2028) — likely Neon serverless latency');
       return actionError('Request timed out. Please try again.');
+    case 'P2021':
+    case 'P2022':
+      logger.error({ prismaCode: error.code, meta: error.meta }, 'Schema drift detected in server action');
+      return actionError('Database schema is out of date. Please redeploy and run migrations on the active database.');
     default:
       logger.error({ prismaCode: error.code, meta: error.meta }, 'Unhandled Prisma error in server action');
       return actionError('A database error occurred. Please try again.');
