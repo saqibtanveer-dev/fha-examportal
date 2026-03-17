@@ -11,6 +11,8 @@ import { applyCreditsToAssignment } from '../fee-credit-utils';
 type FeeGenerationPayload = {
   generatedForMonth: string;
   classId?: string;
+  sectionId?: string;
+  studentProfileIds?: string[];
   dueDate: string;
   academicSessionId: string;
   requestedByUserId: string;
@@ -25,6 +27,8 @@ export const feeGenerationWorkflow = task({
     const {
       generatedForMonth,
       classId,
+      sectionId,
+      studentProfileIds,
       dueDate,
       academicSessionId,
       requestedByUserId,
@@ -47,13 +51,21 @@ export const feeGenerationWorkflow = task({
       }
 
       // Get active students
+      const studentWhere: Record<string, unknown> = {
+        status: 'ACTIVE',
+        user: { isActive: true, deletedAt: null },
+      };
+
+      if (studentProfileIds?.length) {
+        studentWhere.id = { in: studentProfileIds };
+      } else {
+        if (classId) studentWhere.classId = classId;
+        if (sectionId) studentWhere.sectionId = sectionId;
+      }
+
       const students = await prisma.studentProfile.findMany({
-        where: {
-          status: 'ACTIVE',
-          user: { isActive: true, deletedAt: null },
-          ...(classId ? { classId } : {}),
-        },
-        select: { id: true, classId: true },
+        where: studentWhere,
+        select: { id: true, classId: true, sectionId: true },
       });
 
       if (students.length === 0) {
@@ -254,7 +266,12 @@ export const feeGenerationWorkflow = task({
 
       // Final audit log
       await createAuditLog(requestedByUserId, 'GENERATE_FEES', 'FEE_ASSIGNMENT', generatedForMonth, {
-        generatedForMonth, classId, generated, skipped,
+        generatedForMonth,
+        classId,
+        sectionId,
+        studentProfileIds,
+        generated,
+        skipped,
       });
 
       return { success: true, generated, skipped };
@@ -265,7 +282,12 @@ export const feeGenerationWorkflow = task({
           'GENERATE_FEES_FAILED',
           'FEE_ASSIGNMENT',
           generatedForMonth,
-          { error: error instanceof Error ? error.message : 'Unknown workflow error' },
+          {
+            classId,
+            sectionId,
+            studentProfileIds,
+            error: error instanceof Error ? error.message : 'Unknown workflow error',
+          },
         );
       } catch {
         // Audit log failure must never mask the original error
