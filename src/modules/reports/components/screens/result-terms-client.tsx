@@ -33,8 +33,16 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
     academicSessionId: '',
     classId: '',
   });
+  const hasSessionOptions = sessions.length > 0;
+  const hasClassOptions = classes.length > 0;
+  const hasRequiredOptions = hasSessionOptions && hasClassOptions;
 
   function handleCreate() {
+    if (!hasRequiredOptions) {
+      toast.error('Required reference data is not available. Please refresh and try again.');
+      return;
+    }
+
     if (!form.name.trim() || !form.academicSessionId || !form.classId) {
       toast.error('Fill in all required fields');
       return;
@@ -145,6 +153,11 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
             <DialogTitle>Create Result Term</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {!hasRequiredOptions && (
+              <div className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                Session/Class options are unavailable right now. This is usually a temporary server data issue.
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Name *</Label>
               <Input
@@ -158,6 +171,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
               <Select
                 value={form.academicSessionId}
                 onValueChange={(v) => setForm((f) => ({ ...f, academicSessionId: v }))}
+                disabled={!hasSessionOptions}
               >
                 <SelectTrigger><SelectValue placeholder="Select session" /></SelectTrigger>
                 <SelectContent>
@@ -174,6 +188,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
               <Select
                 value={form.classId}
                 onValueChange={(v) => setForm((f) => ({ ...f, classId: v }))}
+                disabled={!hasClassOptions}
               >
                 <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                 <SelectContent>
@@ -194,7 +209,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={isPending}>
+            <Button onClick={handleCreate} disabled={isPending || !hasRequiredOptions}>
               {isPending ? 'Creating...' : 'Create'}
             </Button>
           </DialogFooter>
