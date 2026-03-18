@@ -60,3 +60,10 @@ student-discount-dialog.tsx
 Migration safety check
 Run migrate status.
 Ensure no failed migration entries.
+
+
+-----
+
+$env:DATABASE_URL="postgresql://neondb_owner:npg_JfIZEPCTs02t@ep-fancy-wildflower-aiil1w7q.c-4.us-east-1.aws.neon.tech/prisma_migrate_shadow_db_ebb63e5f-4ff2-4c05-add2-2a6b007a9da9?sslmode=require&channel_binding=require"
+$env:DIRECT_URL="postgresql://neondb_owner:npg_tSp9IyeZviF5@ep-summer-dawn-a1rk1vzb.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require"
+npx prisma migrate deploy
