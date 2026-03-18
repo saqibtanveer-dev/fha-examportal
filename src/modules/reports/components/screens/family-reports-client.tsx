@@ -51,8 +51,12 @@ export function FamilyReportsClient({ children }: Props) {
     setDmcData(null);
     if (!studentId) return;
     startTransition(async () => {
-      const t = await getPublishedResultTermsForStudentAction(studentId);
-      setTerms(t);
+      try {
+        const t = await getPublishedResultTermsForStudentAction(studentId);
+        setTerms(t);
+      } catch {
+        toast.error('Failed to load result terms. Please try again.');
+      }
     });
   }
 
@@ -61,9 +65,13 @@ export function FamilyReportsClient({ children }: Props) {
     setDmcData(null);
     if (!termId || !selectedChildId) return;
     startTransition(async () => {
-      const data = await getStudentDmcAction(termId, selectedChildId);
-      if (!data) { toast.error('DMC not available'); return; }
-      setDmcData(data);
+      try {
+        const data = await getStudentDmcAction(termId, selectedChildId);
+        if (!data) { toast.error('DMC not available'); return; }
+        setDmcData(data);
+      } catch {
+        toast.error('Failed to load DMC. Please try again.');
+      }
     });
   }
 

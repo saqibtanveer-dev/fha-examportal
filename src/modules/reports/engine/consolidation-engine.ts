@@ -119,12 +119,13 @@ export async function computeConsolidatedResults(
     absentSessions.map((a) => `${a.studentId}:${a.examId}`),
   );
 
-  // Get subject → examId mapping for all linked exams
+  // Get subject + totalMarks mapping for all linked exams
   const exams = await prisma.exam.findMany({
     where: { id: { in: allExamIds } },
-    select: { id: true, subjectId: true },
+    select: { id: true, subjectId: true, totalMarks: true },
   });
   const examSubjectMap = new Map<string, string>(exams.map((e) => [e.id, e.subjectId]));
+  const examTotalMarksMap = new Map<string, number>(exams.map((e) => [e.id, toNum(e.totalMarks)]));
 
   // Load elective subject info for this class
   const allSubjectIds = [...new Set(exams.map((e) => e.subjectId))];
@@ -177,6 +178,7 @@ export async function computeConsolidatedResults(
       resultIndex,
       absentIndex,
       examSubjectMap,
+      examTotalMarksMap,
       gradingScale,
       passingPct,
       recompute: options.recompute ?? false,

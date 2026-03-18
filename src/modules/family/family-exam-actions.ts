@@ -24,8 +24,8 @@ export const fetchChildUpcomingExamsAction = safeFetchAction(async (
     select: { classId: true, sectionId: true },
   });
 
-  if (!studentProfile) {
-    return { success: false, error: 'Student not found' };
+  if (!studentProfile || !studentProfile.classId || !studentProfile.sectionId) {
+    return { success: false, error: 'Student not found or no class assigned' };
   }
 
   const academicSession = await prisma.academicSession.findFirst({
@@ -37,7 +37,7 @@ export const fetchChildUpcomingExamsAction = safeFetchAction(async (
 
   const exams = await prisma.exam.findMany({
     where: {
-      examClassAssignments: { some: { classId: studentProfile.classId } },
+      examClassAssignments: { some: { classId: studentProfile.classId, sectionId: studentProfile.sectionId } },
       status: { in: ['PUBLISHED', 'ACTIVE'] },
       scheduledStartAt: { gte: now },
     },

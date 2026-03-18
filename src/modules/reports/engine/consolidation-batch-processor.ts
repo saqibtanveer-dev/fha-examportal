@@ -17,6 +17,7 @@ export type ConsolidationBatchContext = {
   resultIndex: Map<string, Map<string, RawExamResult>>;
   absentIndex: Set<string>;
   examSubjectMap: Map<string, string>;
+  examTotalMarksMap: Map<string, number>;
   gradingScale: ReturnType<typeof parseGradingScale>;
   passingPct: number;
   recompute: boolean;
@@ -89,6 +90,7 @@ export async function processConsolidationBatch(
           byExam,
           ctx.absentIndex,
           ctx.examSubjectMap,
+          ctx.examTotalMarksMap,
         );
 
         const percentage = totalScaled > 0 ? roundTo2((obtainedWeighted / totalScaled) * 100) : 0;

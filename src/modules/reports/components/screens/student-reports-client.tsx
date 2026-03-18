@@ -30,9 +30,13 @@ export function StudentReportsClient({ studentId, terms }: Props) {
     setSelectedTermId(termId);
     setDmcData(null);
     startTransition(async () => {
-      const data = await getStudentDmcAction(termId, studentId);
-      if (!data) { toast.error('DMC not available'); return; }
-      setDmcData(data);
+      try {
+        const data = await getStudentDmcAction(termId, studentId);
+        if (!data) { toast.error('DMC not available'); return; }
+        setDmcData(data);
+      } catch {
+        toast.error('Failed to load DMC. Please try again.');
+      }
     });
   }
 

@@ -87,44 +87,63 @@ export function ConsolidationClient({ terms }: Props) {
   function handleCompute() {
     if (!selectedTermId) { toast.error('Select a result term'); return; }
     startTransition(async () => {
-      const res = await computeConsolidatedResultsAction({ resultTermId: selectedTermId, recompute });
-      if (res.success && res.data) {
-        toast.success('Consolidation queued. Processing started in background.');
-        router.refresh();
-      } else {
-        toast.error(res.error ?? 'Consolidation failed');
+      try {
+        const res = await computeConsolidatedResultsAction({ resultTermId: selectedTermId, recompute });
+        if (res.success && res.data) {
+          toast.success('Consolidation queued. Processing started in background.');
+          router.refresh();
+        } else {
+          toast.error(res.error ?? 'Consolidation failed');
+        }
+      } catch {
+        toast.error('Failed to queue consolidation. Please try again.');
       }
     });
   }
 
   function handleClear(id: string) {
     startTransition(async () => {
-      const res = await clearConsolidatedResultsAction(id);
-      if (res.success) {
-        toast.success('Results cleared');
-        router.refresh();
-      } else {
-        toast.error(res.error ?? 'Failed to clear');
+      try {
+        const res = await clearConsolidatedResultsAction(id);
+        if (res.success) {
+          toast.success('Results cleared');
+          router.refresh();
+        } else {
+          toast.error(res.error ?? 'Failed to clear');
+        }
+      } catch {
+        toast.error('Failed to clear results. Please try again.');
+      } finally {
+        setClearConfirmId(null);
       }
-      setClearConfirmId(null);
     });
   }
 
   function handlePublish(id: string) {
     startTransition(async () => {
-      const res = await publishResultTermAction(id);
-      if (res.success) { toast.success('Results published — students can now view their DMCs'); router.refresh(); }
-      else toast.error(res.error ?? 'Failed to publish');
-      setPublishConfirmId(null);
+      try {
+        const res = await publishResultTermAction(id);
+        if (res.success) { toast.success('Results published — students can now view their DMCs'); router.refresh(); }
+        else toast.error(res.error ?? 'Failed to publish');
+      } catch {
+        toast.error('Failed to publish results. Please try again.');
+      } finally {
+        setPublishConfirmId(null);
+      }
     });
   }
 
   function handleUnpublish(id: string) {
     startTransition(async () => {
-      const res = await unpublishResultTermAction(id);
-      if (res.success) { toast.success('Results unpublished'); router.refresh(); }
-      else toast.error(res.error ?? 'Failed');
-      setUnpublishConfirmId(null);
+      try {
+        const res = await unpublishResultTermAction(id);
+        if (res.success) { toast.success('Results unpublished'); router.refresh(); }
+        else toast.error(res.error ?? 'Failed');
+      } catch {
+        toast.error('Failed to unpublish results. Please try again.');
+      } finally {
+        setUnpublishConfirmId(null);
+      }
     });
   }
 

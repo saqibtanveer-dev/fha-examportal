@@ -240,24 +240,23 @@ export const batchUpdateStudentRemarksAction = safeAction(
     if (!term) return actionError('Result term not found');
 
     // Batch update in a single transaction
-    let updated = 0;
-    await prisma.$transaction(
-      remarks
-        .filter((r) => r.classTeacherRemarks || r.principalRemarks)
-        .map((r) => {
-          updated++;
-          return prisma.consolidatedStudentSummary.update({
+    const filteredRemarks = remarks.filter((r) => r.classTeacherRemarks || r.principalRemarks);
+    if (filteredRemarks.length > 0) {
+      await prisma.$transaction(
+        filteredRemarks.map((r) =>
+          prisma.consolidatedStudentSummary.update({
             where: { resultTermId_studentId: { resultTermId, studentId: r.studentId } },
             data: {
               ...(r.classTeacherRemarks !== undefined && { classTeacherRemarks: r.classTeacherRemarks }),
               ...(r.principalRemarks !== undefined && { principalRemarks: r.principalRemarks }),
             },
-          });
-        }),
-    );
+          }),
+        ),
+      );
+    }
 
     revalidatePath(`${REPORTS_PATH}/dmc`);
-    return actionSuccess({ updated });
+    return actionSuccess({ updated: filteredRemarks.length });
   },
 );
 

@@ -33,6 +33,7 @@ export function computeSubjectGroupScores(
   byExam: Map<string, RawExamResult>,
   absentIndex: Set<string>,
   examSubjectMap: Map<string, string>,
+  examTotalMarksMap?: Map<string, number>,
 ): { groupScores: GroupScore[]; obtainedWeighted: number; totalScaled: number } {
   const groupScores: GroupScore[] = [];
   let obtainedWeighted = 0;
@@ -74,7 +75,7 @@ export function computeSubjectGroupScores(
 
     if (allAbsent) {
       const maxTotals = subjectExamIds
-        .map((eid) => byExam.get(eid)?.totalMarks ?? 0)
+        .map((eid) => examTotalMarksMap?.get(eid) ?? byExam.get(eid)?.totalMarks ?? 0)
         .reduce((s, v) => s + v, 0);
       groupScores.push({
         groupId: group.id, groupName: group.name,

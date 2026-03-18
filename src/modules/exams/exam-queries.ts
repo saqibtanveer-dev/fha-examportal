@@ -28,7 +28,7 @@ export type ExamListFilters = {
 
 type TeacherScope = {
   createdById: string;
-  sectionAssignments: Array<{ classId: string; sectionId: string }>;
+  sectionAssignments: Array<{ subjectId: string; classId: string; sectionId: string }>;
 };
 
 export async function listExams(
@@ -47,17 +47,15 @@ export async function listExams(
     ];
   }
 
-  // Teacher scope: see own exams + exams assigned to their sections
+  // Teacher scope: see own exams + exams for subjects they teach in their sections
   if (teacherScope) {
-    const sectionConditions = teacherScope.sectionAssignments.map((a) => ({
-      classId: a.classId,
-      sectionId: a.sectionId,
+    const subjectSectionConditions = teacherScope.sectionAssignments.map((a) => ({
+      subjectId: a.subjectId,
+      examClassAssignments: { some: { classId: a.classId, sectionId: a.sectionId } },
     }));
     where.OR = [
       { createdById: teacherScope.createdById },
-      ...(sectionConditions.length > 0
-        ? [{ examClassAssignments: { some: { OR: sectionConditions } } }]
-        : []),
+      ...(subjectSectionConditions.length > 0 ? subjectSectionConditions : []),
     ];
   } else if (filters.createdById) {
     where.createdById = filters.createdById;
@@ -141,6 +139,8 @@ export async function getExamsForStudent(
   return prisma.exam.findMany({
     where: {
       deletedAt: null,
+      // Only show exams from the current academic session
+      ...(academicSessionId ? { academicSessionId } : {}),
       OR: [
         // Online exams: PUBLISHED or ACTIVE
         {

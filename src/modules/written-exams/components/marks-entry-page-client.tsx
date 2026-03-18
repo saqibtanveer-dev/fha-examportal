@@ -19,7 +19,7 @@ import type { SpreadsheetView as _SV } from './spreadsheet-view';
 
 const SpreadsheetView = dynamic<ComponentProps<typeof _SV>>(
   () => import('./spreadsheet-view').then(m => ({ default: m.SpreadsheetView })),
-  { ssr: false },
+  { ssr: false, loading: () => <div className="flex items-center justify-center py-12"><Spinner size="lg" /><span className="ml-2 text-sm text-muted-foreground">Loading spreadsheet...</span></div> },
 );
 import { FinalizeDialog } from './finalize-dialog';
 import { ExcelActions } from './excel-actions';

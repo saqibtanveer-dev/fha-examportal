@@ -62,35 +62,33 @@ export const initializeWrittenExamSessionsAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
 
-    // Build student list — enrollment-aware for elective subjects
-    let allStudentUserIds: string[] = [];
+    // Build student list — enrollment-aware for elective subjects (parallel)
+    const uniqueClassIds = [...new Set(assignments.map((a) => a.classId))];
+    const electiveChecks = await Promise.all(
+      uniqueClassIds.map((cid) => isSubjectElectiveForClass(exam.subjectId, cid).then((is) => [cid, is] as const)),
+    );
+    const electiveByClass = new Map(electiveChecks);
 
-    for (const assignment of assignments) {
-      const isElective = await isSubjectElectiveForClass(exam.subjectId, assignment.classId);
-
-      if (isElective && exam.academicSessionId) {
-        // For elective subjects, only include enrolled students
-        const enrolledStudents = await getStudentsForSubject(
-          exam.subjectId,
-          assignment.classId,
-          assignment.sectionId,
-          exam.academicSessionId,
-        );
-        allStudentUserIds.push(...enrolledStudents.map((s) => s.userId));
-      } else {
-        // For compulsory subjects, include all section students
-        const sectionStudents = await prisma.studentProfile.findMany({
+    const studentBatches = await Promise.all(
+      assignments.map(async (assignment) => {
+        const isElective = electiveByClass.get(assignment.classId);
+        if (isElective && exam.academicSessionId) {
+          const enrolled = await getStudentsForSubject(
+            exam.subjectId, assignment.classId, assignment.sectionId, exam.academicSessionId,
+          );
+          return enrolled.map((s) => s.userId);
+        }
+        const section = await prisma.studentProfile.findMany({
           where: {
-            classId: assignment.classId,
-            sectionId: assignment.sectionId,
-            status: 'ACTIVE',
-            user: { isActive: true, deletedAt: null },
+            classId: assignment.classId, sectionId: assignment.sectionId,
+            status: 'ACTIVE', user: { isActive: true, deletedAt: null },
           },
           select: { userId: true },
         });
-        allStudentUserIds.push(...sectionStudents.map((s) => s.userId));
-      }
-    }
+        return section.map((s) => s.userId);
+      }),
+    );
+    const allStudentUserIds = [...new Set(studentBatches.flat())];
 
     // Get existing sessions to avoid duplicates (idempotent)
     const existingSessions = await prisma.examSession.findMany({

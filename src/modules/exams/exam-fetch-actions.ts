@@ -26,7 +26,7 @@ export const fetchExamsAction = safeFetchAction(async (
     const assignments = teacherProfile
       ? await prisma.teacherSubject.findMany({
           where: { teacherId: teacherProfile.id },
-          select: { classId: true, sectionId: true },
+          select: { subjectId: true, classId: true, sectionId: true },
         })
       : [];
     const result = await listExams(params, filters, {

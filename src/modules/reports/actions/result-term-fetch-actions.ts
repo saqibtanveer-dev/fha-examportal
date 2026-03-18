@@ -243,7 +243,25 @@ export async function getStudentDmcAction(resultTermId: string, studentId: strin
 
 const getPublishedResultTermsForStudent = safeFetchAction(
   async function getPublishedResultTermsForStudent(studentId: string) {
-    await requireRole('STUDENT', 'FAMILY', 'ADMIN', 'PRINCIPAL');
+    const session = await requireRole('STUDENT', 'FAMILY', 'ADMIN', 'PRINCIPAL');
+    const { role, id: userId } = session.user;
+
+    // Students can only view their own result terms
+    if (role === 'STUDENT' && userId !== studentId) {
+      throw new Error('Access denied');
+    }
+
+    // Family must have an active link to the student
+    if (role === 'FAMILY') {
+      const link = await prisma.familyStudentLink.findFirst({
+        where: {
+          familyProfile: { userId },
+          studentProfile: { userId: studentId },
+          isActive: true,
+        },
+      });
+      if (!link) throw new Error('Access denied');
+    }
 
     const profile = await prisma.studentProfile.findUnique({
       where: { userId: studentId },
