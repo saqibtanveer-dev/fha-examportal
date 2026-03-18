@@ -82,7 +82,7 @@ export function ResultTermAddGroupDialog({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={isPending}>
             Cancel
           </Button>
           <Button onClick={onAddGroup} disabled={isPending}>

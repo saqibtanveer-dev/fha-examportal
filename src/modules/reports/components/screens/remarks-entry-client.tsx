@@ -76,15 +76,18 @@ export function RemarksEntryClient({ terms }: Props) {
     if (!r) return;
     setSavingId(studentId);
     startTransition(async () => {
-      const res = await updateStudentRemarksAction({
-        resultTermId: selectedTermId,
-        studentId,
-        classTeacherRemarks: r.teacher || null,
-        principalRemarks: r.principal || null,
-      });
-      if (res.success) toast.success('Remarks saved');
-      else toast.error(res.error ?? 'Failed to save remarks');
-      setSavingId(null);
+      try {
+        const res = await updateStudentRemarksAction({
+          resultTermId: selectedTermId,
+          studentId,
+          classTeacherRemarks: r.teacher || null,
+          principalRemarks: r.principal || null,
+        });
+        if (res.success) toast.success('Remarks saved');
+        else toast.error(res.error ?? 'Failed to save remarks');
+      } finally {
+        setSavingId(null);
+      }
     });
   }
 
@@ -111,16 +114,19 @@ export function RemarksEntryClient({ terms }: Props) {
 
     setIsBatchSaving(true);
     startTransition(async () => {
-      const res = await batchUpdateStudentRemarksAction({
-        resultTermId: selectedTermId,
-        remarks: remarksToSave,
-      });
-      if (res.success) {
-        toast.success(`Remarks saved for ${res.data?.updated ?? remarksToSave.length} students`);
-      } else {
-        toast.error(res.error ?? 'Failed to save remarks');
+      try {
+        const res = await batchUpdateStudentRemarksAction({
+          resultTermId: selectedTermId,
+          remarks: remarksToSave,
+        });
+        if (res.success) {
+          toast.success(`Remarks saved for ${res.data?.updated ?? remarksToSave.length} students`);
+        } else {
+          toast.error(res.error ?? 'Failed to save remarks');
+        }
+      } finally {
+        setIsBatchSaving(false);
       }
-      setIsBatchSaving(false);
     });
   }
 
@@ -227,7 +233,7 @@ export function RemarksEntryClient({ terms }: Props) {
                   size="sm"
                   variant="outline"
                   onClick={() => handleSaveRemarks(s.studentId)}
-                  disabled={isPending && savingId === s.studentId}
+                  disabled={(isPending && savingId === s.studentId) || isBatchSaving}
                 >
                   {savingId === s.studentId ? (
                     <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Saving...</>

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, FileText, GraduationCap, Loader2 } from 'lucide-react';
+import { Printer, FileText, GraduationCap, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -54,32 +54,50 @@ export function StudentReportsClient({ studentId, terms }: Props) {
     <div className="space-y-6">
       {/* Term Cards */}
       <div className="no-print grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {terms.map((term) => (
-          <Card
-            key={term.id}
-            className={`cursor-pointer transition-all hover:border-primary ${selectedTermId === term.id ? 'border-primary ring-1 ring-primary' : ''}`}
-            onClick={() => handleView(term.id)}
-          >
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold">{term.name}</CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs text-muted-foreground space-y-1">
-              <p>{term.academicSession.name}</p>
-              {term.publishedAt && (
-                <Badge variant="secondary">
-                  Published {format(term.publishedAt, 'dd MMM yyyy')}
-                </Badge>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+        {terms.map((term) => {
+          const isSelected = selectedTermId === term.id;
+          const isLoadingThis = isSelected && isPending;
+          return (
+            <Card
+              key={term.id}
+              className={`cursor-pointer transition-all select-none ${
+                isSelected
+                  ? 'border-primary ring-2 ring-primary/30 bg-primary/5'
+                  : 'hover:border-primary/60 hover:bg-accent/40'
+              }`}
+              onClick={() => !isPending && handleView(term.id)}
+            >
+              <CardHeader className="pb-2">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-sm font-semibold leading-snug">{term.name}</CardTitle>
+                  {isLoadingThis ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0 mt-0.5" />
+                  ) : isSelected && dmcData ? (
+                    <CheckCircle2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="text-xs text-muted-foreground space-y-2">
+                <p className="font-medium text-foreground/70">{term.academicSession.name}</p>
+                {term.publishedAt && (
+                  <Badge variant="secondary" className="text-xs">
+                    Published {format(term.publishedAt, 'dd MMM yyyy')}
+                  </Badge>
+                )}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {/* DMC Preview */}
+      {/* DMC Loading Skeleton */}
       {isPending && (
-        <div className="flex items-center justify-center py-10 sm:py-12 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading your DMC...
+        <div className="space-y-3 animate-pulse">
+          <div className="h-6 w-48 rounded bg-muted" />
+          <div className="h-4 w-72 rounded bg-muted" />
+          <div className="h-64 rounded-lg bg-muted" />
         </div>
       )}
 
@@ -93,8 +111,12 @@ export function StudentReportsClient({ studentId, terms }: Props) {
 
       {dmcData && !isPending && (
         <>
-          <div className="no-print flex justify-end">
-            <Button onClick={() => window.print()}>
+          <div className="no-print flex items-center justify-between rounded-lg border bg-card px-4 py-3 gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate">{dmcData.resultTerm.name}</p>
+              <p className="text-xs text-muted-foreground">{dmcData.academicSession}</p>
+            </div>
+            <Button onClick={() => window.print()} className="shrink-0">
               <Printer className="mr-2 h-4 w-4" /> Print DMC
             </Button>
           </div>

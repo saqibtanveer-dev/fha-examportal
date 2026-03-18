@@ -156,7 +156,7 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
             <Button variant="outline" size="sm" onClick={handleAutoLink} disabled={isPending} className="flex-1 sm:flex-initial">
               <Zap className="mr-1.5 h-3.5 w-3.5" /> Auto-link
             </Button>
-            <Button size="sm" onClick={() => setAddGroupOpen(true)} disabled={term.isPublished} className="flex-1 sm:flex-initial">
+            <Button size="sm" onClick={() => setAddGroupOpen(true)} disabled={term.isPublished || isPending} className="flex-1 sm:flex-initial">
               <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Group
             </Button>
           </div>
@@ -225,6 +225,7 @@ export function ResultTermDetailClient({ term, availableExams }: Props) {
         onConfirm={() => removeGroupId && handleRemoveGroup(removeGroupId)}
         variant="destructive"
         confirmLabel="Remove"
+        isLoading={isPending}
       />
     </div>
   );

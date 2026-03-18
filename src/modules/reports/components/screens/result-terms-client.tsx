@@ -110,6 +110,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
                       size="icon"
                       className="h-7 w-7 text-destructive"
                       onClick={() => setDeleteId(term.id)}
+                      disabled={isPending}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
@@ -208,7 +209,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={isPending}>Cancel</Button>
             <Button onClick={handleCreate} disabled={isPending || !hasRequiredOptions}>
               {isPending ? 'Creating...' : 'Create'}
             </Button>
@@ -224,6 +225,7 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
         onConfirm={() => deleteId && handleDelete(deleteId)}
         variant="destructive"
         confirmLabel="Delete"
+        isLoading={isPending}
       />
     </div>
   );

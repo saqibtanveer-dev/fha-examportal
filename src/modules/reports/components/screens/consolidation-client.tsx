@@ -278,6 +278,7 @@ export function ConsolidationClient({ terms }: Props) {
         onConfirm={() => clearConfirmId && handleClear(clearConfirmId)}
         variant="destructive"
         confirmLabel="Clear Results"
+        isLoading={isPending}
       />
       <ConfirmDialog
         open={!!publishConfirmId}
@@ -286,6 +287,7 @@ export function ConsolidationClient({ terms }: Props) {
         description={`Publishing "${terms.find((t) => t.id === publishConfirmId)?.name ?? ''}" will make DMCs and results visible to all students and families.`}
         onConfirm={() => publishConfirmId && handlePublish(publishConfirmId)}
         confirmLabel="Publish"
+        isLoading={isPending}
       />
       <ConfirmDialog
         open={!!unpublishConfirmId}
@@ -295,6 +297,7 @@ export function ConsolidationClient({ terms }: Props) {
         onConfirm={() => unpublishConfirmId && handleUnpublish(unpublishConfirmId)}
         variant="destructive"
         confirmLabel="Unpublish"
+        isLoading={isPending}
       />
     </div>
   );

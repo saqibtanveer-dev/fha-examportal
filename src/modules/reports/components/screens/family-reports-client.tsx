@@ -2,10 +2,9 @@
 
 import { useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, GraduationCap, FileText, Loader2 } from 'lucide-react';
+import { Printer, GraduationCap, FileText, Loader2, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/shared';
@@ -41,6 +40,7 @@ export function FamilyReportsClient({ children }: Props) {
   const [terms, setTerms] = useState<Term[]>([]);
   const [selectedTermId, setSelectedTermId] = useState('');
   const [dmcData, setDmcData] = useState<DmcData | null>(null);
+  const [loadingStage, setLoadingStage] = useState<'terms' | 'dmc' | null>(null);
 
   const selectedChild = children.find((c) => c.studentId === selectedChildId);
 
@@ -50,12 +50,15 @@ export function FamilyReportsClient({ children }: Props) {
     setSelectedTermId('');
     setDmcData(null);
     if (!studentId) return;
+    setLoadingStage('terms');
     startTransition(async () => {
       try {
         const t = await getPublishedResultTermsForStudentAction(studentId);
         setTerms(t);
       } catch {
         toast.error('Failed to load result terms. Please try again.');
+      } finally {
+        setLoadingStage(null);
       }
     });
   }
@@ -64,6 +67,7 @@ export function FamilyReportsClient({ children }: Props) {
     setSelectedTermId(termId);
     setDmcData(null);
     if (!termId || !selectedChildId) return;
+    setLoadingStage('dmc');
     startTransition(async () => {
       try {
         const data = await getStudentDmcAction(termId, selectedChildId);
@@ -71,6 +75,8 @@ export function FamilyReportsClient({ children }: Props) {
         setDmcData(data);
       } catch {
         toast.error('Failed to load DMC. Please try again.');
+      } finally {
+        setLoadingStage(null);
       }
     });
   }
@@ -89,11 +95,11 @@ export function FamilyReportsClient({ children }: Props) {
     <div className="space-y-6">
       {/* Child + Term Selectors */}
       <Card>
-        <CardContent className="pt-4 pb-4">
+        <CardContent className="pt-4 pb-4 space-y-4">
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Select Child</Label>
-              <Select value={selectedChildId} onValueChange={handleChildChange}>
+              <Select value={selectedChildId} onValueChange={handleChildChange} disabled={isPending}>
                 <SelectTrigger><SelectValue placeholder="Select child" /></SelectTrigger>
                 <SelectContent>
                   {children.map((c) => (
@@ -110,9 +116,17 @@ export function FamilyReportsClient({ children }: Props) {
               <Select
                 value={selectedTermId}
                 onValueChange={handleTermChange}
-                disabled={!terms.length}
+                disabled={!terms.length || isPending}
               >
-                <SelectTrigger><SelectValue placeholder="Select result term" /></SelectTrigger>
+                <SelectTrigger>
+                  {loadingStage === 'terms' ? (
+                    <span className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading results…
+                    </span>
+                  ) : (
+                    <SelectValue placeholder="Select result term" />
+                  )}
+                </SelectTrigger>
                 <SelectContent>
                   {terms.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
@@ -125,19 +139,36 @@ export function FamilyReportsClient({ children }: Props) {
             </div>
           </div>
 
+          {/* Selected child info strip */}
+          {selectedChild && (
+            <div className="flex items-center gap-3 rounded-md bg-muted/50 px-3 py-2 text-sm">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-xs">
+                {selectedChild.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium truncate">{selectedChild.name}</p>
+                <p className="text-xs text-muted-foreground">
+                  {selectedChild.className} · {selectedChild.sectionName} · Roll #{selectedChild.rollNumber}
+                </p>
+              </div>
+            </div>
+          )}
+
           {selectedChildId && terms.length === 0 && !isPending && (
-            <p className="mt-3 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300">
+              <BookOpen className="h-4 w-4 shrink-0" />
               No published results available for {selectedChild?.name} yet.
-            </p>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      {/* DMC Preview */}
-      {isPending && (
-        <div className="flex items-center justify-center py-10 sm:py-12 text-muted-foreground">
-          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          Loading...
+      {/* DMC Loading Skeleton */}
+      {loadingStage === 'dmc' && (
+        <div className="space-y-3 animate-pulse">
+          <div className="h-6 w-48 rounded bg-muted" />
+          <div className="h-4 w-72 rounded bg-muted" />
+          <div className="h-64 rounded-lg bg-muted" />
         </div>
       )}
 
@@ -151,14 +182,14 @@ export function FamilyReportsClient({ children }: Props) {
 
       {dmcData && !isPending && (
         <>
-          <div className="no-print flex justify-between items-center">
-            <div>
-              <p className="font-medium">{selectedChild?.name}</p>
-              <p className="text-sm text-muted-foreground">
+          <div className="no-print flex items-center justify-between rounded-lg border bg-card px-4 py-3 gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold text-sm truncate">{selectedChild?.name}</p>
+              <p className="text-xs text-muted-foreground">
                 {dmcData.resultTerm.name} — {dmcData.academicSession}
               </p>
             </div>
-            <Button onClick={() => window.print()}>
+            <Button onClick={() => window.print()} className="shrink-0">
               <Printer className="mr-2 h-4 w-4" /> Print DMC
             </Button>
           </div>

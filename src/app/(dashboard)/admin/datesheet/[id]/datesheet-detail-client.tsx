@@ -226,7 +226,7 @@ export function DatesheetDetailClient({ datesheetId }: Props) {
           open={dutyFormOpen}
           onClose={() => { setDutyFormOpen(false); setDutyEntry(null); }}
           entryId={dutyEntry.id}
-          existingDuties={dutyEntry.duties}
+          existingDuties={entryList.find(e => e.id === dutyEntry.id)?.duties ?? dutyEntry.duties}
           teachers={(teachers ?? []) as TeacherOption[]}
           onAssign={(data) => assignDuty.mutate(data)}
           onRemove={(dutyId) => removeDuty.mutate(dutyId)}

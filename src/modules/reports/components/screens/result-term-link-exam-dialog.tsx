@@ -1,4 +1,4 @@
-import { Search } from 'lucide-react';
+import { Search, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -74,6 +74,12 @@ export function ResultTermLinkExamDialog({
             <p className="text-xs text-muted-foreground">
               {filteredExams.length} of {unlinkedExamsCount} exams
             </p>
+            {isPending && (
+              <div className="flex items-center gap-2 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+                Linking exam…
+              </div>
+            )}
             <div className="max-h-72 overflow-y-auto space-y-1.5">
               {filteredExams.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-6">No exams match your search</p>
@@ -81,7 +87,7 @@ export function ResultTermLinkExamDialog({
                 filteredExams.map((exam) => (
                   <button
                     key={exam.id}
-                    className="w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-accent active:bg-accent transition-colors"
+                    className="w-full text-left rounded-md border px-3 py-2.5 text-sm hover:bg-accent active:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={() => onLinkExam(exam.id)}
                     disabled={isPending}
                   >
