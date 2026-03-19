@@ -21,8 +21,12 @@ type SchoolSettingsRow = {
 };
 
 export function buildSchoolInfo(school: SchoolSettingsRow): SchoolInfo {
+  const resolvedName =
+    !school.schoolName || school.schoolName.toLowerCase().includes('examcore')
+      ? APP_NAME
+      : school.schoolName;
   return {
-    name: school.schoolName || APP_NAME,
+    name: resolvedName,
     logo: school.schoolLogo || '/icon-512x512.png',
     address: school.address,
     phone: school.phone,

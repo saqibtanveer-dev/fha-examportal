@@ -2,7 +2,7 @@
 // Application Constants
 // ============================================
 
-export const APP_NAME = 'Faith Horizon Portal';
+export const APP_NAME = 'Faith Horizon School & College';
 export const APP_DESCRIPTION = 'School Examination & Quiz Automation System';
 
 // ============================================
