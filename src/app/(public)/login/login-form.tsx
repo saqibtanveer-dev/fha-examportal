@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { GraduationCap, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
+import Image from 'next/image';
 import { Spinner } from '@/components/shared';
 import { loginAction } from './actions';
 import { APP_NAME } from '@/lib/constants';
@@ -40,7 +41,7 @@ export function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <GraduationCap className="h-8 w-8 text-primary" />
+          <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={40} height={40} className="h-10 w-10 object-contain" />
         </div>
         <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
         <CardDescription>Sign in to your account</CardDescription>

@@ -2,7 +2,7 @@
 // Application Constants
 // ============================================
 
-export const APP_NAME = 'ExamCore';
+export const APP_NAME = 'Faith Horizon Portal';
 export const APP_DESCRIPTION = 'School Examination & Quiz Automation System';
 
 // ============================================
@@ -17,7 +17,7 @@ export const PAGE_SIZE_OPTIONS = [10, 20, 50, 100] as const;
 // Auth
 // ============================================
 
-export const AUTH_COOKIE_NAME = 'examcore.session-token';
+export const AUTH_COOKIE_NAME = 'faithhorizon.session-token';
 export const SESSION_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 // ============================================

@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import { GraduationCap, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/utils/cn';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -101,7 +102,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
       >
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b px-4">
-          <GraduationCap className="h-7 w-7 shrink-0 text-primary" />
+          <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={32} height={32} className="h-8 w-8 shrink-0 object-contain" />
           {!collapsed && (
             <span className="text-lg font-bold tracking-tight">{APP_NAME}</span>
           )}
@@ -131,7 +132,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
         <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle className="flex items-center gap-2">
-              <GraduationCap className="h-6 w-6 text-primary" />
+              <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={28} height={28} className="h-7 w-7 object-contain" />
               <span className="text-lg font-bold">{APP_NAME}</span>
             </SheetTitle>
           </SheetHeader>

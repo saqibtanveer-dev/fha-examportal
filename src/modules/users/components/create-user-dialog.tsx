@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition, useEffect, useCallback } from 'react';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { generateEmailFromName, getEmailSuffix } from '@/lib/email-utils';
+import { RotateCcw, Wand2 } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -43,27 +45,65 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
   const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [selectedSectionId, setSelectedSectionId] = useState<string>('');
   const [gender, setGender] = useState<string>('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [emailManuallyEdited, setEmailManuallyEdited] = useState(false);
   const invalidate = useInvalidateCache();
+
+  const autoEmail = useCallback(
+    (fn: string, ln: string, r: string) => generateEmailFromName(fn, ln, r),
+    [],
+  );
+
+  // Auto-fill email when name changes and not manually edited
+  useEffect(() => {
+    if (!emailManuallyEdited) {
+      setEmail(autoEmail(firstName, lastName, role));
+    }
+  }, [firstName, lastName, role, emailManuallyEdited, autoEmail]);
 
   // Reset section when class changes
   useEffect(() => {
     setSelectedSectionId('');
   }, [selectedClassId]);
 
-  // Reset role-specific fields when role changes
+  // Reset role-specific fields and re-apply auto email when role changes
   useEffect(() => {
     setSelectedClassId('');
     setSelectedSectionId('');
     setGender('');
-  }, [role]);
+    if (!emailManuallyEdited) {
+      setEmail(autoEmail(firstName, lastName, role));
+    }
+  }, [role]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function resetToAutoEmail() {
+    setEmailManuallyEdited(false);
+    setEmail(autoEmail(firstName, lastName, role));
+  }
+
+  // Reset all state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setEmailManuallyEdited(false);
+      setRole('STUDENT');
+      setSelectedClassId('');
+      setSelectedSectionId('');
+      setGender('');
+    }
+  }, [open]);
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
       const result = await createUserAction({
-        email: formData.get('email') as string,
+        email,
         password: formData.get('password') as string,
-        firstName: formData.get('firstName') as string,
-        lastName: formData.get('lastName') as string,
+        firstName,
+        lastName,
         role: role as 'ADMIN' | 'PRINCIPAL' | 'TEACHER' | 'STUDENT' | 'FAMILY',
         phone: (formData.get('phone') as string) || undefined,
         // Student fields
@@ -119,17 +159,64 @@ export function CreateUserDialog({ open, onOpenChange, classes = [] }: CreateUse
           {/* Basic Info */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label htmlFor="firstName">First Name</Label>
-              <Input id="firstName" name="firstName" required disabled={isPending} />
+              <Label htmlFor="firstName">First Name <span className="text-destructive">*</span></Label>
+              <Input
+                id="firstName"
+                name="firstName"
+                required
+                disabled={isPending}
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="e.g. Ali"
+              />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName">Last Name</Label>
-              <Input id="lastName" name="lastName" required disabled={isPending} />
+              <Label htmlFor="lastName">Last Name <span className="text-destructive">*</span></Label>
+              <Input
+                id="lastName"
+                name="lastName"
+                required
+                disabled={isPending}
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="e.g. Raza"
+              />
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input id="email" name="email" type="email" required disabled={isPending} />
+            <div className="flex items-center justify-between">
+              <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+              <div className="flex items-center gap-1.5">
+                {!emailManuallyEdited && email && (
+                  <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    <Wand2 className="h-2.5 w-2.5" /> auto
+                  </span>
+                )}
+                {emailManuallyEdited && (
+                  <button
+                    type="button"
+                    onClick={resetToAutoEmail}
+                    className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                    disabled={isPending}
+                  >
+                    <RotateCcw className="h-2.5 w-2.5" /> Reset to auto
+                  </button>
+                )}
+              </div>
+            </div>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              required
+              disabled={isPending}
+              value={email}
+              placeholder={`e.g. ali.raza${getEmailSuffix(role)}`}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailManuallyEdited(true);
+              }}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>

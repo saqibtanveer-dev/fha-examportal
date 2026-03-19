@@ -2,8 +2,8 @@ import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'ExamCore — School Examination System',
-    short_name: 'Faith',
+    name: 'Faith Horizon Portal — School Examination System',
+    short_name: 'Faith Horizon',
     description:
       'School Examination & Quiz Automation System — manage exams, attendance, grading, and more.',
     start_url: '/',

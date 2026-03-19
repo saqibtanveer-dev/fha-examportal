@@ -14,9 +14,9 @@ async function main() {
     update: {},
     create: {
       id: 'default-settings',
-      schoolName: 'ExamCore Academy',
+      schoolName: 'Faith Horizon Academy',
       academicYear: '2025',
-      email: 'admin@examcore.school',
+      email: 'admin@faithhorizon.school',
       phone: '+92-300-1234567',
       address: 'Islamabad, Pakistan',
       timezone: 'Asia/Karachi',
@@ -62,10 +62,10 @@ async function main() {
   // ============================================
   const pw = (p: string) => bcrypt.hashSync(p, 12);
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@examcore.school' },
+    where: { email: 'admin@faithhorizon.school' },
     update: {},
     create: {
-      email: 'admin@examcore.school',
+      email: 'admin@faithhorizon.school',
       passwordHash: pw(process.env.ADMIN_INITIAL_PASSWORD ?? 'AdminPass123!'),
       firstName: 'System',
       lastName: 'Admin',
@@ -79,10 +79,10 @@ async function main() {
   // 3b. Principal User
   // ============================================
   const principal = await prisma.user.upsert({
-    where: { email: 'principal@examcore.school' },
+    where: { email: 'principal@faithhorizon.school' },
     update: {},
     create: {
-      email: 'principal@examcore.school',
+      email: 'principal@faithhorizon.school',
       passwordHash: pw('Principal123!'),
       firstName: 'Head',
       lastName: 'Principal',
@@ -191,10 +191,10 @@ async function main() {
   // ============================================
   const teacherPw = pw('Teacher123!');
   const teacherDefs = [
-    { email: 'ahmed.khan@examcore.school', first: 'Ahmed', last: 'Khan', empId: 'TCH-001', qual: 'MSc Physics', spec: 'Mechanics & Thermodynamics', subjects: [{ subjectId: physics.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: physics.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: maths.id, classId: class9.id, sectionId: secId('9-A') }] },
-    { email: 'fatima.ali@examcore.school', first: 'Fatima', last: 'Ali', empId: 'TCH-002', qual: 'MA English Literature', spec: 'Grammar & Composition', subjects: [{ subjectId: english.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: english.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: urdu.id, classId: class9.id, sectionId: secId('9-A') }] },
-    { email: 'bilal.ahmed@examcore.school', first: 'Bilal', last: 'Ahmed', empId: 'TCH-003', qual: 'MSc Chemistry', spec: 'Organic Chemistry', subjects: [{ subjectId: chemistry.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: chemistry.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: biology.id, classId: class9.id, sectionId: secId('9-A') }] },
-    { email: 'ayesha.nawaz@examcore.school', first: 'Ayesha', last: 'Nawaz', empId: 'TCH-004', qual: 'MSc Mathematics', spec: 'Calculus & Algebra', subjects: [{ subjectId: maths.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: maths.id, classId: class11.id, sectionId: secId('11-A') }, { subjectId: computer.id, classId: class11.id, sectionId: secId('11-A') }] },
+    { email: 'ahmed.khan@faithhorizon.school', first: 'Ahmed', last: 'Khan', empId: 'TCH-001', qual: 'MSc Physics', spec: 'Mechanics & Thermodynamics', subjects: [{ subjectId: physics.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: physics.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: maths.id, classId: class9.id, sectionId: secId('9-A') }] },
+    { email: 'fatima.ali@faithhorizon.school', first: 'Fatima', last: 'Ali', empId: 'TCH-002', qual: 'MA English Literature', spec: 'Grammar & Composition', subjects: [{ subjectId: english.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: english.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: urdu.id, classId: class9.id, sectionId: secId('9-A') }] },
+    { email: 'bilal.ahmed@faithhorizon.school', first: 'Bilal', last: 'Ahmed', empId: 'TCH-003', qual: 'MSc Chemistry', spec: 'Organic Chemistry', subjects: [{ subjectId: chemistry.id, classId: class9.id, sectionId: secId('9-A') }, { subjectId: chemistry.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: biology.id, classId: class9.id, sectionId: secId('9-A') }] },
+    { email: 'ayesha.nawaz@faithhorizon.school', first: 'Ayesha', last: 'Nawaz', empId: 'TCH-004', qual: 'MSc Mathematics', spec: 'Calculus & Algebra', subjects: [{ subjectId: maths.id, classId: class10.id, sectionId: secId('10-A') }, { subjectId: maths.id, classId: class11.id, sectionId: secId('11-A') }, { subjectId: computer.id, classId: class11.id, sectionId: secId('11-A') }] },
   ];
 
   const teachers: { user: typeof admin; profile: { id: string } }[] = [];
@@ -1103,13 +1103,13 @@ async function main() {
 
   console.log('\n🎉 Seeding complete!\n');
   console.log('Login credentials:');
-  console.log('  Admin:     admin@examcore.school / AdminPass123!');
-  console.log('  Principal: principal@examcore.school / Principal123!');
-  console.log('  Teacher: ahmed.khan@examcore.school / Teacher123!');
-  console.log('  Teacher: fatima.ali@examcore.school / Teacher123!');
-  console.log('  Teacher: bilal.ahmed@examcore.school / Teacher123!');
-  console.log('  Teacher: ayesha.nawaz@examcore.school / Teacher123!');
-  console.log('  Student: ali.raza@student.examcore.school / Student123!');
+  console.log('  Admin:     admin@faithhorizon.school / AdminPass123!');
+  console.log('  Principal: principal@faithhorizon.school / Principal123!');
+  console.log('  Teacher: ahmed.khan@faithhorizon.school / Teacher123!');
+  console.log('  Teacher: fatima.ali@faithhorizon.school / Teacher123!');
+  console.log('  Teacher: bilal.ahmed@faithhorizon.school / Teacher123!');
+  console.log('  Teacher: ayesha.nawaz@faithhorizon.school / Teacher123!');
+  console.log('  Student: ali.raza@student.faithhorizon.school / Student123!');
   console.log('  (+ 11 more students)');
 }
 

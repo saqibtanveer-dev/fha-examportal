@@ -13,7 +13,7 @@ export default function OfflinePage() {
           your network and try again.
         </p>
         <p className="text-xs text-muted-foreground">
-          ExamCore requires an active connection to load data.
+          Faith Horizon Portal requires an active connection to load data.
         </p>
       </div>
     </div>

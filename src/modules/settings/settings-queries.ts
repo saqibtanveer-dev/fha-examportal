@@ -5,7 +5,7 @@ export async function getSchoolSettings() {
   if (!settings) {
     settings = await prisma.schoolSettings.create({
       data: {
-        schoolName: 'ExamCore School',
+        schoolName: 'Faith Horizon Portal',
         academicYear: new Date().getFullYear().toString(),
         gradingScale: {
           'A+': { min: 90, max: 100 },

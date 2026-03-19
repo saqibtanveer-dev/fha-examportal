@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
+import { generateEmailFromName, getEmailSuffix } from '@/lib/email-utils';
 import {
   Dialog,
   DialogContent,
@@ -24,7 +25,7 @@ import {
 import { Spinner } from '@/components/shared';
 import { addCandidateAction } from '../admission-actions';
 import { useInvalidateCache } from '@/lib/cache-utils';
-import { UserPlus, Copy, Check } from 'lucide-react';
+import { UserPlus, Copy, Check, Wand2, RotateCcw } from 'lucide-react';
 import type { AddCandidateInput } from '../admission-schemas';
 import { PAPER_VERSIONS } from '@/lib/constants';
 
@@ -168,6 +169,22 @@ function CandidateForm({
   onSubmit: (data: Omit<AddCandidateInput, 'campaignId'>) => void;
   onCancel: () => void;
 }) {
+  const [emailManuallyEdited, setEmailManuallyEdited] = useState(false);
+  const firstNameValue = form.watch('firstName');
+  const lastNameValue = form.watch('lastName');
+  const emailValue = form.watch('email');
+  useEffect(() => {
+    if (emailManuallyEdited) return;
+    const auto = generateEmailFromName(firstNameValue ?? '', lastNameValue ?? '', 'CANDIDATE');
+    form.setValue('email', auto, { shouldValidate: false });
+  }, [firstNameValue, lastNameValue, emailManuallyEdited, form]);
+
+  function resetToAutoEmail() {
+    setEmailManuallyEdited(false);
+    const auto = generateEmailFromName(firstNameValue ?? '', lastNameValue ?? '', 'CANDIDATE');
+    form.setValue('email', auto, { shouldValidate: false });
+  }
+
   return (
     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
@@ -179,8 +196,38 @@ function CandidateForm({
         </FormField>
       </div>
 
-      <FormField label="Email *" error={form.formState.errors.email?.message}>
-        <Input {...form.register('email', { required: 'Required' })} type="email" placeholder="candidate@email.com" />
+      <FormField
+        label="Email *"
+        error={form.formState.errors.email?.message}
+        hint={
+          <div className="flex items-center gap-1.5">
+            {!emailManuallyEdited && emailValue && (
+              <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                <Wand2 className="h-2.5 w-2.5" /> auto
+              </span>
+            )}
+            {emailManuallyEdited && (
+              <button
+                type="button"
+                onClick={resetToAutoEmail}
+                className="flex items-center gap-1 text-[10px] text-primary hover:underline"
+                disabled={isPending}
+              >
+                <RotateCcw className="h-2.5 w-2.5" /> Reset to auto
+              </button>
+            )}
+          </div>
+        }
+      >
+        <Input
+          {...form.register('email', { required: 'Required' })}
+          type="email"
+          placeholder={`e.g. ali.raza${getEmailSuffix('CANDIDATE')}`}
+          onChange={(e) => {
+            form.setValue('email', e.target.value);
+            setEmailManuallyEdited(true);
+          }}
+        />
       </FormField>
 
       <div className="grid grid-cols-2 gap-3">
@@ -249,15 +296,20 @@ function CandidateForm({
 function FormField({
   label,
   error,
+  hint,
   children,
 }: {
   label: string;
   error?: string;
+  hint?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center justify-between">
+        <Label className="text-xs">{label}</Label>
+        {hint}
+      </div>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

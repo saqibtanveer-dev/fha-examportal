@@ -13,7 +13,7 @@ type BaseTemplateParams = {
 
 export function baseEmailTemplate({
   content,
-  schoolName = 'ExamCore',
+  schoolName = 'Faith Horizon Portal',
   primaryColor = '#2563eb',
   footerText,
 }: BaseTemplateParams): string {

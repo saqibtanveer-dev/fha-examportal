@@ -27,15 +27,15 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'ExamCore — School Examination System',
-    template: '%s | ExamCore',
+    default: 'Faith Horizon Portal — School Examination System',
+    template: '%s | Faith Horizon Portal',
   },
   description: 'School Examination & Quiz Automation System',
-  applicationName: 'ExamCore',
+  applicationName: 'Faith Horizon Portal',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'ExamCore',
+    title: 'Faith Horizon Portal',
   },
   formatDetection: {
     telephone: false,
