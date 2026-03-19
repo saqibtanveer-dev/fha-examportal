@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
-import { Printer, FileText, GraduationCap, Loader2, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Printer, FileText, GraduationCap, Loader2, ChevronRight, CheckCircle2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EmptyState } from '@/components/shared';
 import { DmcPrintTemplate } from '@/modules/reports/components/print/dmc-print-template';
+import { buildDmcPdfFileName, downloadDmcPdf } from '@/modules/reports/components/print/dmc-pdf-download';
 import { getStudentDmcAction } from '@/modules/reports/actions/result-term-fetch-actions';
 import type { DmcData } from '@/modules/reports/types/report-types';
 import { format } from 'date-fns';
@@ -25,6 +26,8 @@ export function StudentReportsClient({ studentId, terms }: Props) {
   const [isPending, startTransition] = useTransition();
   const [selectedTermId, setSelectedTermId] = useState('');
   const [dmcData, setDmcData] = useState<DmcData | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const dmcContainerRef = useRef<HTMLDivElement | null>(null);
 
   function handleView(termId: string) {
     setSelectedTermId(termId);
@@ -38,6 +41,32 @@ export function StudentReportsClient({ studentId, terms }: Props) {
         toast.error('Failed to load DMC. Please try again.');
       }
     });
+  }
+
+  async function handleDownload() {
+    if (!dmcData || !dmcContainerRef.current) {
+      toast.error('DMC is not ready for download');
+      return;
+    }
+
+    const printableNode = dmcContainerRef.current.querySelector('.print-page');
+    if (!(printableNode instanceof HTMLElement)) {
+      toast.error('DMC preview is missing. Please reload and try again.');
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      await downloadDmcPdf({
+        element: printableNode,
+        fileName: buildDmcPdfFileName(dmcData.student.name, dmcData.resultTerm.name),
+      });
+      toast.success('DMC downloaded');
+    } catch {
+      toast.error('Failed to download DMC. Please try again.');
+    } finally {
+      setIsDownloading(false);
+    }
   }
 
   if (terms.length === 0) {
@@ -116,11 +145,23 @@ export function StudentReportsClient({ studentId, terms }: Props) {
               <p className="font-semibold text-sm truncate">{dmcData.resultTerm.name}</p>
               <p className="text-xs text-muted-foreground">{dmcData.academicSession}</p>
             </div>
-            <Button onClick={() => window.print()} className="shrink-0">
-              <Printer className="mr-2 h-4 w-4" /> Print DMC
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleDownload} variant="outline" className="shrink-0" disabled={isDownloading}>
+                {isDownloading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Download DMC
+              </Button>
+              <Button onClick={() => window.print()} className="shrink-0">
+                <Printer className="mr-2 h-4 w-4" /> Print DMC
+              </Button>
+            </div>
           </div>
-          <DmcPrintTemplate dmc={dmcData} />
+          <div ref={dmcContainerRef}>
+            <DmcPrintTemplate dmc={dmcData} />
+          </div>
         </>
       )}
     </div>
