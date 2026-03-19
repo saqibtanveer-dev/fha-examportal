@@ -124,6 +124,17 @@
     background-color: #e5e7eb !important;
   }
 
+  .print-table thead th,
+  .print-table thead td {
+    color: #000 !important;
+  }
+
+  /* Gazette table header text always black */
+  .gazette-table thead th,
+  .gazette-table thead td {
+    color: #000 !important;
+  }
+
   .print-table tfoot tr {
     background-color: #e5e7eb !important;
     font-weight: bold;
@@ -164,6 +175,26 @@
     background: transparent !important;
   }
 
+  /* Gazette: strip all wrapper decoration so no blank portrait page appears before landscape */
+  .gazette-screen-wrapper {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    overflow: visible !important;
+  }
+
+  .gazette-screen-card {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    overflow: visible !important;
+  }
+
   /* Gazette landscape table — auto-scale to fit */
   .gazette-table {
     table-layout: fixed;
@@ -198,6 +229,12 @@
   /* Prevent empty space from flex/grid gaps */
   .space-y-0 > * {
     margin-top: 0 !important;
+  }
+
+  /* Batch DMC wrapper: no extra space between pages */
+  .space-y-0 {
+    margin: 0 !important;
+    padding: 0 !important;
   }
 
   /* DMC student info box — keep together */

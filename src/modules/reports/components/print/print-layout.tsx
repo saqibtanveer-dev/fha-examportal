@@ -14,77 +14,86 @@ type Props = {
 
 export function PrintLayout({ school, title, children, showSignatures = true }: Props) {
   return (
-    <div className="print-page bg-white text-black font-sans text-[10pt] sm:text-[11pt] p-0">
-      {/* School Header */}
-      <div className="print-header text-center border-b-2 border-black pb-2 sm:pb-3 mb-3 sm:mb-4">
-        <div className="flex items-center justify-center gap-2 sm:gap-4">
-          {school.logo && (
-            <Image
-              src={school.logo}
-              alt="School logo"
-              width={64}
-              height={64}
-              className="h-10 w-10 sm:h-16 sm:w-16 object-contain"
-            />
-          )}
-          <div>
-            <h1 className="text-base sm:text-xl font-bold uppercase tracking-wide">{school.name}</h1>
-            {school.address && (
-              <p className="text-xs sm:text-sm text-gray-700">{school.address}</p>
-            )}
-            <div className="flex flex-wrap justify-center gap-2 sm:gap-4 text-[10px] sm:text-xs text-gray-600 mt-0.5">
-              {school.phone && <span>Tel: {school.phone}</span>}
-              {school.email && <span>Email: {school.email}</span>}
-              {school.website && <span>{school.website}</span>}
+    /* Screen: slate background + paper card. Print: all decorations stripped. */
+    <div className="bg-slate-100 print:bg-transparent rounded-2xl print:rounded-none p-3 sm:p-8 print:p-0">
+      <div className="bg-white shadow-2xl print:shadow-none rounded-2xl print:rounded-none ring-1 ring-slate-200/70 print:ring-0 overflow-hidden print:overflow-visible">
+        <div className="print-page bg-white text-black font-sans text-[10pt] sm:text-[11pt] p-5 sm:p-10 print:p-0">
+
+          {/* School Header */}
+          <div className="print-header border-b-2 border-slate-200 print:border-black pb-4 print:pb-2 mb-5 print:mb-3">
+            <div className="flex items-center gap-3 sm:gap-5">
+              {school.logo && (
+                <Image
+                  src={school.logo}
+                  alt="School logo"
+                  width={72}
+                  height={72}
+                  className="h-14 w-14 sm:h-[4.5rem] sm:w-[4.5rem] object-contain rounded-xl print:rounded-none shrink-0"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h1 className="text-lg sm:text-2xl print:text-xl font-bold uppercase tracking-wide text-slate-900 print:text-black">
+                  {school.name}
+                </h1>
+                {school.address && (
+                  <p className="text-xs sm:text-sm text-slate-500 print:text-gray-700 mt-0.5">{school.address}</p>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] sm:text-xs text-slate-400 print:text-gray-600 mt-1">
+                  {school.phone && <span>Tel: {school.phone}</span>}
+                  {school.email && <span>{school.email}</span>}
+                  {school.website && <span>{school.website}</span>}
+                </div>
+                {school.reportHeaderText && (
+                  <p className="text-xs italic text-slate-500 print:text-gray-700 mt-1">{school.reportHeaderText}</p>
+                )}
+              </div>
             </div>
-            {school.reportHeaderText && (
-              <p className="text-xs sm:text-sm italic mt-1">{school.reportHeaderText}</p>
-            )}
+            <div className="mt-4 print:mt-2 text-center">
+              <span className="inline-block bg-slate-900 print:bg-transparent text-white print:text-black print:border print:border-black text-xs sm:text-sm font-bold uppercase tracking-widest px-6 py-1.5 print:px-4 print:py-0.5 rounded-full print:rounded-none">
+                {title}
+              </span>
+            </div>
           </div>
-        </div>
-        <div className="mt-2 sm:mt-3">
-          <h2 className="text-sm sm:text-base font-bold uppercase tracking-widest border border-black inline-block px-3 sm:px-6 py-0.5 sm:py-1">
-            {title}
-          </h2>
+
+          {/* Content */}
+          {children}
+
+          {/* Signatures */}
+          {showSignatures && (
+            <div className="print-signatures mt-10 print:mt-6 flex flex-wrap justify-between items-end gap-6 print:gap-4">
+              <div className="text-center flex-1 min-w-[100px]">
+                <div className="border-t border-slate-300 print:border-black pt-1 w-32 mx-auto" />
+                <p className="text-xs mt-1 text-slate-500 print:text-black">Class Teacher</p>
+              </div>
+              <div className="text-center flex-1 min-w-[100px]">
+                <div className="border-t border-slate-300 print:border-black pt-1 w-32 mx-auto" />
+                <p className="text-xs mt-1 text-slate-500 print:text-black">{school.examControllerName ?? 'Exam Controller'}</p>
+              </div>
+              <div className="text-center flex-1 min-w-[100px]">
+                {school.signatureImageUrl && (
+                  <Image
+                    src={school.signatureImageUrl}
+                    alt="Principal signature"
+                    width={100}
+                    height={40}
+                    className="h-10 object-contain mx-auto mb-1"
+                  />
+                )}
+                <div className="border-t border-slate-300 print:border-black pt-1 w-32 mx-auto" />
+                <p className="text-xs mt-1 text-slate-500 print:text-black">{school.principalName ?? 'Principal'}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Footer */}
+          {school.reportFooterText && (
+            <p className="mt-4 text-center text-[10px] sm:text-xs text-slate-400 print:text-gray-500 border-t border-slate-100 print:border-gray-300 pt-2">
+              {school.reportFooterText}
+            </p>
+          )}
+
         </div>
       </div>
-
-      {/* Content */}
-      {children}
-
-      {/* Signatures */}
-      {showSignatures && (
-        <div className="mt-6 sm:mt-8 flex flex-wrap justify-between items-end gap-4 sm:gap-4 print-signatures">
-          <div className="text-center">
-            <div className="border-t border-black pt-1 w-36 mx-auto" />
-            <p className="text-xs mt-1">Class Teacher</p>
-          </div>
-          <div className="text-center">
-            <div className="border-t border-black pt-1 w-36 mx-auto" />
-            <p className="text-xs mt-1">{school.examControllerName ?? 'Exam Controller'}</p>
-          </div>
-          <div className="text-center">
-            {school.signatureImageUrl && (
-              <Image
-                src={school.signatureImageUrl}
-                alt="Principal signature"
-                width={100}
-                height={40}
-                className="h-10 object-contain mx-auto mb-1"
-              />
-            )}
-            <div className="border-t border-black pt-1 w-36 mx-auto" />
-            <p className="text-xs mt-1">{school.principalName ?? 'Principal'}</p>
-          </div>
-        </div>
-      )}
-
-      {/* Footer */}
-      {school.reportFooterText && (
-        <p className="mt-3 sm:mt-4 text-center text-[10px] sm:text-xs text-gray-500 border-t pt-2">
-          {school.reportFooterText}
-        </p>
-      )}
     </div>
   );
 }
