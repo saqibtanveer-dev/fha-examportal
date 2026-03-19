@@ -1,6 +1,8 @@
 'use client';
 
 import { forwardRef } from 'react';
+import Image from 'next/image';
+import { APP_NAME } from '@/lib/constants';
 import {
   Table,
   TableBody,
@@ -20,10 +22,11 @@ type Props = {
   datesheet: SerializedDatesheet;
   entries: SerializedEntry[];
   schoolName?: string;
+  schoolLogo?: string | null;
 };
 
 export const DatesheetPrintView = forwardRef<HTMLDivElement, Props>(
-  ({ datesheet, entries, schoolName = 'School' }, ref) => {
+  ({ datesheet, entries, schoolName = APP_NAME, schoolLogo }, ref) => {
     const grouped = groupEntriesByDate(entries);
 
     return (
@@ -36,7 +39,16 @@ export const DatesheetPrintView = forwardRef<HTMLDivElement, Props>(
         `}</style>
 
         <div className="text-center mb-6">
-          <h1 className="text-xl font-bold">{schoolName}</h1>
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <Image
+              src={schoolLogo || '/icon-512x512.png'}
+              alt={schoolName}
+              width={48}
+              height={48}
+              className="h-12 w-12 object-contain"
+            />
+            <h1 className="text-xl font-bold">{schoolName}</h1>
+          </div>
           <h2 className="text-lg font-semibold mt-1">{datesheet.title}</h2>
           {datesheet.description && <p className="text-sm text-gray-600 mt-1">{datesheet.description}</p>}
           <p className="text-sm text-gray-500 mt-1">

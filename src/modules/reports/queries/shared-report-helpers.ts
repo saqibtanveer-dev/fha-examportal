@@ -1,4 +1,5 @@
 import type { SchoolInfo } from '../types/report-types';
+import { APP_NAME } from '@/lib/constants';
 
 // ============================================
 // Shared helper: build SchoolInfo from Prisma SchoolSettings
@@ -21,8 +22,8 @@ type SchoolSettingsRow = {
 
 export function buildSchoolInfo(school: SchoolSettingsRow): SchoolInfo {
   return {
-    name: school.schoolName,
-    logo: school.schoolLogo,
+    name: school.schoolName || APP_NAME,
+    logo: school.schoolLogo || '/icon-512x512.png',
     address: school.address,
     phone: school.phone,
     email: school.email,
