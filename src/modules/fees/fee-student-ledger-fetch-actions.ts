@@ -82,7 +82,7 @@ export const fetchStudentLedgerAction = safeFetchAction(
         include: {
           lineItems: { select: { id: true, categoryName: true, amount: true } },
           payments: {
-            where: { status: 'COMPLETED' },
+            where: { status: { in: ['COMPLETED', 'REVERSED'] } },
             orderBy: { paidAt: 'desc' },
             select: {
               id: true,
@@ -90,6 +90,7 @@ export const fetchStudentLedgerAction = safeFetchAction(
               paymentMethod: true,
               referenceNumber: true,
               receiptNumber: true,
+              status: true,
               paidAt: true,
               recordedBy: { select: { firstName: true, lastName: true } },
             },
@@ -98,6 +99,7 @@ export const fetchStudentLedgerAction = safeFetchAction(
             select: {
               id: true,
               amount: true,
+              source: true,
               reason: true,
               createdAt: true,
               appliedBy: { select: { firstName: true, lastName: true } },

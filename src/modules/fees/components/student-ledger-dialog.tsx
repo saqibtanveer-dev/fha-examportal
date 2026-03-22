@@ -6,21 +6,28 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
-import { formatCurrency, formatMonth, FeeStatusBadge } from './fee-status-badge';
+import { formatCurrency, formatMonth, FeeStatusBadge, PaymentStatusBadge } from './fee-status-badge';
 import { fetchStudentLedgerAction } from '@/modules/fees/fee-student-ledger-fetch-actions';
 import type { FeeAssignmentStatus } from '@prisma/client';
 
 type Payment = {
   id: string; amount: number; paymentMethod: string;
   referenceNumber: string | null; receiptNumber: string;
+  status: 'COMPLETED' | 'REVERSED';
   paidAt: string;
   recordedBy: { firstName: string; lastName: string } | null;
 };
 
 type Discount = {
-  id: string; amount: number; reason: string; createdAt: string;
+  id: string; amount: number; source: 'RECURRING_STUDENT' | 'ON_SPOT_ADMIN' | 'FAMILY_ADJUSTMENT'; reason: string; createdAt: string;
   appliedBy: { firstName: string; lastName: string } | null;
 };
+
+function getDiscountSourceLabel(source: Discount['source']): string {
+  if (source === 'RECURRING_STUDENT') return 'Recurring';
+  if (source === 'FAMILY_ADJUSTMENT') return 'Family adjustment';
+  return 'On-spot';
+}
 
 type LineItem = { id: string; categoryName: string; amount: number };
 
@@ -181,7 +188,11 @@ function MonthCard({ assignment: a }: { assignment: Assignment }) {
           <div className="space-y-0.5 border-t pt-1">
             {a.discounts.map((d) => (
               <div key={d.id} className="flex justify-between text-xs text-green-600">
-                <span>{d.reason} {d.appliedBy && <span className="text-muted-foreground">({d.appliedBy.firstName})</span>}</span>
+                <span>
+                  {d.reason}
+                  <span className="text-muted-foreground"> ({getDiscountSourceLabel(d.source)})</span>
+                  {d.appliedBy && <span className="text-muted-foreground"> ({d.appliedBy.firstName})</span>}
+                </span>
                 <span className="font-mono">-{formatCurrency(d.amount)}</span>
               </div>
             ))}
@@ -199,6 +210,7 @@ function MonthCard({ assignment: a }: { assignment: Assignment }) {
                   {p.recordedBy && (
                     <span className="text-muted-foreground">by {p.recordedBy.firstName}</span>
                   )}
+                    <PaymentStatusBadge status={p.status} />
                 </div>
                 <div className="text-right">
                   <span className="font-mono text-blue-600">{formatCurrency(p.amount)}</span>

@@ -17,10 +17,6 @@ import {
   findPendingAssignmentsForStudent,
   getCurrentAcademicSessionId,
 } from './fee-queries';
-import {
-  findAllStudentDiscounts,
-} from './student-discount-queries';
-
 // ── Categories ──
 export const fetchFeeCategoriesAction = safeFetchAction(
   async (activeOnly?: boolean) => {
@@ -176,6 +172,7 @@ export const fetchFamilyFullLedgerAction = safeFetchAction(
       id: true,
       amount: true,
       receiptNumber: true,
+      status: true,
       feeAssignment: {
         select: {
           generatedForMonth: true,
@@ -192,7 +189,6 @@ export const fetchFamilyFullLedgerAction = safeFetchAction(
         include: {
           recordedBy: { select: { firstName: true, lastName: true } },
           childPayments: {
-            where: { status: 'COMPLETED' },
             select: childPaymentSelect,
           },
         },
@@ -203,7 +199,7 @@ export const fetchFamilyFullLedgerAction = safeFetchAction(
         ? prisma.feePayment.findMany({
             where: {
               familyPaymentId: null,
-              status: 'COMPLETED',
+              status: { in: ['COMPLETED', 'REVERSED'] },
               feeAssignment: { studentProfileId: { in: childIds } },
             },
             select: {
@@ -212,6 +208,7 @@ export const fetchFamilyFullLedgerAction = safeFetchAction(
               receiptNumber: true,
               paymentMethod: true,
               referenceNumber: true,
+              status: true,
               paidAt: true,
               recordedBy: { select: { firstName: true, lastName: true } },
               feeAssignment: {

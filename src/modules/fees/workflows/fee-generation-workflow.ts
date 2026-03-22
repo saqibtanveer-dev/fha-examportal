@@ -229,6 +229,7 @@ export const feeGenerationWorkflow = task({
                     create: {
                       amount: data.discountAmount,
                       reason: 'Permanent student discount (auto-applied)',
+                      source: 'RECURRING_STUDENT',
                       appliedById: requestedByUserId,
                     },
                   },

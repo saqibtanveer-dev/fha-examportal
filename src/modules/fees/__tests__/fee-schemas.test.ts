@@ -264,11 +264,27 @@ describe('recordFamilyPaymentSchema', () => {
   });
 
   it('accepts all allocation strategies', () => {
-    for (const s of ['OLDEST_FIRST', 'CHILD_PRIORITY', 'EQUAL_SPLIT', 'MANUAL']) {
+    for (const s of ['OLDEST_FIRST', 'CHILD_PRIORITY', 'EQUAL_SPLIT']) {
       expect(
         recordFamilyPaymentSchema.safeParse({ ...valid, allocationStrategy: s }).success,
       ).toBe(true);
     }
+
+    expect(
+      recordFamilyPaymentSchema.safeParse({
+        ...valid,
+        allocationStrategy: 'MANUAL',
+        manualAllocations: [{ childId: '550e8400-e29b-41d4-a716-446655440001', amount: 3000 }],
+      }).success,
+    ).toBe(true);
+
+    expect(
+      recordFamilyPaymentSchema.safeParse({
+        ...valid,
+        allocationStrategy: 'CUSTOM',
+        customAllocations: [{ feeAssignmentId: '550e8400-e29b-41d4-a716-446655440002', amount: 5000 }],
+      }).success,
+    ).toBe(true);
   });
 
   it('rejects negative totalAmount', () => {

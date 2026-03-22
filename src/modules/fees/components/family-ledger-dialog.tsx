@@ -5,11 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
 import { formatCurrency, formatMonth } from './fee-status-badge';
+import { PaymentStatusBadge } from './fee-status-badge';
 import { fetchFamilyFullLedgerAction } from '@/modules/fees/fee-fetch-actions';
 import { ChevronDown, ChevronRight, User2, Wallet, CreditCard, Receipt } from 'lucide-react';
 
 type ChildPaymentEntry = {
-  id: string; amount: number; receiptNumber: string;
+  id: string; amount: number; receiptNumber: string; status: 'COMPLETED' | 'REVERSED';
   feeAssignment: { generatedForMonth: string; studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } } | null } | null;
 };
 type FamilyPaymentEntry = {
@@ -19,7 +20,7 @@ type FamilyPaymentEntry = {
 };
 type DirectPaymentEntry = {
   id: string; amount: number; receiptNumber: string; paymentMethod: string;
-  referenceNumber: string | null; paidAt: string;
+  referenceNumber: string | null; status: 'COMPLETED' | 'REVERSED'; paidAt: string;
   recordedBy: { firstName: string; lastName: string } | null;
   feeAssignment: { generatedForMonth: string; studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } } | null } | null;
 };
@@ -36,14 +37,22 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!familyProfileId) { setData({ familyPayments: [], directPayments: [] }); return; }
+    if (!familyProfileId) return;
     startTransition(async () => {
       const result = await fetchFamilyFullLedgerAction(familyProfileId);
       setData((result as LedgerData) ?? { familyPayments: [], directPayments: [] });
     });
   }, [familyProfileId]);
 
-  const toggle = (id: string) => setExpandedIds((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggle = (id: string) => setExpandedIds((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) {
+      n.delete(id);
+    } else {
+      n.add(id);
+    }
+    return n;
+  });
   const totalCollected = data.familyPayments.reduce((s, p) => s + Number(p.totalAmount), 0) + data.directPayments.reduce((s, p) => s + Number(p.amount), 0);
   const hasAny = data.familyPayments.length > 0 || data.directPayments.length > 0;
 
@@ -103,22 +112,24 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
                                 <div key={cp.id} className="flex items-center gap-3 px-4 py-2.5">
                                   <User2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                                   <div className="flex-1 min-w-0 text-sm"><p className="font-medium">{cp.feeAssignment?.studentProfile ? `${cp.feeAssignment.studentProfile.user.firstName} ${cp.feeAssignment.studentProfile.user.lastName}` : 'Unknown'}</p><p className="text-xs text-muted-foreground">{cp.feeAssignment ? formatMonth(cp.feeAssignment.generatedForMonth) : '—'} · <span className="font-mono">{cp.receiptNumber}</span></p></div>
+                                  <PaymentStatusBadge status={cp.status} />
                                   <span className="font-mono font-semibold text-sm text-green-700 dark:text-green-400">{formatCurrency(Number(cp.amount))}</span>
                                 </div>
                               ))}
                             </div>
                             <table className="hidden sm:table w-full text-xs">
-                              <thead><tr className="border-b text-muted-foreground"><th className="px-4 py-2 text-left font-medium">Student</th><th className="px-4 py-2 text-left font-medium">Month</th><th className="px-4 py-2 text-left font-medium">Receipt #</th><th className="px-4 py-2 text-right font-medium">Amount</th></tr></thead>
+                              <thead><tr className="border-b text-muted-foreground"><th className="px-4 py-2 text-left font-medium">Student</th><th className="px-4 py-2 text-left font-medium">Month</th><th className="px-4 py-2 text-left font-medium">Receipt #</th><th className="px-4 py-2 text-left font-medium">Status</th><th className="px-4 py-2 text-right font-medium">Amount</th></tr></thead>
                               <tbody className="divide-y">
                                 {p.childPayments.map((cp) => (
                                   <tr key={cp.id} className="hover:bg-muted/20">
                                     <td className="px-4 py-2">{cp.feeAssignment?.studentProfile ? `${cp.feeAssignment.studentProfile.user.firstName} ${cp.feeAssignment.studentProfile.user.lastName}` : 'Unknown'}</td>
                                     <td className="px-4 py-2 text-muted-foreground">{cp.feeAssignment ? formatMonth(cp.feeAssignment.generatedForMonth) : '—'}</td>
                                     <td className="px-4 py-2 font-mono text-muted-foreground">{cp.receiptNumber}</td>
+                                    <td className="px-4 py-2"><PaymentStatusBadge status={cp.status} /></td>
                                     <td className="px-4 py-2 text-right font-mono font-semibold text-green-700 dark:text-green-400">{formatCurrency(Number(cp.amount))}</td>
                                   </tr>
                                 ))}
-                                <tr className="bg-muted/40 font-semibold"><td colSpan={3} className="px-4 py-2 text-right text-muted-foreground">Total</td><td className="px-4 py-2 text-right font-mono text-green-700 dark:text-green-400">{formatCurrency(p.childPayments.reduce((s, cp) => s + Number(cp.amount), 0))}</td></tr>
+                                <tr className="bg-muted/40 font-semibold"><td colSpan={4} className="px-4 py-2 text-right text-muted-foreground">Total</td><td className="px-4 py-2 text-right font-mono text-green-700 dark:text-green-400">{formatCurrency(p.childPayments.reduce((s, cp) => s + Number(cp.amount), 0))}</td></tr>
                               </tbody>
                             </table>
                           </div>
@@ -148,6 +159,7 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
                                 <span className="font-mono">{p.receiptNumber}</span>
                                 {p.referenceNumber && <span>Ref: {p.referenceNumber}</span>}
                               </p>
+                              <div className="mt-1"><PaymentStatusBadge status={p.status} /></div>
                             </div>
                             <span className="font-mono font-bold text-green-700 dark:text-green-400 shrink-0">{formatCurrency(Number(p.amount))}</span>
                           </div>

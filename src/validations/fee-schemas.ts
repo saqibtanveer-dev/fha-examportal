@@ -113,6 +113,22 @@ export const recordFamilyPaymentSchema = z.object({
     feeAssignmentId: z.string().uuid(),
     amount: z.number().min(0),
   })).optional(),
+}).superRefine((data, ctx) => {
+  if (data.allocationStrategy === 'MANUAL' && (!data.manualAllocations || data.manualAllocations.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['manualAllocations'],
+      message: 'Manual allocations are required for MANUAL strategy',
+    });
+  }
+
+  if (data.allocationStrategy === 'CUSTOM' && (!data.customAllocations || data.customAllocations.length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['customAllocations'],
+      message: 'Custom allocations are required for CUSTOM strategy',
+    });
+  }
 });
 
 export type RecordFamilyPaymentInput = z.infer<typeof recordFamilyPaymentSchema>;

@@ -6,7 +6,7 @@ import {
 } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Spinner } from '@/components/shared';
-import { formatCurrency, formatMonth } from './fee-status-badge';
+import { formatCurrency, formatMonth, PaymentStatusBadge } from './fee-status-badge';
 import { fetchAssignmentDetailAction } from '@/modules/fees/fee-client-core-fetch-actions';
 
 type Payment = {
@@ -17,9 +17,15 @@ type Payment = {
 };
 
 type Discount = {
-  id: string; amount: number; reason: string; createdAt: string;
+  id: string; amount: number; source: 'RECURRING_STUDENT' | 'ON_SPOT_ADMIN' | 'FAMILY_ADJUSTMENT'; reason: string; createdAt: string;
   appliedBy: { firstName: string; lastName: string } | null;
 };
+
+function getDiscountSourceLabel(source: Discount['source']): string {
+  if (source === 'RECURRING_STUDENT') return 'Recurring';
+  if (source === 'FAMILY_ADJUSTMENT') return 'Family adjustment';
+  return 'On-spot';
+}
 
 type LineItem = { id: string; categoryName: string; amount: number };
 
@@ -47,7 +53,7 @@ export function PaymentHistoryDialog({ assignmentId, onClose }: Props) {
   const [detail, setDetail] = useState<AssignmentDetail | null>(null);
 
   useEffect(() => {
-    if (!assignmentId) { setDetail(null); return; }
+    if (!assignmentId) return;
     startTransition(async () => {
       try {
         const result = await fetchAssignmentDetailAction(assignmentId);
@@ -110,7 +116,10 @@ export function PaymentHistoryDialog({ assignmentId, onClose }: Props) {
                   <div key={p.id} className="rounded border p-2 space-y-1">
                     <div className="flex justify-between font-medium">
                       <span className="font-mono text-blue-600">{formatCurrency(p.amount)}</span>
-                      <Badge variant="outline" className="text-xs">{p.paymentMethod}</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs">{p.paymentMethod}</Badge>
+                        <PaymentStatusBadge status={p.status === 'REVERSED' ? 'REVERSED' : 'COMPLETED'} />
+                      </div>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>Receipt: {p.receiptNumber}</span>
@@ -135,7 +144,10 @@ export function PaymentHistoryDialog({ assignmentId, onClose }: Props) {
                 {detail.discounts.map((d) => (
                   <div key={d.id} className="rounded border border-green-200 bg-green-50 dark:bg-green-950/20 p-2 space-y-1">
                     <div className="flex justify-between font-medium text-green-700">
-                      <span>{d.reason}</span>
+                      <span>
+                        {d.reason}
+                        <span className="ml-1 text-xs text-muted-foreground">({getDiscountSourceLabel(d.source)})</span>
+                      </span>
                       <span className="font-mono">-{formatCurrency(d.amount)}</span>
                     </div>
                     <div className="flex justify-between text-xs text-muted-foreground">

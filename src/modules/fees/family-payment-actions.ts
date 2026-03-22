@@ -23,6 +23,7 @@ import type { ChildWithAssignments, PendingAssignment } from './fee.types';
 
 const FEE_PATHS = ['/admin/fees', '/student/fees', '/family/fees'];
 const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
+const AMOUNT_EPSILON = 0.01;
 
 // ── Record family payment ──
 
@@ -44,6 +45,16 @@ export const recordFamilyPaymentAction = safeAction(
       childPriorityOrder,
       customAllocations,
     } = parsed.data;
+
+    if (allocationStrategy === 'CUSTOM') {
+      if (!customAllocations || customAllocations.length === 0) {
+        return actionError('Custom allocations are required for CUSTOM strategy');
+      }
+      const requestedTotal = Math.round(customAllocations.reduce((sum, entry) => sum + entry.amount, 0) * 100) / 100;
+      if (Math.abs(requestedTotal - totalAmount) > AMOUNT_EPSILON) {
+        return actionError('Custom allocation total must match payment total amount');
+      }
+    }
 
     // Verify family profile and gather all children + pending assignments in one query
     const familyProfile = await prisma.familyProfile.findUnique({
@@ -158,7 +169,7 @@ export const recordFamilyPaymentAction = safeAction(
     // Collect all assignment IDs for advisory locks
     const allAssignmentIds = allocation.allocations
       .flatMap((ca) => ca.assignmentAllocations.filter((a) => a.allocatedAmount > 0).map((a) => a.assignmentId));
-    const lockKeys = allAssignmentIds.map((id) => `fee-assignment:${id}`);
+    const lockKeys = [`family:${familyProfileId}`, ...allAssignmentIds.map((id) => `fee-assignment:${id}`)];
 
     const familyPaymentId = crypto.randomUUID();
 

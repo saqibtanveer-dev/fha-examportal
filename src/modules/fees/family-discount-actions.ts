@@ -73,6 +73,7 @@ export const applyFamilyDiscountAction = safeAction(
             feeAssignmentId: d.feeAssignmentId,
             amount: effectiveDiscount,
             reason,
+            source: 'FAMILY_ADJUSTMENT',
             appliedById: session.user.id,
           },
         }),

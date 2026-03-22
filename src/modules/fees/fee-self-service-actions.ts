@@ -94,11 +94,11 @@ export const fetchMyFeesWithPaymentsAction = safeFetchAction(async () => {
     include: {
       lineItems: { select: { id: true, categoryName: true, amount: true } },
       payments: {
-        where: { status: 'COMPLETED' },
+        where: { status: { in: ['COMPLETED', 'REVERSED'] } },
         orderBy: { paidAt: 'desc' },
         select: {
           id: true, amount: true, paymentMethod: true,
-          referenceNumber: true, receiptNumber: true, paidAt: true,
+          referenceNumber: true, receiptNumber: true, status: true, paidAt: true,
         },
       },
     },
@@ -154,7 +154,10 @@ export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
   const childIds = profile.studentLinks.map((l) => l.studentProfile.id);
   const allAssignments = await prisma.feeAssignment.findMany({
     where: { studentProfileId: { in: childIds }, academicSessionId: sessionId, status: { not: 'CANCELLED' } },
-    include: { lineItems: { select: { id: true, categoryName: true, amount: true } } },
+    include: {
+      lineItems: { select: { id: true, categoryName: true, amount: true } },
+      discounts: { select: { amount: true, source: true } },
+    },
     orderBy: [{ generatedForMonth: 'asc' }, { dueDate: 'asc' }],
   });
   const byStudent = new Map<string, typeof allAssignments>();
@@ -194,12 +197,12 @@ export const fetchFamilyFeesOverviewAction = safeFetchAction(async () => {
       ? prisma.feePayment.findMany({
           where: {
             familyPaymentId: null,
-            status: 'COMPLETED',
+            status: { in: ['COMPLETED', 'REVERSED'] },
             feeAssignment: { studentProfileId: { in: childIds } },
           },
           select: {
             id: true, amount: true, receiptNumber: true,
-            paymentMethod: true, referenceNumber: true, paidAt: true,
+            paymentMethod: true, referenceNumber: true, status: true, paidAt: true,
             recordedBy: { select: { firstName: true, lastName: true } },
             feeAssignment: {
               select: {

@@ -22,15 +22,6 @@ stability above 9 out of 10
 reliability above 9 out of 10
 
 -----
-iss me na fee collection ka ux non technical user k lia acha nhi hy 
-aur ya issues b hain 
-jab family weise payment collect ki ja rhi ho aur admin ik single student(child) k samny payment history btn pr click kry to student ki pending aur paid aur partially paid sari ki sari payments nazar aati hain lakin jab view family ledger pr click kia jay to sirf paid hi nazar aati hain 
-faily dashboard pr b ya hhi hota hy 
-
-issi tra make sure kro k jab payment ho to us me kitna actual paisy pay kia gy kitna jo fixed discount lagra hy har dfa wo lga aur kitna jo hy na on the spot discount dia gya iss tra sy ya sara kuch proper mention ho proper ui ux k sath per student b aur per family b, parent hi student ki fee dyty hain to agr unain deekhana hy k kis waqt ki kitni payment ki gai aur us pr har dfa wala discount kita tha actual paisy kitny dia gy aur kitna jo hy na on the spot discount lga ya sara kuch uny family wise hi deekhy per student nhi 
-aur per student ko b fee me ya sara kuch deekhy 
-
-iss issue ko brutally deeply analyze kro aur abi code generate na kro fixes plan kro 
 -----
 
 kam krty waqt is bat ka khayl rakhna hy k proper design patterns hon aur code reusability ho 

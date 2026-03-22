@@ -7,6 +7,7 @@ const {
   mockFeePayment,
   mockFeeDiscount,
   mockFeeCredit,
+  mockFamilyStudentLink,
   mockExecuteRaw,
   mockTransaction,
 } = vi.hoisted(() => {
@@ -22,15 +23,17 @@ const {
   };
   const _mockFeeDiscount = { create: vi.fn().mockResolvedValue({}) };
   const _mockFeeCredit = { create: vi.fn().mockResolvedValue({}), updateMany: vi.fn().mockResolvedValue({}) };
+  const _mockFamilyStudentLink = { findFirst: vi.fn().mockResolvedValue(null) };
   const _mockExecuteRaw = vi.fn().mockResolvedValue(undefined);
 
-  const _mockTransaction = vi.fn().mockImplementation(async (fnOrArray: unknown, _opts?: unknown) => {
+  const _mockTransaction = vi.fn().mockImplementation(async (fnOrArray: unknown) => {
     if (typeof fnOrArray === 'function') {
       const txClient = {
         feeAssignment: _mockFeeAssignment,
         feePayment: _mockFeePayment,
         feeDiscount: _mockFeeDiscount,
         feeCredit: _mockFeeCredit,
+        familyStudentLink: _mockFamilyStudentLink,
         $executeRaw: _mockExecuteRaw,
       };
       return (fnOrArray as (tx: typeof txClient) => Promise<unknown>)(txClient);
@@ -43,6 +46,7 @@ const {
     mockFeePayment: _mockFeePayment,
     mockFeeDiscount: _mockFeeDiscount,
     mockFeeCredit: _mockFeeCredit,
+    mockFamilyStudentLink: _mockFamilyStudentLink,
     mockExecuteRaw: _mockExecuteRaw,
     mockTransaction: _mockTransaction,
   };
@@ -56,6 +60,7 @@ vi.mock('@/lib/prisma', () => ({
     feePayment: mockFeePayment,
     feeDiscount: mockFeeDiscount,
     feeCredit: mockFeeCredit,
+    familyStudentLink: mockFamilyStudentLink,
     $transaction: mockTransaction,
     $executeRaw: mockExecuteRaw,
   },
@@ -103,19 +108,21 @@ const mockPrisma = prisma as unknown as {
   };
   feeDiscount: { create: ReturnType<typeof vi.fn> };
   feeCredit: { create: ReturnType<typeof vi.fn>; updateMany: ReturnType<typeof vi.fn> };
+  familyStudentLink: { findFirst: ReturnType<typeof vi.fn> };
   $transaction: ReturnType<typeof vi.fn>;
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   // Restore interactive transaction mock after clearAllMocks
-  mockPrisma.$transaction.mockImplementation(async (fnOrArray: unknown, _opts?: unknown) => {
+  mockPrisma.$transaction.mockImplementation(async (fnOrArray: unknown) => {
     if (typeof fnOrArray === 'function') {
       const txClient = {
         feeAssignment: mockPrisma.feeAssignment,
         feePayment: mockPrisma.feePayment,
         feeDiscount: mockPrisma.feeDiscount,
         feeCredit: mockPrisma.feeCredit,
+        familyStudentLink: mockPrisma.familyStudentLink,
         $executeRaw: vi.fn().mockResolvedValue(undefined),
       };
       return (fnOrArray as (tx: typeof txClient) => Promise<unknown>)(txClient);

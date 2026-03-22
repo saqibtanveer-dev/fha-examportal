@@ -15,9 +15,34 @@ import type { fetchFamilyFeesOverviewAction } from '@/modules/fees/fee-self-serv
 
 type DirectPaymentEntry = {
   id: string; amount: number; receiptNumber: string; paymentMethod: string;
-  referenceNumber: string | null; paidAt: string;
+  referenceNumber: string | null; status: 'COMPLETED' | 'REVERSED'; paidAt: string;
   feeAssignment: { generatedForMonth: string; studentProfile: { user: { firstName: string; lastName: string } } | null } | null;
 };
+
+type AssignmentDiscount = {
+  amount: number;
+  source: 'RECURRING_STUDENT' | 'ON_SPOT_ADMIN' | 'FAMILY_ADJUSTMENT';
+};
+
+function getDiscountBreakdown(discounts?: AssignmentDiscount[]) {
+  if (!discounts || discounts.length === 0) {
+    return { recurringDiscount: 0, onSpotDiscount: 0 };
+  }
+
+  let recurringDiscount = 0;
+  let onSpotDiscount = 0;
+
+  for (const discount of discounts) {
+    const amount = Number(discount.amount);
+    if (discount.source === 'RECURRING_STUDENT') {
+      recurringDiscount += amount;
+    } else {
+      onSpotDiscount += amount;
+    }
+  }
+
+  return { recurringDiscount, onSpotDiscount };
+}
 
 type Props = {
   data: Awaited<ReturnType<typeof fetchFamilyFeesOverviewAction>>;
@@ -168,6 +193,11 @@ export function FamilyFeesView({ data }: Props) {
                       <div className="space-y-2 sm:hidden">
                         {c.assignments.map((a) => (
                           <div key={a.id} className="rounded-lg border bg-card p-3 space-y-2">
+                            {(() => {
+                              const assignmentDiscounts = (a as typeof a & { discounts?: AssignmentDiscount[] }).discounts;
+                              const { recurringDiscount, onSpotDiscount } = getDiscountBreakdown(assignmentDiscounts);
+                              return (
+                                <>
                             <div className="flex items-center justify-between gap-2">
                               <p className="font-medium text-sm">{formatMonth(a.generatedForMonth)}</p>
                               <FeeStatusBadge status={a.status} />
@@ -192,8 +222,15 @@ export function FamilyFeesView({ data }: Props) {
                               Due: {new Date(a.dueDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                             </p>
                             {a.discountAmount > 0 && (
-                              <p className="text-xs text-green-600">Discount applied: {formatCurrency(a.discountAmount)}</p>
+                              <div className="space-y-0.5 text-xs">
+                                <p className="text-green-700 dark:text-green-400">Recurring discount: {formatCurrency(recurringDiscount)}</p>
+                                <p className="text-emerald-700 dark:text-emerald-400">On-spot discount: {formatCurrency(onSpotDiscount)}</p>
+                                <p className="text-muted-foreground">Total discount: {formatCurrency(a.discountAmount)}</p>
+                              </div>
                             )}
+                                </>
+                              );
+                            })()}
                           </div>
                         ))}
                       </div>
@@ -214,16 +251,30 @@ export function FamilyFeesView({ data }: Props) {
                           <tbody className="divide-y">
                             {c.assignments.map((a) => (
                               <tr key={a.id} className="hover:bg-muted/30 transition-colors">
+                                {(() => {
+                                  const assignmentDiscounts = (a as typeof a & { discounts?: AssignmentDiscount[] }).discounts;
+                                  const { recurringDiscount, onSpotDiscount } = getDiscountBreakdown(assignmentDiscounts);
+                                  return (
+                                    <>
                                 <td className="px-4 py-2.5 font-medium">{formatMonth(a.generatedForMonth)}</td>
                                 <td className="px-4 py-2.5 text-right font-mono">{formatCurrency(a.totalAmount)}</td>
                                 <td className="px-4 py-2.5 text-right font-mono text-green-600">{formatCurrency(a.paidAmount)}</td>
                                 <td className={`px-4 py-2.5 text-right font-mono font-medium ${a.balanceAmount > 0 ? 'text-amber-600' : ''}`}>
                                   {formatCurrency(a.balanceAmount)}
+                                  {a.discountAmount > 0 && (
+                                    <div className="mt-1 text-[10px] leading-tight text-muted-foreground">
+                                      <div>R: {formatCurrency(recurringDiscount)}</div>
+                                      <div>O: {formatCurrency(onSpotDiscount)}</div>
+                                    </div>
+                                  )}
                                 </td>
                                 <td className="px-4 py-2.5 text-muted-foreground">
                                   {new Date(a.dueDate).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}
                                 </td>
                                 <td className="px-4 py-2.5"><FeeStatusBadge status={a.status} /></td>
+                                    </>
+                                  );
+                                })()}
                               </tr>
                             ))}
                           </tbody>
@@ -271,7 +322,7 @@ export function FamilyFeesView({ data }: Props) {
                     {familyPayments.map((p) => {
                       const isExpanded = expandedPaymentIds.has(p.id);
                       type CP = {
-                        id: string; amount: number; receiptNumber: string;
+                        id: string; amount: number; receiptNumber: string; status: 'COMPLETED' | 'REVERSED';
                         feeAssignment: {
                           generatedForMonth: string;
                           studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } } | null;
@@ -334,6 +385,7 @@ export function FamilyFeesView({ data }: Props) {
                                           {cp.feeAssignment ? formatMonth(cp.feeAssignment.generatedForMonth) : '—'}
                                           {' · '}<span className="font-mono">{cp.receiptNumber}</span>
                                         </p>
+                                        <div className="mt-1"><PaymentStatusBadge status={cp.status} /></div>
                                       </div>
                                       <span className="font-mono font-semibold text-sm text-green-700 dark:text-green-400 shrink-0">
                                         {formatCurrency(Number(cp.amount))}
@@ -363,7 +415,10 @@ export function FamilyFeesView({ data }: Props) {
                                         <td className="px-4 py-2 text-muted-foreground">
                                           {cp.feeAssignment ? formatMonth(cp.feeAssignment.generatedForMonth) : '—'}
                                         </td>
-                                        <td className="px-4 py-2 font-mono text-muted-foreground">{cp.receiptNumber}</td>
+                                        <td className="px-4 py-2 font-mono text-muted-foreground">
+                                          <div>{cp.receiptNumber}</div>
+                                          <div className="mt-1"><PaymentStatusBadge status={cp.status} /></div>
+                                        </td>
                                         <td className="px-4 py-2 text-right font-mono font-semibold text-green-700 dark:text-green-400">
                                           {formatCurrency(Number(cp.amount))}
                                         </td>
@@ -404,6 +459,7 @@ export function FamilyFeesView({ data }: Props) {
                                 <span>{new Date(p.paidAt).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
                                 <span className="font-mono">{p.receiptNumber}</span>
                               </p>
+                              <div className="mt-1"><PaymentStatusBadge status={p.status} /></div>
                             </div>
                             <span className="font-mono font-bold text-green-700 dark:text-green-400 shrink-0">{formatCurrency(Number(p.amount))}</span>
                           </div>

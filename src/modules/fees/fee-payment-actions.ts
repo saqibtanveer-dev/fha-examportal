@@ -1,6 +1,5 @@
 'use server';
 
-import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
 import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/logger';
@@ -130,7 +129,13 @@ export const applyDiscountAction = safeAction(
       const newStatus = newBalance <= 0 ? 'WAIVED' : assignment.status;
 
       await tx.feeDiscount.create({
-        data: { feeAssignmentId, amount: effectiveDiscount, reason, appliedById: session.user.id },
+        data: {
+          feeAssignmentId,
+          amount: effectiveDiscount,
+          reason,
+          source: 'ON_SPOT_ADMIN',
+          appliedById: session.user.id,
+        },
       });
       await tx.feeAssignment.update({
         where: { id: feeAssignmentId },

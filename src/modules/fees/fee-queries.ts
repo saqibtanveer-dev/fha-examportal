@@ -106,7 +106,7 @@ export async function findAssignmentById(id: string) {
       lineItems: { select: lineItemSelect },
       studentProfile: { select: studentProfileSelect },
       payments: {
-        where: { status: 'COMPLETED' },
+        where: { status: { in: ['COMPLETED', 'REVERSED'] } },
         orderBy: { paidAt: 'desc' },
         select: paymentSelect,
         take: 50,
@@ -116,6 +116,7 @@ export async function findAssignmentById(id: string) {
           id: true,
           reason: true,
           amount: true,
+          source: true,
           createdAt: true,
           appliedBy: { select: { firstName: true, lastName: true } },
         },

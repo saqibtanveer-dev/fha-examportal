@@ -1725,6 +1725,12 @@ enum AllocationStrategy {
   CUSTOM
 }
 
+enum FeeDiscountSource {
+  RECURRING_STUDENT
+  ON_SPOT_ADMIN
+  FAMILY_ADJUSTMENT
+}
+
 // ============================================
 // FEE MANAGEMENT MODELS
 // ============================================
@@ -1798,6 +1804,8 @@ model FeeAssignment {
   @@index([studentProfileId, academicSessionId])
   @@index([academicSessionId, generatedForMonth])
   @@index([academicSessionId, status, dueDate])
+  @@index([status, dueDate])
+  @@index([studentProfileId, status])
   @@index([status])
   @@index([dueDate])
   @@index([generatedForMonth, status])
@@ -1821,6 +1829,7 @@ model FeeDiscount {
   feeAssignmentId String
   reason          String
   amount          Decimal  @db.Decimal(12, 2)
+  source          FeeDiscountSource @default(ON_SPOT_ADMIN)
   appliedById     String
   createdAt       DateTime @default(now())
 
@@ -1853,9 +1862,11 @@ model FeePayment {
 
   @@index([feeAssignmentId, status])
   @@index([familyPaymentId])
+  @@index([familyPaymentId, status])
   @@index([receiptNumber])
   @@index([status])
   @@index([paidAt])
+  @@index([status, paidAt])
 }
 
 model FamilyPayment {
@@ -1881,9 +1892,11 @@ model FamilyPayment {
   childPayments FeePayment[]
 
   @@index([familyProfileId])
+  @@index([familyProfileId, paidAt])
   @@index([masterReceiptNumber])
   @@index([status])
   @@index([paidAt])
+  @@index([status, paidAt])
 }
 
 model FeeSettings {

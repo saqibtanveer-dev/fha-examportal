@@ -72,7 +72,13 @@ export const collectStudentFeeAction = safeAction(
 
       if (effectiveDiscount > 0) {
         await tx.feeDiscount.create({
-          data: { feeAssignmentId, amount: effectiveDiscount, reason: discountReason!, appliedById: session.user.id },
+          data: {
+            feeAssignmentId,
+            amount: effectiveDiscount,
+            reason: discountReason!,
+            source: 'ON_SPOT_ADMIN',
+            appliedById: session.user.id,
+          },
         });
       }
 
@@ -162,7 +168,7 @@ export const collectFamilyFeeAction = safeAction(
 
     const paymentItems = activeItems.filter((i) => i.paymentAmount > 0);
     const childReceipts: string[] = [];
-    for (const _ of paymentItems) {
+    for (let i = 0; i < paymentItems.length; i += 1) {
       childReceipts.push(await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP'));
     }
 
@@ -218,7 +224,13 @@ export const collectFamilyFeeAction = safeAction(
 
         if (effDiscount > 0) {
           await tx.feeDiscount.create({
-            data: { feeAssignmentId: item.feeAssignmentId, amount: effDiscount, reason: discountReason!, appliedById: session.user.id },
+            data: {
+              feeAssignmentId: item.feeAssignmentId,
+              amount: effDiscount,
+              reason: discountReason!,
+              source: 'FAMILY_ADJUSTMENT',
+              appliedById: session.user.id,
+            },
           });
           totalDiscount = Math.round((totalDiscount + effDiscount) * 100) / 100;
         }
