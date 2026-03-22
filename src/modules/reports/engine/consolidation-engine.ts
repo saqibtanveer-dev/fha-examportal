@@ -61,12 +61,18 @@ export async function computeConsolidatedResults(
   const allExamIds = groups.flatMap((g) => Array.from(g.examIds));
   if (allExamIds.length === 0) throw new Error('No exams linked to this result term');
 
+  if (term.sectionId && options.sectionId && options.sectionId !== term.sectionId) {
+    throw new Error('This result term is section-scoped and cannot run for a different section');
+  }
+
+  const effectiveSectionId = options.sectionId ?? term.sectionId ?? undefined;
+
   // Get all students in the class (optionally filtered by section)
   const studentProfiles = await prisma.studentProfile.findMany({
     where: {
       classId: term.classId,
       status: 'ACTIVE',
-      ...(options.sectionId && { sectionId: options.sectionId }),
+      ...(effectiveSectionId && { sectionId: effectiveSectionId }),
       user: { isActive: true },
     },
     orderBy: { userId: 'asc' },

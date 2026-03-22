@@ -30,7 +30,7 @@ export default async function ResultTermDetailPage({ params }: Props) {
     <div className="space-y-6">
       <PageHeader
         title={term.name}
-        description={`${term.class.name} · ${term.academicSession.name}`}
+        description={`${term.class.name}${term.section ? ` (${term.section.name})` : ''} · ${term.academicSession.name}`}
         breadcrumbs={[
           { label: 'Reports', href: '/admin/reports' },
           { label: 'Result Terms', href: '/admin/reports/result-terms' },

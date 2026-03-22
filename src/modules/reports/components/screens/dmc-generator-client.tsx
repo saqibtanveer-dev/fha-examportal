@@ -13,7 +13,7 @@ import { Separator } from '@/components/ui/separator';
 import { EmptyState } from '@/components/shared';
 import { DmcPrintTemplate } from '@/modules/reports/components/print/dmc-print-template';
 import {
-  getSectionsForClassAction,
+  getAvailableSectionsForTermAction,
   getSectionStudentsForDmcAction,
   getDmcDataAction,
   getBatchDmcDataAction,
@@ -66,8 +66,13 @@ export function DmcGeneratorClient({ terms }: Props) {
     if (!term) return;
 
     startTransition(async () => {
-      const secs = await getSectionsForClassAction(term.class.id);
+      const secs = await getAvailableSectionsForTermAction(term.id);
       setSections(secs);
+      if (term.section?.id) {
+        setSectionId(term.section.id);
+        const list = await getSectionStudentsForDmcAction(term.id, term.section.id);
+        setStudents(list);
+      }
     });
   }
 
@@ -126,7 +131,7 @@ export function DmcGeneratorClient({ terms }: Props) {
                 <SelectContent>
                   {terms.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.name} — {t.class.name}
+                      {t.name} — {t.class.name}{t.section ? ` (${t.section.name})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

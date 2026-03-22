@@ -9,6 +9,7 @@ export const createResultTermSchema = z.object({
   description: z.string().max(1000).optional(),
   academicSessionId: z.string().uuid('Invalid session'),
   classId: z.string().uuid('Invalid class'),
+  sectionId: z.string().uuid('Invalid section').optional(),
 });
 
 export type CreateResultTermInput = z.infer<typeof createResultTermSchema>;

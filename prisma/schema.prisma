@@ -538,6 +538,7 @@ model Section {
   diaryEntries         DiaryEntry[]
   datesheetEntries     DatesheetEntry[]
   electiveSlotGroups   ElectiveSlotGroup[]
+  resultTerms          ResultTerm[]
 
   @@unique([classId, name])
   @@index([classId])
@@ -2016,6 +2017,7 @@ model ResultTerm {
   name              String
   academicSessionId String
   classId           String
+  sectionId         String?
   description       String?
   isActive          Boolean  @default(true)
   isPublished       Boolean  @default(false)
@@ -2030,13 +2032,16 @@ model ResultTerm {
 
   academicSession         AcademicSession            @relation(fields: [academicSessionId], references: [id])
   class                   Class                      @relation(fields: [classId], references: [id])
+  section                 Section?                   @relation(fields: [sectionId], references: [id])
   examGroups              ResultExamGroup[]
   consolidatedResults     ConsolidatedResult[]
   consolidatedSummaries   ConsolidatedStudentSummary[]
 
-  @@unique([name, academicSessionId, classId])
+  @@unique([name, academicSessionId, classId, sectionId])
   @@index([academicSessionId])
   @@index([classId])
+  @@index([sectionId])
+  @@index([classId, sectionId])
   @@index([isPublished])
   @@index([isActive])
   @@index([isComputing, lockExpiresAt])

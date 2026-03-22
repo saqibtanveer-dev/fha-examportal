@@ -223,6 +223,7 @@ export type ResultTermWithGroups = {
   computedAt: string | null;
   academicSession: { id: string; name: string };
   class: { id: string; name: string; grade: number };
+  section: { id: string; name: string } | null;
   examGroups: {
     id: string;
     name: string;

@@ -44,6 +44,12 @@ export const computeConsolidatedResultsAction = safeAction(
       return actionError('No exam groups configured. Add exam groups and link exams first.');
     }
 
+    if (term.sectionId && parsed.data.sectionId && parsed.data.sectionId !== term.sectionId) {
+      return actionError('This result term is section-scoped. Please run consolidation for its own section only.');
+    }
+
+    const effectiveSectionId = parsed.data.sectionId ?? term.sectionId ?? undefined;
+
     // Validate weight sum
     const groups = await prisma.resultExamGroup.findMany({
       where: { resultTermId: parsed.data.resultTermId },
@@ -93,7 +99,7 @@ export const computeConsolidatedResultsAction = safeAction(
         parsed.data.resultTermId,
         {
           previousLockExpiresAt: term.lockExpiresAt?.toISOString() ?? null,
-          sectionId: parsed.data.sectionId ?? null,
+          sectionId: effectiveSectionId ?? null,
           recompute: parsed.data.recompute,
         },
       ).catch((err) => logger.error({ err }, 'Audit log failed'));
@@ -102,14 +108,14 @@ export const computeConsolidatedResultsAction = safeAction(
     try {
       const runHandle = await tasks.trigger('reports-consolidation-workflow', {
         resultTermId: parsed.data.resultTermId,
-        sectionId: parsed.data.sectionId,
+        sectionId: effectiveSectionId,
         recompute: parsed.data.recompute,
         requestedByUserId: session.user.id,
         lockOwner,
       }, {
         concurrencyKey: parsed.data.resultTermId,
         maxAttempts: 3,
-        idempotencyKey: `reports:consolidation:${parsed.data.resultTermId}:${parsed.data.sectionId ?? 'all'}:${parsed.data.recompute ? 'recompute' : 'skip-existing'}`,
+        idempotencyKey: `reports:consolidation:${parsed.data.resultTermId}:${effectiveSectionId ?? 'all'}:${parsed.data.recompute ? 'recompute' : 'skip-existing'}`,
       });
 
       createAuditLog(
@@ -118,7 +124,7 @@ export const computeConsolidatedResultsAction = safeAction(
         'RESULT_TERM',
         parsed.data.resultTermId,
         {
-          sectionId: parsed.data.sectionId ?? null,
+          sectionId: effectiveSectionId ?? null,
           recompute: parsed.data.recompute,
           runId: runHandle.id,
         },

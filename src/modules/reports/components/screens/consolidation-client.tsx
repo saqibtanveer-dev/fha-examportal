@@ -16,6 +16,7 @@ import {
   computeConsolidatedResultsAction,
   clearConsolidatedResultsAction,
 } from '@/modules/reports/actions/consolidation-actions';
+import { getAvailableSectionsForTermAction } from '@/modules/reports/actions/result-term-fetch-actions';
 import {
   publishResultTermAction,
   unpublishResultTermAction,
@@ -32,6 +33,8 @@ export function ConsolidationClient({ terms }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selectedTermId, setSelectedTermId] = useState('');
+  const [sections, setSections] = useState<{ id: string; name: string }[]>([]);
+  const [sectionId, setSectionId] = useState('');
   const [recompute, setRecompute] = useState(false);
   const [jobSnapshot, setJobSnapshot] = useState<ConsolidationJobSnapshot | null>(null);
   const [isPolling, setIsPolling] = useState(false);
@@ -42,6 +45,40 @@ export function ConsolidationClient({ terms }: Props) {
   const selectedTerm = terms.find((t) => t.id === selectedTermId);
   const isBackgroundActive =
     jobSnapshot?.status === 'QUEUED' || jobSnapshot?.status === 'RUNNING' || selectedTerm?.isComputing;
+
+  useEffect(() => {
+    if (!selectedTermId) {
+      setSections([]);
+      setSectionId('');
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSections = async () => {
+      const list = await getAvailableSectionsForTermAction(selectedTermId);
+      if (cancelled) return;
+      setSections(list ?? []);
+
+      const scopedSectionId = terms.find((t) => t.id === selectedTermId)?.section?.id;
+      if (scopedSectionId) {
+        setSectionId(scopedSectionId);
+        return;
+      }
+
+      if (list?.length === 1) {
+        setSectionId(list[0]!.id);
+      } else {
+        setSectionId('');
+      }
+    };
+
+    void loadSections();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedTermId, terms]);
 
   useEffect(() => {
     if (!selectedTermId) {
@@ -88,7 +125,11 @@ export function ConsolidationClient({ terms }: Props) {
     if (!selectedTermId) { toast.error('Select a result term'); return; }
     startTransition(async () => {
       try {
-        const res = await computeConsolidatedResultsAction({ resultTermId: selectedTermId, recompute });
+        const res = await computeConsolidatedResultsAction({
+          resultTermId: selectedTermId,
+          sectionId: sectionId || undefined,
+          recompute,
+        });
         if (res.success && res.data) {
           toast.success('Consolidation queued. Processing started in background.');
           router.refresh();
@@ -158,16 +199,40 @@ export function ConsolidationClient({ terms }: Props) {
           <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Result Term *</Label>
-              <Select value={selectedTermId} onValueChange={setSelectedTermId}>
+              <Select value={selectedTermId} onValueChange={(value) => {
+                setSelectedTermId(value);
+                setJobSnapshot(null);
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a result term" />
                 </SelectTrigger>
                 <SelectContent>
                   {terms.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.name} — {t.class.name} ({t.academicSession.name})
+                      {t.name} — {t.class.name}{t.section ? ` (${t.section.name})` : ''} ({t.academicSession.name})
                     </SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Section Scope (optional)</Label>
+              <Select
+                value={sectionId}
+                onValueChange={setSectionId}
+                disabled={!selectedTermId || !!selectedTerm?.section || sections.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={selectedTerm?.section ? 'Locked to result term section' : 'All sections'}
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {selectedTerm?.section
+                    ? <SelectItem value={selectedTerm.section.id}>{selectedTerm.section.name}</SelectItem>
+                    : sections.map((section) => (
+                      <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
@@ -230,6 +295,7 @@ export function ConsolidationClient({ terms }: Props) {
                     <p className="font-medium">{term.name}</p>
                     <p className="text-sm text-muted-foreground">
                       {term.class.name} · {term.academicSession.name} ·{' '}
+                      {term.section ? `${term.section.name} · ` : ''}
                       {term._count.consolidatedResults} results
                     </p>
                     {term.computedAt && (

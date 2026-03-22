@@ -136,22 +136,28 @@ export const linkExamToGroupAction = safeAction(async function linkExamToGroupAc
 
   const group = await prisma.resultExamGroup.findUnique({
     where: { id: parsed.data.examGroupId },
-    include: { resultTerm: { select: { isPublished: true, classId: true, id: true } } },
+    include: { resultTerm: { select: { isPublished: true, classId: true, sectionId: true, id: true } } },
   });
   if (!group) return actionError('Exam group not found');
   if (group.resultTerm.isPublished) return actionError('Cannot modify a published result term');
 
   const exam = await prisma.exam.findUnique({
     where: { id: parsed.data.examId, deletedAt: null },
-    select: { id: true, examClassAssignments: { select: { classId: true } } },
+    select: { id: true, examClassAssignments: { select: { classId: true, sectionId: true } } },
   });
   if (!exam) return actionError('Exam not found');
 
   const isAssignedToClass = exam.examClassAssignments.some(
-    (a) => a.classId === group.resultTerm.classId,
+    (a) =>
+      a.classId === group.resultTerm.classId
+      && (!group.resultTerm.sectionId || a.sectionId === group.resultTerm.sectionId),
   );
   if (!isAssignedToClass) {
-    return actionError('This exam is not assigned to the result term class');
+    return actionError(
+      group.resultTerm.sectionId
+        ? 'This exam is not assigned to the result term section'
+        : 'This exam is not assigned to the result term class',
+    );
   }
 
   const duplicate = await prisma.resultExamLink.findFirst({
@@ -216,7 +222,12 @@ export const autoLinkExamsByTypeAction = safeAction(async function autoLinkExams
     where: {
       deletedAt: null,
       academicSessionId: term.academicSessionId,
-      examClassAssignments: { some: { classId: term.classId } },
+      examClassAssignments: {
+        some: {
+          classId: term.classId,
+          ...(term.sectionId ? { sectionId: term.sectionId } : {}),
+        },
+      },
       status: { in: ['COMPLETED', 'ACTIVE', 'PUBLISHED'] },
     },
     select: { id: true, type: true },

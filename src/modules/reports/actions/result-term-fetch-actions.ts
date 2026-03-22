@@ -13,6 +13,27 @@ import { fetchDmcData, fetchBatchDmcData } from '../queries/dmc-queries';
 import { fetchGazetteData } from '../queries/gazette-queries';
 import { prisma } from '@/lib/prisma';
 
+async function resolveResultTermSectionScope(resultTermId: string, requestedSectionId?: string) {
+  const term = await prisma.resultTerm.findUnique({
+    where: { id: resultTermId },
+    select: { id: true, classId: true, sectionId: true },
+  });
+  if (!term) {
+    throw new Error('Result term not found');
+  }
+
+  if (term.sectionId && requestedSectionId && requestedSectionId !== term.sectionId) {
+    throw new Error('This result term is section-scoped. Please use its configured section.');
+  }
+
+  const effectiveSectionId = requestedSectionId ?? term.sectionId ?? null;
+
+  return {
+    term,
+    effectiveSectionId,
+  };
+}
+
 // ============================================
 // Result Term Fetch Actions
 // ============================================
@@ -79,15 +100,16 @@ export async function getDmcDataAction(resultTermId: string, studentId: string) 
 
 const getBatchDmcData = safeFetchAction(async function getBatchDmcData(
   resultTermId: string,
-  sectionId: string,
+  sectionId?: string,
 ) {
   const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
-  const term = await prisma.resultTerm.findUnique({ where: { id: resultTermId }, select: { classId: true } });
-  if (term) await assertTeacherClassAccess(session.user.id, session.user.role, term.classId);
-  return fetchBatchDmcData(resultTermId, sectionId);
+  const { term, effectiveSectionId } = await resolveResultTermSectionScope(resultTermId, sectionId);
+  await assertTeacherClassAccess(session.user.id, session.user.role, term.classId);
+  if (!effectiveSectionId) return [];
+  return fetchBatchDmcData(resultTermId, effectiveSectionId);
 });
 
-export async function getBatchDmcDataAction(resultTermId: string, sectionId: string) {
+export async function getBatchDmcDataAction(resultTermId: string, sectionId?: string) {
   return getBatchDmcData(resultTermId, sectionId);
 }
 
@@ -97,16 +119,57 @@ export async function getBatchDmcDataAction(resultTermId: string, sectionId: str
 
 const getGazetteData = safeFetchAction(async function getGazetteData(
   resultTermId: string,
-  sectionId: string,
+  sectionId?: string,
 ) {
   const session = await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
-  const term = await prisma.resultTerm.findUnique({ where: { id: resultTermId }, select: { classId: true } });
-  if (term) await assertTeacherClassAccess(session.user.id, session.user.role, term.classId);
-  return fetchGazetteData(resultTermId, sectionId);
+  const { term, effectiveSectionId } = await resolveResultTermSectionScope(resultTermId, sectionId);
+  await assertTeacherClassAccess(session.user.id, session.user.role, term.classId);
+  if (!effectiveSectionId) return null;
+  return fetchGazetteData(resultTermId, effectiveSectionId);
 });
 
-export async function getGazetteDataAction(resultTermId: string, sectionId: string) {
+export async function getGazetteDataAction(resultTermId: string, sectionId?: string) {
   return getGazetteData(resultTermId, sectionId);
+}
+
+const getAvailableSectionsForTerm = safeFetchAction(
+  async function getAvailableSectionsForTerm(resultTermId: string) {
+    await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+
+    const term = await prisma.resultTerm.findUnique({
+      where: { id: resultTermId },
+      select: { id: true, classId: true, sectionId: true },
+    });
+    if (!term) return [];
+
+    if (term.sectionId) {
+      const scoped = await prisma.section.findFirst({
+        where: { id: term.sectionId, classId: term.classId },
+        select: { id: true, name: true },
+      });
+      return scoped ? [scoped] : [];
+    }
+
+    const computedSectionRows = await prisma.consolidatedStudentSummary.findMany({
+      where: { resultTermId: term.id },
+      select: { sectionId: true },
+      distinct: ['sectionId'],
+    });
+    const computedSectionIds = computedSectionRows.map((row) => row.sectionId);
+
+    return prisma.section.findMany({
+      where: {
+        classId: term.classId,
+        ...(computedSectionIds.length > 0 ? { id: { in: computedSectionIds } } : {}),
+      },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  },
+);
+
+export async function getAvailableSectionsForTermAction(resultTermId: string) {
+  return getAvailableSectionsForTerm(resultTermId);
 }
 
 // ============================================
@@ -161,9 +224,11 @@ export async function getSectionsForClassAction(classId: string) {
 const getSectionStudentsForDmc = safeFetchAction(
   async function getSectionStudentsForDmc(resultTermId: string, sectionId: string) {
     await requireRole('ADMIN', 'PRINCIPAL', 'TEACHER');
+    const { effectiveSectionId } = await resolveResultTermSectionScope(resultTermId, sectionId);
+    if (!effectiveSectionId) return [];
 
     const summaries = await prisma.consolidatedStudentSummary.findMany({
-      where: { resultTermId, sectionId },
+      where: { resultTermId, sectionId: effectiveSectionId },
       orderBy: { rankInSection: 'asc' },
       include: {
         student: {

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { updateStudentRemarksAction, batchUpdateStudentRemarksAction } from '@/modules/reports/actions/consolidation-actions';
-import { getSectionsForClassAction, getSectionStudentsForDmcAction } from '@/modules/reports/actions/result-term-fetch-actions';
+import { getAvailableSectionsForTermAction, getSectionStudentsForDmcAction } from '@/modules/reports/actions/result-term-fetch-actions';
 import type { ResultTermSummary } from '@/modules/reports/queries/result-term-queries';
 
 type Props = { terms: ResultTermSummary[] };
@@ -49,8 +49,14 @@ export function RemarksEntryClient({ terms }: Props) {
     const term = terms.find((t) => t.id === termId);
     if (!term) return;
     startTransition(async () => {
-      const res = await getSectionsForClassAction(term.class.id);
+      const res = await getAvailableSectionsForTermAction(term.id);
       setSections(res ?? []);
+
+      if (term.section?.id) {
+        setSelectedSectionId(term.section.id);
+        const scopedStudents = await getSectionStudentsForDmcAction(term.id, term.section.id);
+        setStudents(scopedStudents ?? []);
+      }
     });
   }
 
@@ -151,7 +157,7 @@ export function RemarksEntryClient({ terms }: Props) {
                 <SelectContent>
                   {computedTerms.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.name} — {t.class.name}
+                      {t.name} — {t.class.name}{t.section ? ` (${t.section.name})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -24,6 +24,7 @@ export type ResultTermSummary = {
   createdAt: Date;
   academicSession: { id: string; name: string };
   class: { id: string; name: string; grade: number };
+  section: { id: string; name: string } | null;
   _count: { examGroups: number; consolidatedResults: number };
 };
 
@@ -41,6 +42,7 @@ export async function listResultTerms(
     include: {
       academicSession: { select: { id: true, name: true } },
       class: { select: { id: true, name: true, grade: true } },
+      section: { select: { id: true, name: true } },
       _count: { select: { examGroups: true, consolidatedResults: true } },
     },
   });
@@ -58,6 +60,7 @@ export async function getResultTermWithGroups(
     include: {
       academicSession: { select: { id: true, name: true } },
       class: { select: { id: true, name: true, grade: true } },
+      section: { select: { id: true, name: true } },
       examGroups: {
         orderBy: { sortOrder: 'asc' },
         include: {
@@ -94,6 +97,7 @@ export async function getResultTermWithGroups(
     computedAt: term.computedAt?.toISOString() ?? null,
     academicSession: term.academicSession,
     class: term.class,
+    section: term.section,
     examGroups: term.examGroups.map((g) => ({
       id: g.id,
       name: g.name,
@@ -140,7 +144,7 @@ export async function validateResultTermWeights(
 export async function getAvailableExamsForTerm(resultTermId: string) {
   const term = await prisma.resultTerm.findUnique({
     where: { id: resultTermId },
-    select: { classId: true, academicSessionId: true },
+    select: { classId: true, academicSessionId: true, sectionId: true },
   });
   if (!term) return [];
 
@@ -148,7 +152,12 @@ export async function getAvailableExamsForTerm(resultTermId: string) {
     where: {
       deletedAt: null,
       academicSessionId: term.academicSessionId,
-      examClassAssignments: { some: { classId: term.classId } },
+      examClassAssignments: {
+        some: {
+          classId: term.classId,
+          ...(term.sectionId ? { sectionId: term.sectionId } : {}),
+        },
+      },
       status: { in: ['COMPLETED', 'ACTIVE', 'PUBLISHED'] },
     },
     orderBy: [{ type: 'asc' }, { createdAt: 'desc' }],

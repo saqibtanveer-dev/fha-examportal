@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { EmptyState } from '@/components/shared';
 import { GazettePrintTemplate } from '@/modules/reports/components/print/gazette-print-template';
 import {
-  getSectionsForClassAction,
+  getAvailableSectionsForTermAction,
   getGazetteDataAction,
 } from '@/modules/reports/actions/result-term-fetch-actions';
 import type { ResultTermSummary } from '@/modules/reports/queries/result-term-queries';
@@ -37,8 +37,11 @@ export function GazetteClient({ terms }: Props) {
     const term = terms.find((t) => t.id === id);
     if (!term) return;
     startTransition(async () => {
-      const secs = await getSectionsForClassAction(term.class.id);
+      const secs = await getAvailableSectionsForTermAction(term.id);
       setSections(secs);
+      if (term.section?.id) {
+        setSectionId(term.section.id);
+      }
     });
   }
 
@@ -64,7 +67,7 @@ export function GazetteClient({ terms }: Props) {
                 <SelectContent>
                   {terms.map((t) => (
                     <SelectItem key={t.id} value={t.id}>
-                      {t.name} — {t.class.name}
+                      {t.name} — {t.class.name}{t.section ? ` (${t.section.name})` : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>

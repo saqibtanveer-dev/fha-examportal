@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ConfirmDialog, EmptyState } from '@/components/shared';
 import { createResultTermAction, deleteResultTermAction } from '@/modules/reports/actions/result-term-actions';
+import { getSectionsForClassAction } from '@/modules/reports/actions/result-term-fetch-actions';
 import type { ResultTermSummary } from '@/modules/reports/queries/result-term-queries';
 import { format } from 'date-fns';
 
@@ -27,11 +28,14 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
   const [isPending, startTransition] = useTransition();
   const [createOpen, setCreateOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [scopeMode, setScopeMode] = useState<'ALL' | 'SECTION'>('ALL');
+  const [classSections, setClassSections] = useState<{ id: string; name: string }[]>([]);
   const [form, setForm] = useState({
     name: '',
     description: '',
     academicSessionId: '',
     classId: '',
+    sectionId: '',
   });
   const hasSessionOptions = sessions.length > 0;
   const hasClassOptions = classes.length > 0;
@@ -47,12 +51,24 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
       toast.error('Fill in all required fields');
       return;
     }
+    if (scopeMode === 'SECTION' && !form.sectionId) {
+      toast.error('Select section for section-wise term');
+      return;
+    }
+
+    const payload = {
+      ...form,
+      sectionId: scopeMode === 'SECTION' ? form.sectionId : undefined,
+    };
+
     startTransition(async () => {
-      const res = await createResultTermAction(form);
+      const res = await createResultTermAction(payload);
       if (res.success && res.data) {
         toast.success('Result term created');
         setCreateOpen(false);
-        setForm({ name: '', description: '', academicSessionId: '', classId: '' });
+        setScopeMode('ALL');
+        setClassSections([]);
+        setForm({ name: '', description: '', academicSessionId: '', classId: '', sectionId: '' });
         router.push(`/admin/reports/result-terms/${res.data.id}`);
       } else {
         toast.error(res.error ?? 'Failed to create');
@@ -119,6 +135,9 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
                 <div className="flex gap-2 flex-wrap">
                   <Badge variant={term.isPublished ? 'default' : 'secondary'}>
                     {term.isPublished ? 'Published' : 'Draft'}
+                  </Badge>
+                  <Badge variant="outline">
+                    {term.section ? `Section: ${term.section.name}` : 'All Sections'}
                   </Badge>
                   {term.isComputing && <Badge variant="outline">Computing...</Badge>}
                 </div>
@@ -188,13 +207,52 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
               <Label>Class *</Label>
               <Select
                 value={form.classId}
-                onValueChange={(v) => setForm((f) => ({ ...f, classId: v }))}
+                onValueChange={(v) => {
+                  setForm((f) => ({ ...f, classId: v, sectionId: '' }));
+                  setClassSections([]);
+                  if (!v) return;
+                  startTransition(async () => {
+                    const sections = await getSectionsForClassAction(v);
+                    setClassSections(sections);
+                  });
+                }}
                 disabled={!hasClassOptions}
               >
                 <SelectTrigger><SelectValue placeholder="Select class" /></SelectTrigger>
                 <SelectContent>
                   {classes.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Scope</Label>
+              <Select value={scopeMode} onValueChange={(value) => {
+                const next = value as 'ALL' | 'SECTION';
+                setScopeMode(next);
+                if (next === 'ALL') {
+                  setForm((f) => ({ ...f, sectionId: '' }));
+                }
+              }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">All Sections (default)</SelectItem>
+                  <SelectItem value="SECTION">Single Section</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Section {scopeMode === 'SECTION' ? '*' : '(optional)'}</Label>
+              <Select
+                value={form.sectionId}
+                onValueChange={(v) => setForm((f) => ({ ...f, sectionId: v }))}
+                disabled={scopeMode !== 'SECTION' || !form.classId || classSections.length === 0}
+              >
+                <SelectTrigger><SelectValue placeholder="Select section" /></SelectTrigger>
+                <SelectContent>
+                  {classSections.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -209,7 +267,18 @@ export function ResultTermsClient({ terms, sessions, classes }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateOpen(false)} disabled={isPending}>Cancel</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCreateOpen(false);
+                setScopeMode('ALL');
+                setClassSections([]);
+                setForm({ name: '', description: '', academicSessionId: '', classId: '', sectionId: '' });
+              }}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
             <Button onClick={handleCreate} disabled={isPending || !hasRequiredOptions}>
               {isPending ? 'Creating...' : 'Create'}
             </Button>

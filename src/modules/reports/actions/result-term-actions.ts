@@ -29,15 +29,36 @@ export const createResultTermAction = safeAction(async function createResultTerm
   const parsed = createResultTermSchema.safeParse(input);
   if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Invalid input');
 
-  const { name, description, academicSessionId, classId } = parsed.data;
+  const { name, description, academicSessionId, classId, sectionId } = parsed.data;
+
+  if (sectionId) {
+    const section = await prisma.section.findFirst({
+      where: { id: sectionId, classId },
+      select: { id: true },
+    });
+    if (!section) {
+      return actionError('Selected section does not belong to the selected class');
+    }
+  }
 
   const existing = await prisma.resultTerm.findFirst({
-    where: { name, academicSessionId, classId },
+    where: {
+      name,
+      academicSessionId,
+      classId,
+      ...(sectionId ? { sectionId } : { sectionId: null }),
+    },
   });
-  if (existing) return actionError('A result term with this name already exists for this class and session');
+  if (existing) {
+    return actionError(
+      sectionId
+        ? 'A result term with this name already exists for this class, section, and session'
+        : 'A result term with this name already exists for this class and session',
+    );
+  }
 
   const term = await prisma.resultTerm.create({
-    data: { name, description, academicSessionId, classId },
+    data: { name, description, academicSessionId, classId, sectionId: sectionId ?? null },
   });
 
   createAuditLog(session.user.id, 'CREATE_RESULT_TERM', 'RESULT_TERM', term.id, { name }).catch((err) => logger.error({ err }, 'Audit log failed'));
