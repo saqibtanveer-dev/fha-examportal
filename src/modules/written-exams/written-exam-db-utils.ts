@@ -50,30 +50,33 @@ export async function batchUpsertAnswerGrades(
 async function upsertChunk(tx: Tx, entries: GradeEntry[]): Promise<number> {
   const now = new Date();
 
-  // Build VALUES clause with parameterized inputs
-  const values: unknown[] = [];
-  const placeholders: string[] = [];
+  const rows = entries.map((entry) => Prisma.sql`
+    (
+      ${randomUUID()},
+      ${entry.studentAnswerId},
+      'TEACHER'::"GradedBy",
+      ${entry.graderId},
+      ${entry.marksAwarded},
+      ${entry.maxMarks},
+      ${entry.feedback ?? null},
+      ${now},
+      ${now}
+    )
+  `);
 
-  for (const entry of entries) {
-    const offset = values.length;
-    placeholders.push(
-      `($${offset + 1}, $${offset + 2}, 'TEACHER'::"GradedBy", $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8})`,
-    );
-    values.push(
-      randomUUID(),                  // id
-      entry.studentAnswerId,         // studentAnswerId
-      entry.graderId,                // graderId
-      entry.marksAwarded,            // marksAwarded
-      entry.maxMarks,                // maxMarks
-      entry.feedback ?? null,        // feedback
-      now,                           // createdAt
-      now,                           // updatedAt
-    );
-  }
-
-  const sql = `
-    INSERT INTO "AnswerGrade" ("id", "studentAnswerId", "gradedBy", "graderId", "marksAwarded", "maxMarks", "feedback", "createdAt", "updatedAt")
-    VALUES ${placeholders.join(',\n           ')}
+  return tx.$executeRaw(Prisma.sql`
+    INSERT INTO "AnswerGrade" (
+      "id",
+      "studentAnswerId",
+      "gradedBy",
+      "graderId",
+      "marksAwarded",
+      "maxMarks",
+      "feedback",
+      "createdAt",
+      "updatedAt"
+    )
+    VALUES ${Prisma.join(rows)}
     ON CONFLICT ("studentAnswerId")
     DO UPDATE SET
       "marksAwarded" = EXCLUDED."marksAwarded",
@@ -81,10 +84,7 @@ async function upsertChunk(tx: Tx, entries: GradeEntry[]): Promise<number> {
       "feedback" = EXCLUDED."feedback",
       "graderId" = EXCLUDED."graderId",
       "updatedAt" = EXCLUDED."updatedAt"
-  `;
-
-  const result = await tx.$executeRawUnsafe(sql, ...values);
-  return result;
+  `);
 }
 
 /**
@@ -157,32 +157,37 @@ export async function batchUpsertExamResults(
 async function upsertExamResultChunk(tx: Tx, entries: ExamResultEntry[]): Promise<number> {
   const now = new Date();
 
-  const values: unknown[] = [];
-  const placeholders: string[] = [];
+  const rows = entries.map((entry) => Prisma.sql`
+    (
+      ${randomUUID()},
+      ${entry.sessionId},
+      ${entry.examId},
+      ${entry.studentId},
+      ${entry.totalMarks},
+      ${entry.obtainedMarks},
+      ${entry.percentage},
+      ${entry.grade ?? null},
+      ${entry.isPassed},
+      ${entry.publishedAt ?? null},
+      ${now}
+    )
+  `);
 
-  for (const entry of entries) {
-    const offset = values.length;
-    placeholders.push(
-      `($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9}, $${offset + 10}, $${offset + 11})`,
-    );
-    values.push(
-      randomUUID(),
-      entry.sessionId,
-      entry.examId,
-      entry.studentId,
-      entry.totalMarks,
-      entry.obtainedMarks,
-      entry.percentage,
-      entry.grade ?? null,
-      entry.isPassed,
-      entry.publishedAt ?? null,
-      now,
-    );
-  }
-
-  const sql = `
-    INSERT INTO "ExamResult" ("id", "sessionId", "examId", "studentId", "totalMarks", "obtainedMarks", "percentage", "grade", "isPassed", "publishedAt", "updatedAt")
-    VALUES ${placeholders.join(',\n           ')}
+  return tx.$executeRaw(Prisma.sql`
+    INSERT INTO "ExamResult" (
+      "id",
+      "sessionId",
+      "examId",
+      "studentId",
+      "totalMarks",
+      "obtainedMarks",
+      "percentage",
+      "grade",
+      "isPassed",
+      "publishedAt",
+      "updatedAt"
+    )
+    VALUES ${Prisma.join(rows)}
     ON CONFLICT ("sessionId")
     DO UPDATE SET
       "examId" = EXCLUDED."examId",
@@ -194,21 +199,19 @@ async function upsertExamResultChunk(tx: Tx, entries: ExamResultEntry[]): Promis
       "isPassed" = EXCLUDED."isPassed",
       "publishedAt" = EXCLUDED."publishedAt",
       "updatedAt" = EXCLUDED."updatedAt"
-  `;
-
-  return tx.$executeRawUnsafe(sql, ...values);
+  `);
 }
 
 /**
  * Recompute rank for all results in the same exam using dense rank by obtained marks.
  */
 export async function recomputeExamRanks(tx: Tx, examId: string): Promise<void> {
-  await tx.$executeRawUnsafe(
-    `
+  await tx.$executeRaw(
+    Prisma.sql`
       WITH ranked AS (
         SELECT "id", DENSE_RANK() OVER (ORDER BY "obtainedMarks" DESC) AS computed_rank
         FROM "ExamResult"
-        WHERE "examId" = $1
+        WHERE "examId" = ${examId}
       )
       UPDATE "ExamResult" er
       SET "rank" = ranked.computed_rank,
@@ -216,6 +219,5 @@ export async function recomputeExamRanks(tx: Tx, examId: string): Promise<void> 
       FROM ranked
       WHERE er."id" = ranked."id"
     `,
-    examId,
   );
 }

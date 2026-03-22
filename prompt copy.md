@@ -1,5 +1,7 @@
-is whole project ko brutally deeply analyze kro expecially written exam module ko 
+is whole project ko brutally deeply analyze kro expecially fee module ko 
 ----
+ik proper senior level educational institure administrator ki tra kam kro 
+
 ik senior level backend expert developer ki tra kam kro 
 ik senior level code refactror ki tra kam kro  
 ik senior level security expert developer ki tra kam kro 
@@ -20,11 +22,13 @@ stability above 9 out of 10
 reliability above 9 out of 10
 
 -----
-iss me jab teacher written exam create krta hy aur marks enter krna krta hy sab k ik sath spreadsheet view me, phr jab save all btn pr click krta hy to request time out error aata hy me ny screenshot add kia hy error ka
-ya project vercel pr run ho rha hy aur me ny vercel function ki run time max limmit 5 min kr di hy to ya error vercel ki limits ki wja sy nhi hona chahiya 
-issi k sath iss system me na trigger.dev ko use krny ki zrorat nhi kuon k ik class me students 40 - 50 hi hoty hain aur ya kam normal way me kia ja sakta hy, am i right? 
-too aap iss issue ko brutally deeply analyze kro k timeout error kuon aa rha hy
-my assumption: ya database ka issue hy ya prisma ka 
+iss me na fee collection ka ux non technical user k lia acha nhi hy 
+aur ya issues b hain 
+jab family weise payment collect ki ja rhi ho aur admin ik single student(child) k samny payment history btn pr click kry to student ki pending aur paid aur partially paid sari ki sari payments nazar aati hain lakin jab view family ledger pr click kia jay to sirf paid hi nazar aati hain 
+faily dashboard pr b ya hhi hota hy 
+
+issi tra make sure kro k jab payment ho to us me kitna actual paisy pay kia gy kitna jo fixed discount lagra hy har dfa wo lga aur kitna jo hy na on the spot discount dia gya iss tra sy ya sara kuch proper mention ho proper ui ux k sath per student b aur per family b, parent hi student ki fee dyty hain to agr unain deekhana hy k kis waqt ki kitni payment ki gai aur us pr har dfa wala discount kita tha actual paisy kitny dia gy aur kitna jo hy na on the spot discount lga ya sara kuch uny family wise hi deekhy per student nhi 
+aur per student ko b fee me ya sara kuch deekhy 
 
 iss issue ko brutally deeply analyze kro aur abi code generate na kro fixes plan kro 
 -----
