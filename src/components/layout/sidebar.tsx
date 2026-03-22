@@ -102,7 +102,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
       >
         {/* Logo */}
         <div className="flex h-16 items-center gap-2 border-b px-4">
-          <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={32} height={32} className="h-8 w-8 shrink-0 object-contain" />
+          <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={32} height={32} className="h-10 w-10 shrink-0 object-contain rounded-3xl" />
           {!collapsed && (
             <span className="text-lg font-bold tracking-tight">{APP_NAME}</span>
           )}
@@ -132,7 +132,7 @@ export function Sidebar({ navigation, collapsed, mobileOpen, onMobileClose, onTo
         <SheetContent side="left" className="w-[280px] max-w-[85vw] p-0">
           <SheetHeader className="border-b px-4 py-3">
             <SheetTitle className="flex items-center gap-2">
-              <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={28} height={28} className="h-7 w-7 object-contain" />
+              <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={28} height={28} className="h-7 w-7 rounded-2xl object-contain" />
               <span className="text-lg font-bold">{APP_NAME}</span>
             </SheetTitle>
           </SheetHeader>

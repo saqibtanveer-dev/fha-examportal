@@ -41,7 +41,7 @@ export function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader className="text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
-          <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={40} height={40} className="h-10 w-10 object-contain" />
+          <Image src="/icon-512x512.png" alt="Faith Horizon Portal" width={40} height={40} className="h-12 w-12 rounded-4xl object-contain" />
         </div>
         <CardTitle className="text-2xl">{APP_NAME}</CardTitle>
         <CardDescription>Sign in to your account</CardDescription>
