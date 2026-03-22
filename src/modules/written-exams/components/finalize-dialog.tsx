@@ -36,6 +36,7 @@ export function FinalizeDialog({ open, onOpenChange, examId, isRefinalize, stats
   const refinalizeMutation = useRefinalizeWrittenExam(examId);
 
   const activeMutation = isRefinalize ? refinalizeMutation : finalizeMutation;
+  const isProcessing = activeMutation.isPending;
   const incompleteCount = stats.inProgressCount + stats.pendingCount;
   const canFinalize = stats.completedCount > 0 && incompleteCount === 0;
 
@@ -48,7 +49,13 @@ export function FinalizeDialog({ open, onOpenChange, examId, isRefinalize, stats
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (isProcessing) return;
+        onOpenChange(nextOpen);
+      }}
+    >
       <AlertDialogContent className="max-w-md sm:max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
@@ -103,17 +110,31 @@ export function FinalizeDialog({ open, onOpenChange, examId, isRefinalize, stats
           </p>
         )}
 
+        {isProcessing && (
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-300">
+            <div className="flex items-center gap-2">
+              <Spinner size="sm" />
+              <span className="font-medium">
+                {isRefinalize ? 'Recalculating results...' : 'Finalizing results...'}
+              </span>
+            </div>
+            <p className="mt-1 text-xs opacity-90">
+              Please wait and do not close this dialog. This can take a few seconds for large classes.
+            </p>
+          </div>
+        )}
+
         <AlertDialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
-          <AlertDialogCancel disabled={activeMutation.isPending} className="min-h-10">
+          <AlertDialogCancel disabled={isProcessing} className="min-h-10">
             Cancel
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            disabled={!canFinalize || activeMutation.isPending}
+            disabled={!canFinalize || isProcessing}
             className="min-h-10"
           >
-            {activeMutation.isPending && <Spinner size="sm" className="mr-2" />}
-            {isRefinalize ? 'Recalculate' : 'Finalize'}
+            {isProcessing && <Spinner size="sm" className="mr-2" />}
+            {isRefinalize ? (isProcessing ? 'Recalculating...' : 'Recalculate') : (isProcessing ? 'Finalizing...' : 'Finalize')}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

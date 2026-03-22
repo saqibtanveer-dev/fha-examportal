@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useBulkEnterWrittenMarks } from './use-written-exam-query';
 import { parseMarksExcel, type ImportParseResult } from '../excel-import';
 import { toast } from 'sonner';
+import { useInvalidateCache } from '@/lib/cache-utils';
 import {
   markStudentAbsentAction,
   unmarkStudentAbsentAction,
@@ -22,6 +23,7 @@ type ImportState =
 export function useExcelImport(examId: string) {
   const [state, setState] = useState<ImportState>({ status: 'idle' });
   const bulkMutation = useBulkEnterWrittenMarks(examId);
+  const invalidate = useInvalidateCache();
 
   const parseFile = useCallback(async (file: File) => {
     setState({ status: 'parsing' });
@@ -110,10 +112,12 @@ export function useExcelImport(examId: string) {
       }
     }
 
+    await invalidate.afterWrittenMarksChange(examId);
+
     const absentMessage = absentIds.length > 0 ? `, ${absentIds.length} marked absent` : '';
     toast.success(`${imported} mark entries imported for ${result.studentCount} students${absentMessage}`);
     setState({ status: 'done', imported });
-  }, [examId, bulkMutation]);
+  }, [examId, bulkMutation, invalidate]);
 
   const reset = useCallback(() => setState({ status: 'idle' }), []);
 

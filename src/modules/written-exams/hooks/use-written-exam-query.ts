@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/query-keys';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { fetchWrittenExamMarkEntryAction } from '@/modules/written-exams/written-exam-fetch-actions';
@@ -143,7 +143,9 @@ export function useFinalizeWrittenExam(examId: string) {
   const invalidate = useInvalidateCache();
   return useMutation({
     mutationFn: () => finalizeWrittenExamAction({ examId }),
-    onSuccess: async (result) => {
+    onMutate: () => ({ toastId: toast.loading('Finalizing results... Please wait.') }),
+    onSuccess: async (result, _variables, context) => {
+      if (context?.toastId) toast.dismiss(context.toastId);
       if (result.success) {
         toast.success(`${result.data?.resultsCreated ?? 0} results calculated`);
         await invalidate.afterWrittenExamFinalize(examId);
@@ -151,7 +153,10 @@ export function useFinalizeWrittenExam(examId: string) {
         toast.error(result.error ?? 'Finalization failed');
       }
     },
-    onError: () => toast.error('Finalization failed'),
+    onError: (_error, _variables, context) => {
+      if (context?.toastId) toast.dismiss(context.toastId);
+      toast.error('Finalization failed');
+    },
   });
 }
 
@@ -162,7 +167,9 @@ export function useRefinalizeWrittenExam(examId: string) {
   const invalidate = useInvalidateCache();
   return useMutation({
     mutationFn: () => refinalizeWrittenExamAction({ examId }),
-    onSuccess: async (result) => {
+    onMutate: () => ({ toastId: toast.loading('Recalculating results... Please wait.') }),
+    onSuccess: async (result, _variables, context) => {
+      if (context?.toastId) toast.dismiss(context.toastId);
       if (result.success) {
         toast.success(`${result.data?.resultsUpdated ?? 0} results recalculated`);
         await invalidate.afterWrittenExamFinalize(examId);
@@ -170,6 +177,9 @@ export function useRefinalizeWrittenExam(examId: string) {
         toast.error(result.error ?? 'Refinalization failed');
       }
     },
-    onError: () => toast.error('Refinalization failed'),
+    onError: (_error, _variables, context) => {
+      if (context?.toastId) toast.dismiss(context.toastId);
+      toast.error('Refinalization failed');
+    },
   });
 }

@@ -8,7 +8,10 @@ import { createAuditLog } from '@/modules/audit/audit-queries';
 import { revalidatePath } from 'next/cache';
 import { calculateScore } from '@/modules/grading/grading-core';
 import type { ActionResult } from '@/types/action-result';
-import { runInChunks } from '@/modules/written-exams/chunked-async';
+import {
+  batchUpsertExamResults,
+  recomputeExamRanks,
+} from '@/modules/written-exams/written-exam-db-utils';
 import {
   finalizeWrittenExamSchema,
   type FinalizeWrittenExamInput,
@@ -17,13 +20,8 @@ import {
 import { logger } from '@/lib/logger';
 const MARKS_PATH = '/teacher/exams';
 const RESULTS_PATH = '/teacher/results';
-const FINALIZE_WRITE_CHUNK_SIZE = 25;
-const FINALIZE_WRITE_MAX_RETRIES = 2;
-const FINALIZE_WRITE_RETRY_DELAY_MS = 100;
-const FINALIZE_WRITE_RETRY_OPTIONS = {
-  maxRetries: FINALIZE_WRITE_MAX_RETRIES,
-  initialRetryDelayMs: FINALIZE_WRITE_RETRY_DELAY_MS,
-};
+const TX_TIMEOUT = 30_000;
+const TX_MAX_WAIT = 10_000;
 export const finalizeWrittenExamAction = safeAction(
   async function finalizeWrittenExam(
     input: FinalizeWrittenExamInput,
@@ -53,7 +51,7 @@ export const finalizeWrittenExamAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examId);
+    await assertGradingAccess(session.user.id, session.user.role, examId, exam.createdById);
 
     const totalQuestions = await prisma.examQuestion.count({ where: { examId } });
 
@@ -90,83 +88,42 @@ export const finalizeWrittenExamAction = safeAction(
 
     const totalMarks = Number(exam.totalMarks);
     const passingMarks = Number(exam.passingMarks);
-    const results = await prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const publishedAt = exam.showResultAfter === 'MANUAL' ? null : now;
+    const now = new Date();
+    const publishedAt = exam.showResultAfter === 'MANUAL' ? null : now;
 
-      // Keep writes bounded to reduce transaction pressure on large cohorts.
-      const createdResults = await runInChunks(
-        activeSessions,
-        FINALIZE_WRITE_CHUNK_SIZE,
-        (s) => {
-          const obtainedMarks = s.studentAnswers.reduce(
-            (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
-            0,
-          );
-          const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
-
-          return tx.examResult.upsert({
-            where: { sessionId: s.id },
-            create: {
-              sessionId: s.id,
-              studentId: s.studentId,
-              examId,
-              obtainedMarks: score.obtainedMarks,
-              totalMarks: score.totalMarks,
-              percentage: score.percentage,
-              isPassed: score.isPassed,
-              grade: score.grade,
-              publishedAt,
-            },
-            update: {
-              obtainedMarks: score.obtainedMarks,
-              totalMarks: score.totalMarks,
-              percentage: score.percentage,
-              isPassed: score.isPassed,
-              grade: score.grade,
-              publishedAt,
-            },
-          });
-        },
-        FINALIZE_WRITE_RETRY_OPTIONS,
+    const resultEntries = activeSessions.map((s) => {
+      const obtainedMarks = s.studentAnswers.reduce(
+        (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
+        0,
       );
+      const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
+      return {
+        sessionId: s.id,
+        examId,
+        studentId: s.studentId,
+        obtainedMarks: score.obtainedMarks,
+        totalMarks: score.totalMarks,
+        percentage: score.percentage,
+        isPassed: score.isPassed,
+        grade: score.grade,
+        publishedAt,
+      };
+    });
+
+    await prisma.$transaction(async (tx) => {
+      const now = new Date();
+      await batchUpsertExamResults(tx, resultEntries);
 
       // Batch update all active sessions to GRADED
       const sessionIds = activeSessions.map((s) => s.id);
-      await tx.examSession.updateMany({
-        where: { id: { in: sessionIds } },
-        data: { status: 'GRADED', submittedAt: now },
-      });
-
-      // Calculate and assign ranks
-      const ranked = createdResults.sort(
-        (a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks),
-      );
-
-      let currentRank = 1;
-      let prevMarks: number | null = null;
-      const rankUpdates: Array<{ id: string; rank: number }> = [];
-      for (const [i, result] of ranked.entries()) {
-        const marks = Number(result.obtainedMarks);
-        if (prevMarks !== null && marks < prevMarks) {
-          currentRank = i + 1;
-        }
-        rankUpdates.push({ id: result.id, rank: currentRank });
-        prevMarks = marks;
-      }
-
-      const rankGroups = new Map<number, string[]>();
-      for (const { id, rank } of rankUpdates) {
-        const group = rankGroups.get(rank) ?? [];
-        group.push(id);
-        rankGroups.set(rank, group);
-      }
-      for (const [rank, ids] of rankGroups) {
-        await tx.examResult.updateMany({
-          where: { id: { in: ids } },
-          data: { rank },
+      if (sessionIds.length > 0) {
+        await tx.examSession.updateMany({
+          where: { id: { in: sessionIds } },
+          data: { status: 'GRADED', submittedAt: now },
         });
       }
+
+      await recomputeExamRanks(tx, examId);
 
       // Mark exam as completed
       await tx.exam.update({
@@ -174,11 +131,10 @@ export const finalizeWrittenExamAction = safeAction(
         data: { status: 'COMPLETED' },
       });
 
-      return createdResults;
-    });
+    }, { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT });
 
     createAuditLog(session.user.id, 'FINALIZE_WRITTEN_EXAM', 'EXAM', examId, {
-      resultsCreated: results.length,
+      resultsCreated: resultEntries.length,
       absentCount: absentSessions.length,
     }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
@@ -188,7 +144,7 @@ export const finalizeWrittenExamAction = safeAction(
     return {
       success: true,
       data: {
-        resultsCreated: results.length,
+        resultsCreated: resultEntries.length,
         absentCount: absentSessions.length,
         incompleteStudents: [],
       },
@@ -219,7 +175,7 @@ export const refinalizeWrittenExamAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examId);
+    await assertGradingAccess(session.user.id, session.user.role, examId, exam.createdById);
 
     const gradedSessions = await prisma.examSession.findMany({
       where: { examId, status: 'GRADED' },
@@ -232,69 +188,38 @@ export const refinalizeWrittenExamAction = safeAction(
 
     const totalMarks = Number(exam.totalMarks);
     const passingMarks = Number(exam.passingMarks);
+    const now = new Date();
+    const publishedAt = exam.showResultAfter === 'MANUAL' ? null : now;
 
-    const results = await prisma.$transaction(async (tx) => {
-      const now = new Date();
-      const publishedAt = exam.showResultAfter === 'MANUAL' ? null : now;
-
-      // Keep writes bounded to reduce transaction pressure on large cohorts.
-      const updated = await runInChunks(
-        gradedSessions,
-        FINALIZE_WRITE_CHUNK_SIZE,
-        (s) => {
-          const obtainedMarks = s.studentAnswers.reduce(
-            (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
-            0,
-          );
-          const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
-
-          return tx.examResult.update({
-            where: { sessionId: s.id },
-            data: {
-              obtainedMarks: score.obtainedMarks,
-              totalMarks: score.totalMarks,
-              percentage: score.percentage,
-              isPassed: score.isPassed,
-              grade: score.grade,
-              publishedAt,
-            },
-          });
-        },
-        FINALIZE_WRITE_RETRY_OPTIONS,
+    const resultEntries = gradedSessions.map((s) => {
+      const obtainedMarks = s.studentAnswers.reduce(
+        (sum, a) => sum + (a.answerGrade ? Number(a.answerGrade.marksAwarded) : 0),
+        0,
       );
-
-      // Recalculate ranks
-      const ranked = updated.sort((a, b) => Number(b.obtainedMarks) - Number(a.obtainedMarks));
-      let currentRank = 1;
-      let prevMarks: number | null = null;
-      const rankGroups = new Map<number, string[]>();
-
-      for (const [i, result] of ranked.entries()) {
-        const marks = Number(result.obtainedMarks);
-        if (prevMarks !== null && marks < prevMarks) {
-          currentRank = i + 1;
-        }
-        const group = rankGroups.get(currentRank) ?? [];
-        group.push(result.id);
-        rankGroups.set(currentRank, group);
-        prevMarks = marks;
-      }
-
-      for (const [rank, ids] of rankGroups) {
-        await tx.examResult.updateMany({
-          where: { id: { in: ids } },
-          data: { rank },
-        });
-      }
-
-      return updated;
+      const score = calculateScore({ totalMarks, obtainedMarks, passingMarks });
+      return {
+        sessionId: s.id,
+        examId,
+        studentId: s.studentId,
+        obtainedMarks: score.obtainedMarks,
+        totalMarks: score.totalMarks,
+        percentage: score.percentage,
+        isPassed: score.isPassed,
+        grade: score.grade,
+        publishedAt,
+      };
     });
 
+    await prisma.$transaction(async (tx) => {
+      await batchUpsertExamResults(tx, resultEntries);
+      await recomputeExamRanks(tx, examId);
+    }, { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT });
+
     createAuditLog(session.user.id, 'REFINALIZE_WRITTEN_EXAM', 'EXAM', examId, {
-      resultsUpdated: results.length,
+      resultsUpdated: resultEntries.length,
     }).catch((err) => logger.error({ err }, 'Audit log failed'));
 
     revalidatePath(RESULTS_PATH);
-    return { success: true, data: { resultsUpdated: results.length } };
+    return { success: true, data: { resultsUpdated: resultEntries.length } };
   },
 );
