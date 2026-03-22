@@ -108,10 +108,10 @@ export function SubjectsTab({ subjectAnalytics }: Props) {
                     <TableCell className="text-center">{s.totalExams}</TableCell>
                     <TableCell className="text-center">{s.totalResults}</TableCell>
                     <TableCell className="text-right">
-                      <span className={s.avgPercentage >= 50 ? 'text-green-600' : 'text-red-600'}>{s.avgPercentage}%</span>
+                      <span className={s.avgPercentage >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{s.avgPercentage}%</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className={s.passRate >= 50 ? 'text-green-600' : 'text-red-600'}>{s.passRate}%</span>
+                      <span className={s.passRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{s.passRate}%</span>
                     </TableCell>
                   </TableRow>
                 ))}

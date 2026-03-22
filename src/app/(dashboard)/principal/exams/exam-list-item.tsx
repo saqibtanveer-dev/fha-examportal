@@ -125,7 +125,7 @@ export function ExamTableRow({
       <TableCell className="text-center">{exam.totalStudents}</TableCell>
       <TableCell className="text-right">
         {exam.totalStudents > 0 ? (
-          <span className={exam.avgPercentage >= 50 ? 'text-green-600' : 'text-red-600'}>
+          <span className={exam.avgPercentage >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
             {exam.avgPercentage}%
           </span>
         ) : (
@@ -134,7 +134,7 @@ export function ExamTableRow({
       </TableCell>
       <TableCell className="text-right">
         {exam.totalStudents > 0 ? (
-          <span className={exam.passRate >= 50 ? 'text-green-600' : 'text-red-600'}>
+          <span className={exam.passRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
             {exam.passRate}%
           </span>
         ) : (

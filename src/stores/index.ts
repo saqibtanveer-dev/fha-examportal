@@ -8,3 +8,4 @@ export type {
   RefSubjectClassLink,
 } from './reference-store';
 export { useUIStore } from './ui-store';
+export { useThemeStore } from './theme-store';

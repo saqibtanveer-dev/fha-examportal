@@ -63,7 +63,7 @@ export function StudentExamDetails({ results, sessions, subjectPerformance }: Pr
                   <p className="font-medium text-sm">{sp.subject}</p>
                   <div className="mt-2 flex gap-4 text-xs">
                     <span>Exams: <b>{sp.exams}</b></span>
-                    <span>Avg: <b className={sp.avgPercentage >= 60 ? 'text-green-600' : 'text-red-600'}>{sp.avgPercentage}%</b></span>
+                    <span>Avg: <b className={sp.avgPercentage >= 60 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{sp.avgPercentage}%</b></span>
                     <span>Pass: <b>{sp.passRate}%</b></span>
                   </div>
                 </div>

@@ -122,11 +122,11 @@ export function ExamQuestionAnalytics({ questions }: Props) {
                     {Math.round(q.avgMarksAwarded * 10) / 10}/{q.maxMarks}
                   </TableCell>
                   <TableCell className="text-center">{q.attemptedCount}/{q.totalStudents}</TableCell>
-                  <TableCell className="text-center text-green-600">{q.correctCount}</TableCell>
-                  <TableCell className="text-center text-yellow-600">{q.partialCount}</TableCell>
-                  <TableCell className="text-center text-red-600">{q.wrongCount}</TableCell>
+                  <TableCell className="text-center text-green-600 dark:text-green-400">{q.correctCount}</TableCell>
+                  <TableCell className="text-center text-yellow-600 dark:text-yellow-400">{q.partialCount}</TableCell>
+                  <TableCell className="text-center text-red-600 dark:text-red-400">{q.wrongCount}</TableCell>
                   <TableCell className="text-right">
-                    <span className={q.accuracyRate >= 50 ? 'text-green-600' : 'text-red-600'}>
+                    <span className={q.accuracyRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                       {Math.round(q.accuracyRate)}%
                     </span>
                   </TableCell>
@@ -135,10 +135,10 @@ export function ExamQuestionAnalytics({ questions }: Props) {
                     <span
                       className={
                         q.discriminationIndex >= 0.3
-                          ? 'text-green-600'
+                          ? 'text-green-600 dark:text-green-400'
                           : q.discriminationIndex >= 0.1
-                            ? 'text-yellow-600'
-                            : 'text-red-600'
+                            ? 'text-yellow-600 dark:text-yellow-400'
+                            : 'text-red-600 dark:text-red-400'
                       }
                     >
                       {Math.round(q.discriminationIndex * 100) / 100}

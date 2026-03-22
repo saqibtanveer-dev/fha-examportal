@@ -75,9 +75,9 @@ export function StudentDetailClient({ student }: Props) {
           <CardContent>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
               <StatCard label="Exams Taken" value={String(perf.totalExams)} color="text-foreground" />
-              <StatCard label="Pass Rate" value={`${perf.passRate}%`} color={perf.passRate >= 60 ? 'text-green-600' : 'text-red-600'} />
-              <StatCard label="Avg Score" value={`${perf.avgPercentage}%`} color={perf.avgPercentage >= 60 ? 'text-green-600' : 'text-amber-600'} />
-              <StatCard label="Highest" value={`${perf.highestPercentage}%`} color="text-green-600" />
+              <StatCard label="Pass Rate" value={`${perf.passRate}%`} color={perf.passRate >= 60 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'} />
+              <StatCard label="Avg Score" value={`${perf.avgPercentage}%`} color={perf.avgPercentage >= 60 ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'} />
+              <StatCard label="Highest" value={`${perf.highestPercentage}%`} color="text-green-600 dark:text-green-400" />
             </div>
             <div className="mt-4 grid grid-cols-3 gap-3">
               <MiniStatusCard icon={CheckCircle} value={perf.passedExams} label="Passed" scheme="green" />

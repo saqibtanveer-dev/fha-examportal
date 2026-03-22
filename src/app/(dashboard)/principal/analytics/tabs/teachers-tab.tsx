@@ -113,10 +113,10 @@ export function TeachersTab({ teacherAnalytics }: Props) {
                     <TableCell className="text-center">{t.questionsCreated}</TableCell>
                     <TableCell className="text-center">{t.totalResults}</TableCell>
                     <TableCell className="text-right">
-                      <span className={t.avgPercentage >= 50 ? 'text-green-600' : 'text-red-600'}>{t.avgPercentage}%</span>
+                      <span className={t.avgPercentage >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{t.avgPercentage}%</span>
                     </TableCell>
                     <TableCell className="text-right">
-                      <span className={t.passRate >= 50 ? 'text-green-600' : 'text-red-600'}>{t.passRate}%</span>
+                      <span className={t.passRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{t.passRate}%</span>
                     </TableCell>
                   </TableRow>
                 ))}

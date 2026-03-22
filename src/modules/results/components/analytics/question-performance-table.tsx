@@ -35,9 +35,9 @@ function getDifficultyBadge(idx: number) {
 }
 
 function getDiscriminationBadge(idx: number) {
-  if (idx >= 0.3) return <Badge variant="outline" className="border-green-500 text-green-700">Good</Badge>;
-  if (idx >= 0.1) return <Badge variant="outline" className="border-amber-500 text-amber-700">Fair</Badge>;
-  return <Badge variant="outline" className="border-red-500 text-red-700">Poor</Badge>;
+  if (idx >= 0.3) return <Badge variant="outline" className="border-green-500 text-green-700 dark:text-green-400">Good</Badge>;
+  if (idx >= 0.1) return <Badge variant="outline" className="border-amber-500 text-amber-700 dark:text-amber-400">Fair</Badge>;
+  return <Badge variant="outline" className="border-red-500 text-red-700 dark:text-red-400">Poor</Badge>;
 }
 
 export function QuestionPerformanceTable({ questions }: { questions: QuestionAnalytics[] }) {
@@ -75,8 +75,8 @@ export function QuestionPerformanceTable({ questions }: { questions: QuestionAna
                 <p className="text-sm font-medium">Q{q.questionNumber}</p>
                 <span className={cn(
                   'text-sm font-medium',
-                  q.accuracyRate >= 70 ? 'text-green-600' :
-                  q.accuracyRate >= 40 ? 'text-amber-600' : 'text-red-600',
+                  q.accuracyRate >= 70 ? 'text-green-600 dark:text-green-400' :
+                  q.accuracyRate >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400',
                 )}>
                   {q.accuracyRate.toFixed(1)}% accuracy
                 </span>
@@ -148,15 +148,15 @@ export function QuestionPerformanceTable({ questions }: { questions: QuestionAna
                   <TableCell className="text-center">{q.maxMarks}</TableCell>
                   <TableCell className="text-center font-medium">
                     <span className={cn(
-                      q.accuracyRate >= 70 ? 'text-green-600' :
-                      q.accuracyRate >= 40 ? 'text-amber-600' : 'text-red-600',
+                      q.accuracyRate >= 70 ? 'text-green-600 dark:text-green-400' :
+                      q.accuracyRate >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400',
                     )}>
                       {q.accuracyRate.toFixed(1)}%
                     </span>
                   </TableCell>
-                  <TableCell className="text-center text-green-600">{q.correctCount}</TableCell>
-                  <TableCell className="text-center text-amber-600">{q.partialCount}</TableCell>
-                  <TableCell className="text-center text-red-600">{q.wrongCount}</TableCell>
+                  <TableCell className="text-center text-green-600 dark:text-green-400">{q.correctCount}</TableCell>
+                  <TableCell className="text-center text-amber-600 dark:text-amber-400">{q.partialCount}</TableCell>
+                  <TableCell className="text-center text-red-600 dark:text-red-400">{q.wrongCount}</TableCell>
                   <TableCell className="text-center text-muted-foreground">{q.unansweredCount}</TableCell>
                   <TableCell className="text-center">{q.avgMarksAwarded.toFixed(1)} / {q.maxMarks}</TableCell>
                   <TableCell className="text-center">{getDifficultyBadge(q.difficultyIndex)}</TableCell>

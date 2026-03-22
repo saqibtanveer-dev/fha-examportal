@@ -1,6 +1,7 @@
 'use client';
 
 import { Bell, LogOut, Menu, User } from 'lucide-react';
+import { ThemeSwitcher } from '@/components/shared/theme-switcher';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
@@ -68,6 +69,9 @@ export function TopNav({ user, sidebarCollapsed, onSignOut, onMobileMenuToggle }
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2 md:gap-3">
+        {/* Theme Switcher */}
+        <ThemeSwitcher />
+
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative h-9 w-9" aria-label="Notifications" asChild>
           <Link href={getRolePaths(user.role).notifications}>

@@ -14,14 +14,14 @@ import type { Answer, AntiCheatInfo, AnswerCardProps } from './grading-types';
 
 export function AntiCheatBanner({ info }: { info: AntiCheatInfo }) {
   return (
-    <div className={`rounded-lg border p-3 ${info.isFlagged ? 'border-destructive bg-destructive/5' : 'border-yellow-300 bg-yellow-50'}`}>
+    <div className={`rounded-lg border p-3 ${info.isFlagged ? 'border-destructive bg-destructive/5' : 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/20'}`}>
       <div className="flex items-center gap-2 mb-2">
         {info.isFlagged ? (
           <ShieldAlert className="h-4 w-4 text-destructive" />
         ) : (
           <AlertTriangle className="h-4 w-4 text-yellow-600" />
         )}
-        <span className={`text-sm font-medium ${info.isFlagged ? 'text-destructive' : 'text-yellow-700'}`}>
+        <span className={`text-sm font-medium ${info.isFlagged ? 'text-destructive' : 'text-yellow-700 dark:text-yellow-300'}`}>
           {info.isFlagged ? 'Session Flagged — Suspicious Activity' : 'Anti-Cheat Alerts'}
         </span>
       </div>
@@ -60,9 +60,9 @@ export function AnswerCard({
         </div>
 
         {answer.question.correctAnswer && (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3">
-            <Label className="text-xs text-green-700">Model Answer</Label>
-            <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-green-800">{answer.question.correctAnswer}</p>
+          <div className="rounded-md border border-green-200 bg-green-50 p-3 dark:border-green-800 dark:bg-green-900/20">
+            <Label className="text-xs text-green-700 dark:text-green-400">Model Answer</Label>
+            <p className="mt-1 whitespace-pre-wrap wrap-break-word text-sm text-green-800 dark:text-green-300">{answer.question.correctAnswer}</p>
           </div>
         )}
 
@@ -156,7 +156,7 @@ function GradeDisplay({
 }) {
   const isAi = grade.gradedBy === 'AI';
   const confidence = grade.aiConfidence != null ? Number(grade.aiConfidence) : null;
-  const confidenceColor = confidence != null ? (confidence >= 0.85 ? 'text-green-600' : confidence >= 0.6 ? 'text-yellow-600' : 'text-red-600') : '';
+  const confidenceColor = confidence != null ? (confidence >= 0.85 ? 'text-green-600 dark:text-green-400' : confidence >= 0.6 ? 'text-yellow-600 dark:text-yellow-400' : 'text-red-600 dark:text-red-400') : '';
 
   return (
     <div className="space-y-2 rounded-md border p-3">

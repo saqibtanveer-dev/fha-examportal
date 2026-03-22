@@ -158,7 +158,7 @@ function StudentTable({
                 </p>
               </div>
               <div className="text-right">
-                <p className={`text-lg font-bold ${variant === 'top' ? 'text-green-600' : 'text-red-600'}`}>
+                <p className={`text-lg font-bold ${variant === 'top' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                   {s.avgPercentage}%
                 </p>
                 <p className="text-muted-foreground text-[10px]">Pass: {s.passRate}%</p>
@@ -205,10 +205,10 @@ function StudentTable({
                 <TableCell>{s.section}</TableCell>
                 <TableCell className="text-center">{s.examsTaken}</TableCell>
                 <TableCell className="text-right">
-                  <span className={s.avgPercentage >= 50 ? 'text-green-600' : 'text-red-600'}>{s.avgPercentage}%</span>
+                  <span className={s.avgPercentage >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{s.avgPercentage}%</span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <span className={s.passRate >= 50 ? 'text-green-600' : 'text-red-600'}>{s.passRate}%</span>
+                  <span className={s.passRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>{s.passRate}%</span>
                 </TableCell>
               </TableRow>
             ))}

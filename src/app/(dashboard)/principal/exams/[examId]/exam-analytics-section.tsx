@@ -27,7 +27,7 @@ export function ExamAnalyticsSection({ analytics }: Props) {
           label="Pass Rate"
           value={`${Math.round(analytics.passRate)}%`}
           icon={TrendingUp}
-          color={analytics.passRate >= 50 ? 'text-green-600' : 'text-red-600'}
+          color={analytics.passRate >= 50 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}
         />
         <StatCard label="Average" value={`${Math.round(analytics.avgPercentage * 10) / 10}%`} icon={BarChart3} />
         <StatCard label="Median" value={`${Math.round(analytics.medianPercentage * 10) / 10}%`} icon={Target} />

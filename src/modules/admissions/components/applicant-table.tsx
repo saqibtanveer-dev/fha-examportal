@@ -138,7 +138,7 @@ export function ApplicantTable({
                 {a.applicationNumber && <span className="font-mono">{a.applicationNumber}</span>}
                 <span className="font-mono flex items-center gap-0.5"><KeyRound className="h-2.5 w-2.5" />{a.accessToken}</span>
                 {a.result && (
-                  <span className={a.result.isPassed ? 'text-green-600' : 'text-red-600'}>
+                  <span className={a.result.isPassed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                     {a.result.obtainedMarks}/{a.result.totalMarks} ({Number(a.result.percentage).toFixed(1)}%)
                     {a.result.rank && ` #${a.result.rank}`}
                   </span>
@@ -205,7 +205,7 @@ export function ApplicantTable({
                 </TableCell>
                 <TableCell className="hidden md:table-cell">
                   {a.result ? (
-                    <span className={a.result.isPassed ? 'text-green-600' : 'text-red-600'}>
+                    <span className={a.result.isPassed ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}>
                       {a.result.obtainedMarks}/{a.result.totalMarks} ({Number(a.result.percentage).toFixed(1)}%)
                     </span>
                   ) : (

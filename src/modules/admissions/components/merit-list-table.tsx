@@ -80,7 +80,7 @@ export function MeritListTable({ entries, onViewDetail }: Props) {
               <span className="font-mono font-bold text-sm shrink-0">#{e.rank ?? '—'}</span>
             </div>
             <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className={e.isPassed ? 'text-green-600 font-medium' : 'text-red-600'}>
+              <span className={e.isPassed ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400'}>
                 {Number(e.obtainedMarks)}/{Number(e.totalMarks)} ({Number(e.percentage).toFixed(1)}%)
               </span>
               <ApplicantStatusBadge status={e.applicant.status} />
@@ -132,7 +132,7 @@ export function MeritListTable({ entries, onViewDetail }: Props) {
                 {e.applicant.applicationNumber ?? '—'}
               </TableCell>
               <TableCell>
-                <span className={e.isPassed ? 'text-green-600 font-medium' : 'text-red-600'}>
+                <span className={e.isPassed ? 'text-green-600 dark:text-green-400 font-medium' : 'text-red-600 dark:text-red-400'}>
                   {Number(e.obtainedMarks)}/{Number(e.totalMarks)}
                 </span>
               </TableCell>

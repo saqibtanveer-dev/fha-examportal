@@ -15,3 +15,5 @@ export {
   SkeletonDashboard,
   SkeletonPage,
 } from './skeletons';
+export { ColorSchemeProvider } from './color-scheme-provider';
+export { ThemeSwitcher } from './theme-switcher';

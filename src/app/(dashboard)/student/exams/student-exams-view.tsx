@@ -69,12 +69,12 @@ export function StudentExamsView({ exams }: Props) {
                     <div className="flex items-center justify-between">
                       <Badge variant="outline">{exam.subject.code}</Badge>
                       {completedSession && (
-                        <Badge className="bg-green-100 text-green-800">
+                        <Badge className="bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
                           <CheckCircle className="mr-1 h-3 w-3" />Done
                         </Badge>
                       )}
                       {activeSession && (
-                        <Badge className="bg-yellow-100 text-yellow-800">
+                        <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300">
                           <Clock className="mr-1 h-3 w-3" />In Progress
                         </Badge>
                       )}
@@ -151,7 +151,7 @@ export function StudentExamsView({ exams }: Props) {
                         <Badge variant="destructive" className="text-xs">Absent</Badge>
                       )}
                       {isGraded && result && (
-                        <Badge className={result.isPassed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
+                        <Badge className={result.isPassed ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'}>
                           {result.isPassed ? 'Passed' : 'Failed'}
                         </Badge>
                       )}

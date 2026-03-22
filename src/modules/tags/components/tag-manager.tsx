@@ -28,10 +28,10 @@ const categoryLabels: Record<string, string> = {
 };
 
 const categoryColors: Record<string, string> = {
-  TOPIC: 'bg-blue-100 text-blue-800',
-  DIFFICULTY: 'bg-orange-100 text-orange-800',
-  BLOOM_LEVEL: 'bg-purple-100 text-purple-800',
-  CUSTOM: 'bg-gray-100 text-gray-800',
+  TOPIC: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
+  DIFFICULTY: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
+  BLOOM_LEVEL: 'bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300',
+  CUSTOM: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
 };
 
 export function TagManager({ tags }: Props) {
