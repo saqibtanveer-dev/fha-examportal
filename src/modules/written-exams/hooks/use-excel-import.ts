@@ -4,6 +4,10 @@ import { useState, useCallback } from 'react';
 import { useBulkEnterWrittenMarks } from './use-written-exam-query';
 import { parseMarksExcel, type ImportParseResult } from '../excel-import';
 import { toast } from 'sonner';
+import {
+  markStudentAbsentAction,
+  unmarkStudentAbsentAction,
+} from '@/modules/written-exams/written-exam-finalize-actions';
 
 const MAX_ENTRIES_PER_BATCH = 500;
 
@@ -34,7 +38,12 @@ export function useExcelImport(examId: string) {
         return;
       }
 
-      if (result.entries.length === 0 && result.errors.length > 0) {
+      const hasActionableData =
+        result.entries.length > 0 ||
+        result.absentSessionIds.length > 0 ||
+        result.unmarkAbsentSessionIds.length > 0;
+
+      if (!hasActionableData && result.errors.length > 0) {
         setState({ status: 'error', message: result.errors[0] ?? 'No valid marks found' });
         return;
       }
@@ -47,26 +56,62 @@ export function useExcelImport(examId: string) {
 
   const confirmImport = useCallback(async (result: ImportParseResult) => {
     const { entries } = result;
+    const absentIds = [...new Set(result.absentSessionIds)];
+    const unmarkIds = [...new Set(result.unmarkAbsentSessionIds)];
     const totalBatches = Math.ceil(entries.length / MAX_ENTRIES_PER_BATCH);
+    const totalOperations = unmarkIds.length + absentIds.length + totalBatches;
 
-    setState({ status: 'importing', progress: 0, total: totalBatches });
+    if (totalOperations === 0) {
+      setState({ status: 'error', message: 'No actionable marks found in file.' });
+      return;
+    }
+
+    setState({ status: 'importing', progress: 0, total: totalOperations });
 
     let imported = 0;
+    let done = 0;
+
+    for (const sessionId of unmarkIds) {
+      const res = await unmarkStudentAbsentAction({ sessionId });
+      if (!res.success) {
+        const message = res.error ?? 'Failed to remove absent status during import.';
+        toast.error(message);
+        setState({ status: 'error', message });
+        return;
+      }
+      done++;
+      setState({ status: 'importing', progress: done, total: totalOperations });
+    }
+
+    for (const sessionId of absentIds) {
+      const res = await markStudentAbsentAction({ sessionId });
+      if (!res.success) {
+        const message = res.error ?? 'Failed to mark absent during import.';
+        toast.error(message);
+        setState({ status: 'error', message });
+        return;
+      }
+      done++;
+      setState({ status: 'importing', progress: done, total: totalOperations });
+    }
+
     for (let i = 0; i < totalBatches; i++) {
       const batch = entries.slice(i * MAX_ENTRIES_PER_BATCH, (i + 1) * MAX_ENTRIES_PER_BATCH);
 
       try {
         await bulkMutation.mutateAsync({ examId, entries: batch });
         imported += batch.length;
-        setState({ status: 'importing', progress: i + 1, total: totalBatches });
+        done++;
+        setState({ status: 'importing', progress: done, total: totalOperations });
       } catch {
-        toast.error(`Failed on batch ${i + 1}/${totalBatches}. ${imported} entries saved so far.`);
+        toast.error(`Failed on marks batch ${i + 1}/${totalBatches}. ${imported} entries saved so far.`);
         setState({ status: 'error', message: `Import partially failed. ${imported}/${entries.length} entries saved.` });
         return;
       }
     }
 
-    toast.success(`${imported} mark entries imported for ${result.studentCount} students`);
+    const absentMessage = absentIds.length > 0 ? `, ${absentIds.length} marked absent` : '';
+    toast.success(`${imported} mark entries imported for ${result.studentCount} students${absentMessage}`);
     setState({ status: 'done', imported });
   }, [examId, bulkMutation]);
 

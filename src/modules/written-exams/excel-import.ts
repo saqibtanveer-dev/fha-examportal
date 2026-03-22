@@ -11,10 +11,14 @@ export type ParsedMarkEntry = {
 export type ImportParseResult = {
   examId: string;
   entries: ParsedMarkEntry[];
+  absentSessionIds: string[];
+  unmarkAbsentSessionIds: string[];
   studentCount: number;
   skippedAbsent: number;
   errors: string[];
 };
+
+const ABSENT_MARKERS = new Set(['ABS', 'AB', 'A']);
 
 /**
  * Parse an Excel file exported by our template and extract marks entries.
@@ -27,9 +31,11 @@ export type ImportParseResult = {
 export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
   const errors: string[] = [];
   const entries: ParsedMarkEntry[] = [];
+  const absentSessionIds = new Set<string>();
+  const unmarkAbsentSessionIds = new Set<string>();
   let examId = '';
   let skippedAbsent = 0;
-  const affectedSessionIds = new Set<string>();
+  const touchedSessionIds = new Set<string>();
 
   const arrayBuffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
@@ -38,17 +44,17 @@ export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
   // ── Read metadata sheet ──
   const metaSheet = workbook.getWorksheet('__metadata');
   if (!metaSheet) {
-    return { examId: '', entries: [], studentCount: 0, skippedAbsent: 0, errors: ['Invalid file: metadata sheet not found. Use a template exported from this system.'] };
+    return { examId: '', entries: [], absentSessionIds: [], unmarkAbsentSessionIds: [], studentCount: 0, skippedAbsent: 0, errors: ['Invalid file: metadata sheet not found. Use a template exported from this system.'] };
   }
 
   const version = metaSheet.getCell('B2').value?.toString();
   if (version !== '1') {
-    return { examId: '', entries: [], studentCount: 0, skippedAbsent: 0, errors: ['Unsupported template version. Please export a fresh template.'] };
+    return { examId: '', entries: [], absentSessionIds: [], unmarkAbsentSessionIds: [], studentCount: 0, skippedAbsent: 0, errors: ['Unsupported template version. Please export a fresh template.'] };
   }
 
   examId = metaSheet.getCell('B1').value?.toString() ?? '';
   if (!examId) {
-    return { examId: '', entries: [], studentCount: 0, skippedAbsent: 0, errors: ['Invalid file: exam ID not found in metadata.'] };
+    return { examId: '', entries: [], absentSessionIds: [], unmarkAbsentSessionIds: [], studentCount: 0, skippedAbsent: 0, errors: ['Invalid file: exam ID not found in metadata.'] };
   }
 
   // Build question mapping: column offset → { examQuestionId, maxMarks }
@@ -68,7 +74,7 @@ export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
   }
 
   if (questionMap.size === 0) {
-    return { examId, entries: [], studentCount: 0, skippedAbsent: 0, errors: ['No question mapping found in metadata.'] };
+    return { examId, entries: [], absentSessionIds: [], unmarkAbsentSessionIds: [], studentCount: 0, skippedAbsent: 0, errors: ['No question mapping found in metadata.'] };
   }
 
   // Build session mapping: row offset → { sessionId, status }
@@ -89,13 +95,13 @@ export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
   }
 
   if (sessionMap.size === 0) {
-    return { examId, entries: [], studentCount: 0, skippedAbsent: 0, errors: ['No session mapping found in metadata.'] };
+    return { examId, entries: [], absentSessionIds: [], unmarkAbsentSessionIds: [], studentCount: 0, skippedAbsent: 0, errors: ['No session mapping found in metadata.'] };
   }
 
   // ── Read main marks sheet ──
   const marksSheet = workbook.getWorksheet('Marks Entry');
   if (!marksSheet) {
-    return { examId, entries: [], studentCount: 0, skippedAbsent: 0, errors: ['Marks Entry sheet not found.'] };
+    return { examId, entries: [], absentSessionIds: [], unmarkAbsentSessionIds: [], studentCount: 0, skippedAbsent: 0, errors: ['Marks Entry sheet not found.'] };
   }
 
   // Data starts at row 5, iterate through each student row
@@ -107,14 +113,11 @@ export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
     const sessionInfo = sessionMap.get(rowOffset);
     if (!sessionInfo) continue;
 
-    // Skip absent students
-    if (sessionInfo.status === 'ABSENT') {
-      skippedAbsent++;
-      continue;
-    }
-
     const studentName = marksSheet.getCell(excelRow, 2).value?.toString() ?? `Row ${excelRow}`;
-    let hasAnyMark = false;
+    const rowEntries: ParsedMarkEntry[] = [];
+    let hasNumericMarks = false;
+    let absentMarkerCount = 0;
+    let nonEmptyCount = 0;
 
     // Read each question column
     for (const [qOffset, qInfo] of questionMap) {
@@ -131,11 +134,17 @@ export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
 
       if (rawValue === null || rawValue === undefined || rawValue === '') continue;
 
+      nonEmptyCount++;
+
+      const strVal = String(rawValue).trim().toUpperCase();
+      if (ABSENT_MARKERS.has(strVal)) {
+        absentMarkerCount++;
+        continue;
+      }
+
       const num = Number(rawValue);
 
       if (isNaN(num)) {
-        const strVal = String(rawValue).trim().toUpperCase();
-        if (strVal === 'ABS') continue; // Skip absent markers
         errors.push(`${studentName}: Q${qOffset + 1} has invalid value "${rawValue}"`);
         continue;
       }
@@ -150,28 +159,51 @@ export async function parseMarksExcel(file: File): Promise<ImportParseResult> {
         continue;
       }
 
-      entries.push({
+      rowEntries.push({
         sessionId: sessionInfo.sessionId,
         examQuestionId: qInfo.examQuestionId,
         marksAwarded: num,
       });
 
-      hasAnyMark = true;
+      hasNumericMarks = true;
     }
 
-    if (hasAnyMark) {
-      affectedSessionIds.add(sessionInfo.sessionId);
+    if (absentMarkerCount > 0 && hasNumericMarks) {
+      errors.push(`${studentName}: Mixed absent markers and numeric marks in same row.`);
+      continue;
+    }
+
+    if (absentMarkerCount > 0) {
+      if (absentMarkerCount !== questionMap.size || nonEmptyCount !== questionMap.size) {
+        errors.push(`${studentName}: To mark absent, fill all question cells with ABS.`);
+        continue;
+      }
+
+      absentSessionIds.add(sessionInfo.sessionId);
+      touchedSessionIds.add(sessionInfo.sessionId);
+      if (sessionInfo.status === 'ABSENT') skippedAbsent++;
+      continue;
+    }
+
+    if (hasNumericMarks) {
+      for (const rowEntry of rowEntries) entries.push(rowEntry);
+      touchedSessionIds.add(sessionInfo.sessionId);
+      if (sessionInfo.status === 'ABSENT') {
+        unmarkAbsentSessionIds.add(sessionInfo.sessionId);
+      }
     }
   }
 
-  if (entries.length === 0 && errors.length === 0) {
-    errors.push('No marks data found. Make sure you entered values in the question columns.');
+  if (entries.length === 0 && absentSessionIds.size === 0 && errors.length === 0) {
+    errors.push('No import data found. Enter marks or ABS markers in the question columns.');
   }
 
   return {
     examId,
     entries,
-    studentCount: affectedSessionIds.size,
+    absentSessionIds: [...absentSessionIds],
+    unmarkAbsentSessionIds: [...unmarkAbsentSessionIds],
+    studentCount: touchedSessionIds.size,
     skippedAbsent,
     errors,
   };

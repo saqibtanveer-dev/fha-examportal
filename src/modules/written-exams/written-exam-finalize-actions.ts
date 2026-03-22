@@ -12,10 +12,11 @@ import {
   type BulkEnterWrittenMarksInput,
   type MarkAbsentInput,
 } from '@/validations/written-exam-schemas';
-
-
+import { batchUpsertAnswerGrades, updateSessionStatuses } from './written-exam-db-utils';
 
 const MARKS_PATH = '/teacher/exams';
+const TX_TIMEOUT = 30_000;
+const TX_MAX_WAIT = 10_000;
 
 // ============================================
 // Bulk Enter Marks (Spreadsheet View)
@@ -37,16 +38,14 @@ export const bulkEnterWrittenMarksAction = safeAction(
     });
     if (!exam) return { success: false, error: 'Exam not found' };
     if (exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examId);
+    await assertGradingAccess(session.user.id, session.user.role, examId, exam.createdById);
 
-    // Pre-load question max marks for validation
     const examQuestions = await prisma.examQuestion.findMany({
       where: { examId },
       select: { id: true, marks: true },
     });
     const questionMaxMap = new Map(examQuestions.map((q) => [q.id, Number(q.marks)]));
 
-    // Validate all entries
     for (const entry of entries) {
       const maxMarks = questionMaxMap.get(entry.examQuestionId);
       if (maxMarks === undefined) {
@@ -57,51 +56,37 @@ export const bulkEnterWrittenMarksAction = safeAction(
       }
     }
 
-    // Collect all affected session IDs
     const affectedSessionIds = [...new Set(entries.map((e) => e.sessionId))];
+    const studentAnswers = await prisma.studentAnswer.findMany({
+      where: { sessionId: { in: affectedSessionIds } },
+      select: { id: true, sessionId: true, examQuestionId: true },
+    });
+    const answerLookup = new Map(
+      studentAnswers.map((a) => [`${a.sessionId}:${a.examQuestionId}`, a.id]),
+    );
+
+    const unresolvedEntries = entries.filter(
+      (entry) => !answerLookup.has(`${entry.sessionId}:${entry.examQuestionId}`),
+    );
+    if (unresolvedEntries.length > 0) {
+      return {
+        success: false,
+        error: `${unresolvedEntries.length} entries could not be mapped to exam answers. Export a fresh template and try again.`,
+      };
+    }
+
+    const gradeEntries = entries.map((entry) => ({
+      studentAnswerId: answerLookup.get(`${entry.sessionId}:${entry.examQuestionId}`)!,
+      graderId: session.user.id,
+      marksAwarded: entry.marksAwarded,
+      maxMarks: questionMaxMap.get(entry.examQuestionId)!,
+    }));
 
     const savedCount = await prisma.$transaction(async (tx) => {
-      // 1) Batch fetch ALL student answers for affected sessions (1 query)
-      const studentAnswers = await tx.studentAnswer.findMany({
-        where: { sessionId: { in: affectedSessionIds } },
-        select: { id: true, sessionId: true, examQuestionId: true },
-      });
+      const count = await batchUpsertAnswerGrades(tx, gradeEntries);
 
-      // Build lookup: "sessionId:examQuestionId" → answerId
-      const answerLookup = new Map(
-        studentAnswers.map((a) => [`${a.sessionId}:${a.examQuestionId}`, a.id]),
-      );
-
-      // 2) Upsert grades (still individual due to Prisma upsert limitations, but
-      //    we eliminated the findUnique + update per entry — down from 3 queries to 1 per entry)
-      let count = 0;
-      for (const entry of entries) {
-        const answerId = answerLookup.get(`${entry.sessionId}:${entry.examQuestionId}`);
-        if (!answerId) continue;
-
-        const maxMarks = questionMaxMap.get(entry.examQuestionId)!;
-        await tx.answerGrade.upsert({
-          where: { studentAnswerId: answerId },
-          create: {
-            studentAnswerId: answerId,
-            gradedBy: 'TEACHER',
-            graderId: session.user.id,
-            marksAwarded: entry.marksAwarded,
-            maxMarks,
-          },
-          update: {
-            marksAwarded: entry.marksAwarded,
-            maxMarks,
-            graderId: session.user.id,
-          },
-        });
-        count++;
-      }
-
-      // 3) Batch update all answered timestamps at once (1 query instead of N)
-      const answeredIds = entries
-        .map((e) => answerLookup.get(`${e.sessionId}:${e.examQuestionId}`))
-        .filter((id): id is string => !!id);
+      // Batch update answered timestamps
+      const answeredIds = [...new Set(gradeEntries.map((e) => e.studentAnswerId))];
       if (answeredIds.length > 0) {
         await tx.studentAnswer.updateMany({
           where: { id: { in: answeredIds } },
@@ -109,36 +94,9 @@ export const bulkEnterWrittenMarksAction = safeAction(
         });
       }
 
-      // 4) Batch update session statuses (inside transaction for atomicity)
-      //    Fetch graded counts per session, then batch update
-      const sessionsWithStatus = await tx.examSession.findMany({
-        where: { id: { in: affectedSessionIds }, status: { notIn: ['GRADED', 'ABSENT'] } },
-        select: { id: true, _count: { select: { studentAnswers: { where: { answerGrade: { isNot: null } } } } } },
-      });
-
-      const totalQCount = examQuestions.length;
-      const completedIds = sessionsWithStatus
-        .filter((s) => s._count.studentAnswers >= totalQCount)
-        .map((s) => s.id);
-      const inProgressIds = sessionsWithStatus
-        .filter((s) => s._count.studentAnswers < totalQCount)
-        .map((s) => s.id);
-
-      if (completedIds.length > 0) {
-        await tx.examSession.updateMany({
-          where: { id: { in: completedIds } },
-          data: { status: 'SUBMITTED' },
-        });
-      }
-      if (inProgressIds.length > 0) {
-        await tx.examSession.updateMany({
-          where: { id: { in: inProgressIds } },
-          data: { status: 'IN_PROGRESS' },
-        });
-      }
-
+      await updateSessionStatuses(tx, affectedSessionIds, examQuestions.length);
       return count;
-    });
+    }, { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT });
 
     revalidatePath(MARKS_PATH);
     return { success: true, data: { totalEntriesSaved: savedCount } };
@@ -166,7 +124,7 @@ export const markStudentAbsentAction = safeAction(
     });
     if (!examSession) return { success: false, error: 'Session not found' };
     if (examSession.exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id);
+    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id, examSession.exam.createdById);
     if (examSession.status === 'GRADED') {
       return { success: false, error: 'Cannot mark absent after finalization' };
     }
@@ -217,13 +175,11 @@ export const unmarkStudentAbsentAction = safeAction(
 
     const examSession = await prisma.examSession.findUnique({
       where: { id: parsed.data.sessionId },
-      include: {
-        exam: { select: { id: true, deliveryMode: true, createdById: true } },
-      },
+      include: { exam: { select: { id: true, deliveryMode: true, createdById: true } } },
     });
     if (!examSession) return { success: false, error: 'Session not found' };
     if (examSession.exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id);
+    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id, examSession.exam.createdById);
     if (examSession.status !== 'ABSENT') {
       return { success: false, error: 'Student is not marked as absent' };
     }

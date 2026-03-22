@@ -27,7 +27,7 @@ async function verifyWrittenExamOwnership(examId: string, userId: string, role: 
   });
   if (!exam) return { error: 'Exam not found' };
   if (exam.deliveryMode !== 'WRITTEN') return { error: 'Not a written exam' };
-  await assertGradingAccess(userId, role as 'TEACHER' | 'ADMIN', examId);
+  await assertGradingAccess(userId, role as 'TEACHER' | 'ADMIN', examId, exam.createdById);
   return { exam };
 }
 
@@ -174,7 +174,7 @@ export const enterWrittenMarksAction = safeAction(
     });
     if (!examSession) return { success: false, error: 'Session not found' };
     if (examSession.exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id);
+    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id, examSession.exam.createdById);
     if (['GRADED', 'ABSENT'].includes(examSession.status)) {
       return { success: false, error: 'Cannot modify marks in current status' };
     }

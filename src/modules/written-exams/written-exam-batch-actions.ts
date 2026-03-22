@@ -10,8 +10,11 @@ import {
   batchEnterWrittenMarksSchema,
   type BatchEnterWrittenMarksInput,
 } from '@/validations/written-exam-schemas';
+import { batchUpsertAnswerGrades, updateSessionStatuses } from './written-exam-db-utils';
 
 const MARKS_PATH = '/teacher/exams';
+const TX_TIMEOUT = 30_000;
+const TX_MAX_WAIT = 10_000;
 
 export const batchEnterWrittenMarksAction = safeAction(
   async function batchEnterWrittenMarks(
@@ -31,7 +34,7 @@ export const batchEnterWrittenMarksAction = safeAction(
     });
     if (!examSession) return { success: false, error: 'Session not found' };
     if (examSession.exam.deliveryMode !== 'WRITTEN') return { success: false, error: 'Not a written exam' };
-    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id);
+    await assertGradingAccess(session.user.id, session.user.role, examSession.exam.id, examSession.exam.createdById);
     if (['GRADED', 'ABSENT'].includes(examSession.status)) {
       return { success: false, error: 'Cannot modify marks in current status' };
     }
@@ -52,62 +55,48 @@ export const batchEnterWrittenMarksAction = safeAction(
       }
     }
 
-    let totalObtained = 0;
+    const studentAnswers = await prisma.studentAnswer.findMany({
+      where: { sessionId },
+      select: { id: true, examQuestionId: true },
+    });
+    const answerMap = new Map(studentAnswers.map((a) => [a.examQuestionId, a.id]));
+
+    const unresolved = marks.filter((entry) => !answerMap.has(entry.examQuestionId));
+    if (unresolved.length > 0) {
+      return {
+        success: false,
+        error: `${unresolved.length} marks could not be mapped to answers. Reinitialize sessions and try again.`,
+      };
+    }
+
+    const gradeEntries = marks.map((entry) => ({
+      studentAnswerId: answerMap.get(entry.examQuestionId)!,
+      graderId: session.user.id,
+      marksAwarded: entry.marksAwarded,
+      maxMarks: questionMap.get(entry.examQuestionId)!,
+      feedback: entry.feedback ?? null,
+    }));
+
+    const totalObtained = gradeEntries.reduce((sum, entry) => sum + entry.marksAwarded, 0);
 
     await prisma.$transaction(async (tx) => {
-      const studentAnswers = await tx.studentAnswer.findMany({
-        where: { sessionId },
-        select: { id: true, examQuestionId: true },
-      });
-      const answerMap = new Map(studentAnswers.map((a) => [a.examQuestionId, a.id]));
+      await batchUpsertAnswerGrades(tx, gradeEntries);
 
-      for (const entry of marks) {
-        const answerId = answerMap.get(entry.examQuestionId);
-        if (!answerId) continue;
-
-        const maxMarks = questionMap.get(entry.examQuestionId)!;
-        totalObtained += entry.marksAwarded;
-
-        await tx.answerGrade.upsert({
-          where: { studentAnswerId: answerId },
-          create: {
-            studentAnswerId: answerId,
-            gradedBy: 'TEACHER',
-            graderId: session.user.id,
-            marksAwarded: entry.marksAwarded,
-            maxMarks,
-            feedback: entry.feedback ?? null,
-          },
-          update: {
-            marksAwarded: entry.marksAwarded,
-            maxMarks,
-            feedback: entry.feedback ?? null,
-            graderId: session.user.id,
-          },
-        });
-      }
-
-      const answeredIds = marks
-        .map((e) => answerMap.get(e.examQuestionId))
-        .filter((id): id is string => !!id);
+      const answeredIds = [...new Set(gradeEntries.map((e) => e.studentAnswerId))];
       if (answeredIds.length > 0) {
         await tx.studentAnswer.updateMany({
           where: { id: { in: answeredIds } },
           data: { answeredAt: new Date() },
         });
       }
-    });
+
+      await updateSessionStatuses(tx, [sessionId], examQuestions.length);
+    }, { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT });
 
     const gradedCount = await prisma.answerGrade.count({
       where: { studentAnswer: { sessionId } },
     });
     const sessionComplete = gradedCount >= examQuestions.length;
-    const newStatus = sessionComplete ? 'SUBMITTED' : 'IN_PROGRESS';
-
-    await prisma.examSession.update({
-      where: { id: sessionId },
-      data: { status: newStatus },
-    });
 
     revalidatePath(MARKS_PATH);
     return { success: true, data: { totalObtained, sessionComplete } };

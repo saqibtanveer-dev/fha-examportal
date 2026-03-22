@@ -162,26 +162,28 @@ export async function assertStudentDataAccess(
 
 // ============================================
 // Guard 5: Grading access — exam creator + teachers in assigned sections
+// Accepts optional pre-loaded createdById to skip a redundant DB fetch.
 // ============================================
 
 export async function assertGradingAccess(
   userId: string,
   role: UserRole,
   examId: string,
+  preloadedCreatedById?: string,
 ): Promise<void> {
   if (role === 'ADMIN') return;
 
-  const exam = await prisma.exam.findUnique({
+  const createdById = preloadedCreatedById ?? (await prisma.exam.findUnique({
     where: { id: examId, deletedAt: null },
     select: { createdById: true },
-  });
-  if (!exam) throw new AuthorizationError('Exam not found');
+  }).then((e) => {
+    if (!e) throw new AuthorizationError('Exam not found');
+    return e.createdById;
+  }));
 
-  // Exam creator always has grading access
-  if (exam.createdById === userId) return;
+  if (createdById === userId) return;
 
   if (role === 'TEACHER') {
-    // Use the broader exam access check (includes section assignments)
     await assertExamAccess(userId, role, examId);
     return;
   }

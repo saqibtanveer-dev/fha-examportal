@@ -109,8 +109,11 @@ export function ImportDialog({ open, onOpenChange, examId, isFinalized }: Props)
             <div className="grid grid-cols-2 gap-2">
               <PreviewStat label="Students" value={state.result.studentCount} icon={CheckCircle2} color="text-green-600 dark:text-green-400" />
               <PreviewStat label="Entries" value={state.result.entries.length} icon={FileSpreadsheet} color="text-blue-600 dark:text-blue-400" />
-              {state.result.skippedAbsent > 0 && (
-                <PreviewStat label="Absent (skipped)" value={state.result.skippedAbsent} icon={X} color="text-red-600 dark:text-red-400" />
+              {state.result.absentSessionIds.length > 0 && (
+                <PreviewStat label="Mark Absent" value={state.result.absentSessionIds.length} icon={X} color="text-red-600 dark:text-red-400" />
+              )}
+              {state.result.unmarkAbsentSessionIds.length > 0 && (
+                <PreviewStat label="Unmark Absent" value={state.result.unmarkAbsentSessionIds.length} icon={CheckCircle2} color="text-emerald-600 dark:text-emerald-400" />
               )}
             </div>
             {state.result.errors.length > 0 && (
@@ -128,8 +131,19 @@ export function ImportDialog({ open, onOpenChange, examId, isFinalized }: Props)
             )}
             <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
               <Button variant="outline" onClick={handleClose} className="min-h-10">Cancel</Button>
-              <Button onClick={() => confirmImport(state.result)} disabled={state.result.entries.length === 0 || isFinalized} className="min-h-10">
-                <Upload className="mr-1.5 h-4 w-4" />Import {state.result.entries.length} Entries
+              <Button
+                onClick={() => confirmImport(state.result)}
+                disabled={
+                  (
+                    state.result.entries.length === 0
+                    && state.result.absentSessionIds.length === 0
+                    && state.result.unmarkAbsentSessionIds.length === 0
+                  )
+                  || isFinalized
+                }
+                className="min-h-10"
+              >
+                <Upload className="mr-1.5 h-4 w-4" />Apply Import
               </Button>
             </DialogFooter>
           </div>
