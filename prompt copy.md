@@ -1,5 +1,4 @@
-is whole project ko brutally deeply analyze kro expecially result module ko 
-----
+
 ik proper senior level educational institure administrator ki tra kam kro 
 
 ik senior level backend expert developer ki tra kam kro 
@@ -22,14 +21,13 @@ stability above 9 out of 10
 reliability above 9 out of 10
 
 -----
-acha aisa hy k admin section wise result terms nhi bna sakta aur na hi result consolidate kr sakta hy section wise
-agr teacher class ki specific section ka exam ly aur us ka result consolidate krna ho sirf to aisa abi possible nhi hy 
-iss issue ko brutally deeply analyze kro 
-default me jo hy all class ki term hi bny aur all class ka result hi consolidate ho lakin agr admin chahy to section wise result consolidate kr sky terms bna sky 
-iss issue ko brutall deeply analyze kro 
+aisa hy k aab iss portal system pr data dalna hy ik old ms access based database sy 
+old db k ms excel .xlsx file me ny add kr di hy 
+aap iss file ko aur iss project ko brutally deeply analyze deeply analyze kro aur full plan bnao k kysy easy way me old system sy data ko new iss project me dala ja sakta hy 
 
-aur han jab dmc generate kry admin ya class gazette bnay to agr ik term me all section ka na ho result aur sirf specific sections ka ho to iss case ko proper handle krna hy 
-iss issue ko brutally deeply analyze kro 
+production grade kam ho aur future proof b 
+
+mery end pr jo kam hoa wwo aap brutally deeply bta do 
 -----
 
 kam krty waqt is bat ka khayl rakhna hy k proper design patterns hon aur code reusability ho 
@@ -47,5 +45,3 @@ iss bat ka bohat lazmi brutally deeply khyal rakkhna hy k jab tum kam kro to uss
 kisi file me 300 line sy zyada ka code na ho proper code modularity ho 
 
 -----
-
-code implementation b kr do acha 
