@@ -123,6 +123,7 @@ export type SerializedFeeSettings = {
   receiptPrefix: string;
   familyReceiptPrefix: string;
   gracePeriodDays: number;
+  autoApplyCreditsOnGeneration: boolean;
   academicSessionId: string;
 };
 

@@ -1,0 +1,2 @@
+ALTER TABLE "FeeSettings"
+ADD COLUMN IF NOT EXISTS "autoApplyCreditsOnGeneration" BOOLEAN NOT NULL DEFAULT true;

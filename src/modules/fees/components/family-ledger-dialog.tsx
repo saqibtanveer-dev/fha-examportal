@@ -24,7 +24,17 @@ type DirectPaymentEntry = {
   recordedBy: { firstName: string; lastName: string } | null;
   feeAssignment: { generatedForMonth: string; studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } } | null } | null;
 };
-type LedgerData = { familyPayments: FamilyPaymentEntry[]; directPayments: DirectPaymentEntry[] };
+type FamilyAssignmentEntry = {
+  id: string;
+  generatedForMonth: string;
+  dueDate: string;
+  totalAmount: number;
+  paidAmount: number;
+  balanceAmount: number;
+  status: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE' | 'WAIVED' | 'CANCELLED';
+  studentProfile: { rollNumber: string; user: { firstName: string; lastName: string } } | null;
+};
+type LedgerData = { familyPayments: FamilyPaymentEntry[]; directPayments: DirectPaymentEntry[]; assignments: FamilyAssignmentEntry[] };
 
 type Props = { familyProfileId: string | null; familyName: string; onClose: () => void };
 
@@ -32,7 +42,7 @@ const METHOD: Record<string, string> = { CASH: 'Cash', BANK_TRANSFER: 'Bank Tran
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' });
 
 export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Props) {
-  const [data, setData] = useState<LedgerData>({ familyPayments: [], directPayments: [] });
+  const [data, setData] = useState<LedgerData>({ familyPayments: [], directPayments: [], assignments: [] });
   const [isLoading, startTransition] = useTransition();
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -40,7 +50,7 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
     if (!familyProfileId) return;
     startTransition(async () => {
       const result = await fetchFamilyFullLedgerAction(familyProfileId);
-      setData((result as LedgerData) ?? { familyPayments: [], directPayments: [] });
+      setData((result as LedgerData) ?? { familyPayments: [], directPayments: [], assignments: [] });
     });
   }, [familyProfileId]);
 
@@ -54,7 +64,9 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
     return n;
   });
   const totalCollected = data.familyPayments.reduce((s, p) => s + Number(p.totalAmount), 0) + data.directPayments.reduce((s, p) => s + Number(p.amount), 0);
-  const hasAny = data.familyPayments.length > 0 || data.directPayments.length > 0;
+  const openAssignments = data.assignments.filter((a) => ['PENDING', 'PARTIAL', 'OVERDUE'].includes(a.status));
+  const outstandingAmount = openAssignments.reduce((sum, item) => sum + Number(item.balanceAmount), 0);
+  const hasAny = data.familyPayments.length > 0 || data.directPayments.length > 0 || data.assignments.length > 0;
 
   return (
     <Dialog open={!!familyProfileId} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -67,6 +79,8 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
               <div><p className="text-xs text-muted-foreground mb-0.5">Total Collected</p><p className="font-mono font-bold text-green-600 dark:text-green-400 text-base">{formatCurrency(totalCollected)}</p></div>
               <div><p className="text-xs text-muted-foreground mb-0.5">Family Payments</p><p className="font-bold text-base">{data.familyPayments.length}</p></div>
               <div><p className="text-xs text-muted-foreground mb-0.5">Individual Payments</p><p className="font-bold text-base">{data.directPayments.length}</p></div>
+              <div><p className="text-xs text-muted-foreground mb-0.5">Open Months</p><p className="font-bold text-base">{openAssignments.length}</p></div>
+              <div><p className="text-xs text-muted-foreground mb-0.5">Outstanding</p><p className="font-mono font-bold text-amber-600 dark:text-amber-400 text-base">{formatCurrency(outstandingAmount)}</p></div>
             </div>
           )}
         </DialogHeader>
@@ -80,6 +94,47 @@ export function FamilyLedgerDialog({ familyProfileId, familyName, onClose }: Pro
             </div>
           ) : (
             <>
+              {data.assignments.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide px-1">
+                    Assignment Ledger ({data.assignments.length})
+                  </p>
+                  <div className="rounded-lg border divide-y overflow-hidden">
+                    {data.assignments.map((assignment) => (
+                      <div key={assignment.id} className="flex items-center gap-3 p-3 sm:p-4 hover:bg-muted/20 transition-colors">
+                        <User2 className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium">
+                                {assignment.studentProfile
+                                  ? `${assignment.studentProfile.user.firstName} ${assignment.studentProfile.user.lastName}`
+                                  : 'Unknown Student'}
+                              </p>
+                              <p className="text-xs text-muted-foreground flex flex-wrap gap-x-2 mt-0.5">
+                                <span>{formatMonth(assignment.generatedForMonth)}</span>
+                                <span>Due: {fmtDate(assignment.dueDate)}</span>
+                              </p>
+                              <div className="mt-1">
+                                <Badge variant={assignment.status === 'OVERDUE' ? 'destructive' : 'secondary'}>
+                                  {assignment.status}
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-[11px] text-muted-foreground">Balance</p>
+                              <p className="font-mono font-bold text-amber-600 dark:text-amber-400">
+                                {formatCurrency(Number(assignment.balanceAmount))}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* ── Family-wise bulk payments ── */}
               {data.familyPayments.length > 0 && (
                 <div className="space-y-2">

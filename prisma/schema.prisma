@@ -1908,6 +1908,7 @@ model FeeSettings {
   receiptPrefix      String   @default("FRCP")
   familyReceiptPrefix String  @default("FMRC")
   gracePeriodDays    Int      @default(0)
+  autoApplyCreditsOnGeneration Boolean @default(true)
   academicSessionId  String   @unique
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt

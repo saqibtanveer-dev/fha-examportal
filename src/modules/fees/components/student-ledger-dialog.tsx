@@ -97,7 +97,7 @@ export function StudentLedgerDialog({ open, onClose, studentProfileId, studentNa
 
             {totalCredits > 0 && (
               <div className="rounded-md border border-green-200 bg-green-50 dark:bg-green-950/30 px-3 py-2 text-xs text-green-700 dark:text-green-400">
-                Available Credit: <span className="font-mono font-semibold">{formatCurrency(totalCredits)}</span> (auto-applies to next fee)
+                Available Credit: <span className="font-mono font-semibold">{formatCurrency(totalCredits)}</span> (can be applied to fee dues)
               </div>
             )}
 

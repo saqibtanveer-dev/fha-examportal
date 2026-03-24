@@ -5,6 +5,7 @@ import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
@@ -32,6 +33,7 @@ export function FeeSettingsDialog({ open, onOpenChange, settings }: Props) {
         receiptPrefix: (formData.get('receiptPrefix') as string) || 'FRCP',
         familyReceiptPrefix: (formData.get('familyReceiptPrefix') as string) || 'FMRC',
         gracePeriodDays: Number(formData.get('gracePeriodDays') || 0),
+        autoApplyCreditsOnGeneration: formData.get('autoApplyCreditsOnGeneration') === 'on',
       });
 
       if (result.success) {
@@ -126,6 +128,23 @@ export function FeeSettingsDialog({ open, onOpenChange, settings }: Props) {
                 maxLength={10}
                 disabled={isPending}
               />
+            </div>
+
+            <div className="space-y-2 sm:col-span-2">
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div>
+                  <Label htmlFor="autoApplyCreditsOnGeneration">Auto Apply Credits On Generation</Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    If off, credits stay available and admin can apply them manually during collection.
+                  </p>
+                </div>
+                <Switch
+                  id="autoApplyCreditsOnGeneration"
+                  name="autoApplyCreditsOnGeneration"
+                  defaultChecked={settings?.autoApplyCreditsOnGeneration ?? true}
+                  disabled={isPending}
+                />
+              </div>
             </div>
           </div>
 

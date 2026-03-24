@@ -75,6 +75,8 @@ export const generateFeesSchema = z.object({
   sectionId: z.string().uuid('Invalid section').optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Due date must be YYYY-MM-DD'),
   studentProfileIds: z.array(z.string().uuid()).optional(),
+  familyProfileId: z.string().uuid('Invalid family').optional(),
+  categoryIds: z.array(z.string().uuid('Invalid category')).optional(),
 });
 
 export type GenerateFeesInput = z.infer<typeof generateFeesSchema>;
@@ -167,6 +169,7 @@ export const updateFeeSettingsSchema = z.object({
   receiptPrefix: z.string().min(1).max(10).optional(),
   familyReceiptPrefix: z.string().min(1).max(10).optional(),
   gracePeriodDays: z.number().int().min(0).max(30).optional(),
+  autoApplyCreditsOnGeneration: z.boolean().optional(),
 });
 
 export type UpdateFeeSettingsInput = z.infer<typeof updateFeeSettingsSchema>;
@@ -227,6 +230,12 @@ export const collectFamilyFeeSchema = z.object({
 });
 
 export type CollectFamilyFeeInput = z.infer<typeof collectFamilyFeeSchema>;
+
+export const applyAssignmentCreditsSchema = z.object({
+  feeAssignmentId: z.string().uuid('Invalid assignment'),
+});
+
+export type ApplyAssignmentCreditsInput = z.infer<typeof applyAssignmentCreditsSchema>;
 
 // ============================================
 // CUSTOM ALLOCATION (per-assignment amounts)

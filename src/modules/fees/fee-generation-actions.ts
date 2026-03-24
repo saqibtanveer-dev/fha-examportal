@@ -13,6 +13,7 @@ import {
   type GenerateFeesInput,
 } from '@/validations/fee-schemas';
 import { getCurrentAcademicSessionId } from './fee-queries';
+import { runFeeGeneration } from './workflows/fee-generation-core';
 
 import { logger } from '@/lib/logger';
 const FEE_PATHS = ['/admin/fees', '/admin/fees/generate'];
@@ -23,22 +24,47 @@ const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
 export const generateFeesAction = safeAction(
   async function generateFeesAction(
     input: GenerateFeesInput,
-  ): Promise<ActionResult<{ queued: true }>> {
+  ): Promise<ActionResult<{ queued: boolean; generated?: number; skipped?: number }>> {
     const session = await requireRole('ADMIN');
     const parsed = generateFeesSchema.safeParse(input);
     if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
 
-    const { generatedForMonth, classId, sectionId, dueDate, studentProfileIds } = parsed.data;
+    const {
+      generatedForMonth,
+      classId,
+      sectionId,
+      dueDate,
+      studentProfileIds,
+      familyProfileId,
+      categoryIds,
+    } = parsed.data;
+
+    if (familyProfileId && studentProfileIds?.length) {
+      return actionError('Select either specific students or a family, not both');
+    }
+
     const academicSessionId = await getCurrentAcademicSessionId();
     if (!academicSessionId) return actionError('No active academic session');
+
+    let resolvedStudentProfileIds = studentProfileIds;
+    if (familyProfileId) {
+      const links = await prisma.familyStudentLink.findMany({
+        where: { familyProfileId, isActive: true },
+        select: { studentProfileId: true },
+      });
+      resolvedStudentProfileIds = links.map((link) => link.studentProfileId);
+      if (resolvedStudentProfileIds.length === 0) {
+        return actionError('No active students linked to the selected family');
+      }
+    }
 
     // Build student filter based on specificity
     const studentWhere: Record<string, unknown> = {
       status: 'ACTIVE',
       user: { isActive: true, deletedAt: null },
     };
-    if (studentProfileIds?.length) {
-      studentWhere.id = { in: studentProfileIds };
+    if (resolvedStudentProfileIds?.length) {
+      studentWhere.id = { in: resolvedStudentProfileIds };
     } else {
       if (classId) studentWhere.classId = classId;
       if (sectionId) studentWhere.sectionId = sectionId;
@@ -48,7 +74,11 @@ export const generateFeesAction = safeAction(
     const [studentCount, structureCount] = await Promise.all([
       prisma.studentProfile.count({ where: studentWhere }),
       prisma.feeStructure.count({
-        where: { academicSessionId, isActive: true },
+        where: {
+          academicSessionId,
+          isActive: true,
+          ...(categoryIds?.length ? { categoryId: { in: categoryIds } } : {}),
+        },
       }),
     ]);
 
@@ -61,15 +91,23 @@ export const generateFeesAction = safeAction(
       'FEE_GENERATION_LOCK',
       'FEE_ASSIGNMENT',
       generatedForMonth,
-      { classId, sectionId, dueDate, academicSessionId, studentProfileIds },
+      {
+        classId,
+        sectionId,
+        dueDate,
+        academicSessionId,
+        studentProfileIds: resolvedStudentProfileIds,
+        familyProfileId,
+        categoryIds,
+      },
     );
 
     try {
-      const idempotencySuffix = studentProfileIds?.length
-        ? `students:${studentProfileIds.sort().join(',')}`
+      const idempotencySuffix = resolvedStudentProfileIds?.length
+        ? `students:${resolvedStudentProfileIds.sort().join(',')}`
         : `${classId ?? 'all'}:${sectionId ?? 'all'}`;
 
-      const runHandle = await tasks.trigger('fees-generation-workflow', {
+      const payload = {
         generatedForMonth,
         classId,
         sectionId,
@@ -77,7 +115,36 @@ export const generateFeesAction = safeAction(
         academicSessionId,
         requestedByUserId: session.user.id,
         lockId: lockRecord.id,
-        studentProfileIds,
+        studentProfileIds: resolvedStudentProfileIds,
+        categoryIds,
+      };
+
+      const shouldRunInline = Boolean(familyProfileId)
+        || (Array.isArray(resolvedStudentProfileIds) && resolvedStudentProfileIds.length <= 1);
+
+      if (shouldRunInline) {
+        const result = await runFeeGeneration(payload);
+        createAuditLog(
+          session.user.id,
+          'INLINE_FEE_GENERATION',
+          'FEE_ASSIGNMENT',
+          generatedForMonth,
+          {
+            classId,
+            sectionId,
+            familyProfileId,
+            studentProfileIds: resolvedStudentProfileIds,
+            generated: result.generated,
+            skipped: result.skipped,
+          },
+        ).catch((err) => logger.error({ err }, 'Audit log failed'));
+
+        revalidateFeePaths();
+        return actionSuccess({ queued: false, generated: result.generated, skipped: result.skipped });
+      }
+
+      const runHandle = await tasks.trigger('fees-generation-workflow', {
+        ...payload,
       }, {
         concurrencyKey: `fee-gen:${academicSessionId}:${generatedForMonth}`,
         maxAttempts: 3,
@@ -89,7 +156,15 @@ export const generateFeesAction = safeAction(
         'QUEUE_FEE_GENERATION',
         'FEE_ASSIGNMENT',
         generatedForMonth,
-        { classId, sectionId, studentProfileIds, runId: runHandle.id, studentCount },
+        {
+          classId,
+          sectionId,
+          studentProfileIds: resolvedStudentProfileIds,
+          familyProfileId,
+          categoryIds,
+          runId: runHandle.id,
+          studentCount,
+        },
       ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
       revalidateFeePaths();

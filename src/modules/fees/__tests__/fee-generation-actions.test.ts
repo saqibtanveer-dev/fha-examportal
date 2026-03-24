@@ -19,6 +19,7 @@ vi.mock('@/lib/prisma', () => ({
       count: vi.fn().mockResolvedValue(0),
     },
     feeLineItem: { findMany: vi.fn().mockResolvedValue([]) },
+    familyStudentLink: { findMany: vi.fn().mockResolvedValue([]) },
     feeAssignment: {
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue(null),
@@ -67,8 +68,16 @@ const { mockTrigger } = vi.hoisted(() => ({
   mockTrigger: vi.fn().mockResolvedValue({ id: 'run-001' }),
 }));
 
+const { mockRunFeeGeneration } = vi.hoisted(() => ({
+  mockRunFeeGeneration: vi.fn().mockResolvedValue({ success: true, generated: 1, skipped: 0 }),
+}));
+
 vi.mock('@trigger.dev/sdk/v3', () => ({
   tasks: { trigger: mockTrigger },
+}));
+
+vi.mock('@/modules/fees/workflows/fee-generation-core', () => ({
+  runFeeGeneration: mockRunFeeGeneration,
 }));
 
 import { prisma } from '@/lib/prisma';
@@ -81,6 +90,7 @@ const mockPrisma = prisma as unknown as {
   studentProfile: { findMany: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> };
   feeStructure: { findMany: ReturnType<typeof vi.fn>; count: ReturnType<typeof vi.fn> };
   feeLineItem: { findMany: ReturnType<typeof vi.fn> };
+  familyStudentLink: { findMany: ReturnType<typeof vi.fn> };
   feeAssignment: {
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
@@ -94,11 +104,13 @@ beforeEach(() => {
   // Restore defaults cleared by clearAllMocks
   mockGetSessionId.mockResolvedValue('session-001');
   mockTrigger.mockResolvedValue({ id: 'run-001' });
+  mockRunFeeGeneration.mockResolvedValue({ success: true, generated: 1, skipped: 0 });
   mockPrisma.studentProfile.findMany.mockResolvedValue([]);
   mockPrisma.studentProfile.count.mockResolvedValue(0);
   mockPrisma.feeStructure.findMany.mockResolvedValue([]);
   mockPrisma.feeStructure.count.mockResolvedValue(0);
   mockPrisma.feeLineItem.findMany.mockResolvedValue([]);
+  mockPrisma.familyStudentLink.findMany.mockResolvedValue([]);
   mockPrisma.feeAssignment.findMany.mockResolvedValue([]);
   mockPrisma.feeAssignment.findUnique.mockResolvedValue(null);
   mockPrisma.feeAssignment.create.mockResolvedValue({ id: 'fa-001' });
@@ -175,6 +187,49 @@ describe('generateFeesAction', () => {
       expect.objectContaining({ classId: 'f47ac10b-58cc-4372-a567-0e02b2c3d479' }),
       expect.anything(),
     );
+  });
+
+  it('runs inline generation for single student selection', async () => {
+    mockPrisma.studentProfile.count.mockResolvedValueOnce(1);
+    mockPrisma.feeStructure.count.mockResolvedValueOnce(1);
+
+    const result = await generateFeesAction({
+      ...validInput,
+      studentProfileIds: ['f47ac10b-58cc-4372-a567-0e02b2c3d479'],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({ queued: false, generated: 1, skipped: 0 });
+    expect(mockRunFeeGeneration).toHaveBeenCalled();
+    expect(mockTrigger).not.toHaveBeenCalled();
+  });
+
+  it('resolves family students and runs inline generation in family mode', async () => {
+    mockPrisma.familyStudentLink.findMany.mockResolvedValueOnce([
+      { studentProfileId: '11111111-1111-4111-8111-111111111111' },
+      { studentProfileId: '22222222-2222-4222-8222-222222222222' },
+    ]);
+    mockPrisma.studentProfile.count.mockResolvedValueOnce(2);
+    mockPrisma.feeStructure.count.mockResolvedValueOnce(1);
+
+    const result = await generateFeesAction({
+      ...validInput,
+      familyProfileId: '33333333-3333-4333-8333-333333333333',
+      categoryIds: ['44444444-4444-4444-8444-444444444444'],
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual({ queued: false, generated: 1, skipped: 0 });
+    expect(mockRunFeeGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        studentProfileIds: [
+          '11111111-1111-4111-8111-111111111111',
+          '22222222-2222-4222-8222-222222222222',
+        ],
+        categoryIds: ['44444444-4444-4444-8444-444444444444'],
+      }),
+    );
+    expect(mockTrigger).not.toHaveBeenCalled();
   });
 });
 

@@ -15,7 +15,7 @@ type ThemeActions = {
 export const useThemeStore = create<ThemeState & ThemeActions>()(
   persist(
     (set) => ({
-      colorScheme: 'faith-horizon',
+      colorScheme: 'sapphire',
 
       setColorScheme: (scheme) => set({ colorScheme: scheme }),
     }),

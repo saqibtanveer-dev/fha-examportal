@@ -5,10 +5,8 @@ import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transacti
  * Pure utility — no 'use server', no Next.js imports.
  * Safe to import from Trigger.dev workers.
  *
- * Auto-applies ACTIVE credits against a newly-created fee assignment.
- * Applies in createdAt-asc order:
- *   1. Per-student credits  (studentProfileId = X)
- *   2. Family-pool credits  (studentProfileId = null, familyProfileId = family's ID)
+ * Auto-applies ACTIVE per-student credits against a newly-created fee assignment.
+ * Credits are strictly scoped to the same student and are never shared with siblings.
  *
  * Locking strategy — LOCK FIRST, THEN READ:
  *   pg_advisory_xact_lock is the FIRST SQL statement inside the transaction.
@@ -18,28 +16,13 @@ import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transacti
  *   This prevents double-spending without relying on serialization-failure retries.
  *   lockTransactionKeys() sorts keys to prevent deadlocks.
  *
- * @param familyProfileId - pass when already known to skip the DB lookup.
- *   null  = explicitly no family  |  undefined = look it up automatically.
  */
 export async function applyCreditsToAssignment(
   studentProfileId: string,
   assignmentId: string,
   balanceAmount: number,
-  _academicSessionId: string,
-  familyProfileId?: string | null,
 ): Promise<number> {
   if (balanceAmount <= 0) return 0;
-
-  // Resolve family OUTSIDE the transaction so it doesn't consume the
-  // SERIALIZABLE snapshot before we acquire the advisory locks.
-  let resolvedFamilyId: string | null = (familyProfileId !== undefined) ? (familyProfileId ?? null) : null;
-  if (familyProfileId === undefined) {
-    const link = await prisma.familyStudentLink.findFirst({
-      where: { studentProfileId, isActive: true },
-      select: { familyProfileId: true },
-    });
-    resolvedFamilyId = link?.familyProfileId ?? null;
-  }
 
   return runSerializableTransaction(async (tx) => {
     // ── LOCK FIRST (snapshot taken here, after any blocking) ─────────────────
@@ -47,18 +30,14 @@ export async function applyCreditsToAssignment(
       `fee-assignment:${assignmentId}`,
       `fee-student-credits:${studentProfileId}`,
     ];
-    if (resolvedFamilyId) lockKeys.push(`fee-family-credits:${resolvedFamilyId}`);
     await lockTransactionKeys(tx, lockKeys);
 
     // ── READ CREDITS (fresh, post-lock snapshot) ──────────────────────────────
     const credits = await tx.feeCredit.findMany({
       where: {
-        OR: [
-          { studentProfileId, status: 'ACTIVE', remainingAmount: { gt: 0 } },
-          ...(resolvedFamilyId
-            ? [{ familyProfileId: resolvedFamilyId, studentProfileId: null, status: 'ACTIVE' as const, remainingAmount: { gt: 0 } }]
-            : []),
-        ],
+        studentProfileId,
+        status: 'ACTIVE',
+        remainingAmount: { gt: 0 },
       },
       orderBy: { createdAt: 'asc' },
     });

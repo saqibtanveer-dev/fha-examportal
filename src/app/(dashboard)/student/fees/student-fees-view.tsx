@@ -78,7 +78,7 @@ export function StudentFeesView({ fees, creditBalance = 0 }: Props) {
                   Available Credit: <span className="font-mono">{formatCurrency(creditBalance)}</span>
                 </p>
                 <p className="text-xs text-green-600/80 dark:text-green-500/80">
-                  This credit will be automatically applied to your next fee.
+                  This credit is available for upcoming fee assignments.
                 </p>
               </div>
             </div>

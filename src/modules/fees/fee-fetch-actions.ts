@@ -226,7 +226,33 @@ export const fetchFamilyFullLedgerAction = safeFetchAction(
         : Promise.resolve([]),
     ]);
 
-    return serialize({ familyPayments, directPayments });
+    const assignments = childIds.length > 0
+      ? await prisma.feeAssignment.findMany({
+          where: {
+            studentProfileId: { in: childIds },
+            status: { not: 'CANCELLED' },
+          },
+          select: {
+            id: true,
+            generatedForMonth: true,
+            dueDate: true,
+            totalAmount: true,
+            paidAmount: true,
+            balanceAmount: true,
+            status: true,
+            studentProfile: {
+              select: {
+                rollNumber: true,
+                user: { select: { firstName: true, lastName: true } },
+              },
+            },
+          },
+          orderBy: [{ dueDate: 'asc' }, { generatedForMonth: 'asc' }],
+          take: 300,
+        })
+      : [];
+
+    return serialize({ familyPayments, directPayments, assignments });
   },
 );
 

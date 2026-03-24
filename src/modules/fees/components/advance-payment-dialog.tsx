@@ -63,7 +63,7 @@ export function AdvancePaymentDialog({
         <DialogHeader>
           <DialogTitle>Record Advance Payment</DialogTitle>
           <DialogDescription>
-            {studentName} — This payment will be saved as credit and auto-applied to future fee assignments.
+            {studentName} — This payment will be saved as credit and can be applied to future fee assignments.
           </DialogDescription>
         </DialogHeader>
 

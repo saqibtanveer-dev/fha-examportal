@@ -82,7 +82,7 @@ export function StudentAssignmentList({
                 <Wallet className="h-4 w-4 text-green-600" />
                 <span className="text-green-700 dark:text-green-400">
                   Available Credit: <span className="font-mono font-semibold">{formatCurrency(creditBalance)}</span>{' '}
-                  (auto-applies to new fees)
+                  (available for fee application)
                 </span>
               </div>
             )}

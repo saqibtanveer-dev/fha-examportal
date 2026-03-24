@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { PageHeader } from '@/components/shared';
 import { Spinner } from '@/components/shared';
+import { FamilySearchCombobox } from '@/modules/fees/components/family-search-combobox';
 import { generateFeesAction } from '@/modules/fees/fee-generation-actions';
 import { applyLateFeesAction } from '@/modules/fees/fee-management-actions';
 import { toast } from 'sonner';
@@ -25,14 +26,17 @@ import { AlertTriangle, Zap, Search, X, Users, UserPlus, Loader2 } from 'lucide-
 type SectionOption = { id: string; name: string };
 type ClassOption = { id: string; name: string; grade: number; sections?: SectionOption[] };
 type SelectedStudent = { id: string; name: string; rollNumber: string; className: string };
+type FeeCategoryOption = { id: string; name: string; frequency: 'MONTHLY' | 'TERM' | 'ANNUAL' | 'ONE_TIME' };
 
 type Props = {
   classes: ClassOption[];
+  categories: FeeCategoryOption[];
   dueDayOfMonth: number;
 };
 
-export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
-  const [isPending, startTransition] = useTransition();
+export function GenerateFeesView({ classes, categories, dueDayOfMonth }: Props) {
+  const [isGenerating, startGenerating] = useTransition();
+  const [isApplyingLateFees, startApplyingLateFees] = useTransition();
   const [selectedClass, setSelectedClass] = useState('all');
   const [selectedSection, setSelectedSection] = useState('all');
   const [month, setMonth] = useState(() => {
@@ -44,8 +48,10 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
     const day = Math.min(dueDayOfMonth, 28);
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   });
-  const [genMode, setGenMode] = useState<'bulk' | 'specific'>('bulk');
+  const [genMode, setGenMode] = useState<'bulk' | 'specific' | 'family'>('bulk');
   const [selectedStudents, setSelectedStudents] = useState<SelectedStudent[]>([]);
+  const [selectedFamily, setSelectedFamily] = useState<{ id: string; label: string } | null>(null);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
   const [studentSearch, setStudentSearch] = useState('');
   const [studentResults, setStudentResults] = useState<SelectedStudent[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -87,7 +93,7 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
   }, [studentSearch, searchStudents]);
 
   function handleGenerate() {
-    startTransition(async () => {
+    startGenerating(async () => {
       const result = await generateFeesAction({
         generatedForMonth: month,
         classId: selectedClass === 'all' ? undefined : selectedClass,
@@ -96,10 +102,16 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
         studentProfileIds: genMode === 'specific' && selectedStudents.length > 0
           ? selectedStudents.map((s) => s.id)
           : undefined,
+        familyProfileId: genMode === 'family' ? (selectedFamily?.id ?? undefined) : undefined,
+        categoryIds: selectedCategoryIds.length > 0 ? selectedCategoryIds : undefined,
       });
 
       if (result.success) {
-        toast.success('Fee generation queued. Fees will be generated in the background.');
+        if (result.data?.queued) {
+          toast.success('Fee generation queued. Fees will be generated in the background.');
+        } else {
+          toast.success(`Fee generation completed. Generated: ${result.data?.generated ?? 0}, Skipped: ${result.data?.skipped ?? 0}`);
+        }
         await invalidate.afterFeeMutation();
       } else {
         toast.error(result.error ?? 'Failed to generate fees');
@@ -108,7 +120,7 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
   }
 
   function handleApplyLateFees() {
-    startTransition(async () => {
+    startApplyingLateFees(async () => {
       const result = await applyLateFeesAction();
       if (result.success) {
         toast.success(`Late fees applied to ${result.data?.updated ?? 0} assignments`);
@@ -155,12 +167,15 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
             </div>
 
             {/* Generation mode toggle */}
-            <div className="flex gap-2">
-              <Button size="sm" variant={genMode === 'bulk' ? 'default' : 'outline'} onClick={() => { setGenMode('bulk'); setSelectedStudents([]); }}>
+            <div className="grid gap-2 grid-cols-1 sm:grid-cols-3">
+              <Button size="sm" className="w-full" variant={genMode === 'bulk' ? 'default' : 'outline'} onClick={() => { setGenMode('bulk'); setSelectedStudents([]); setSelectedFamily(null); }}>
                 <Users className="mr-1 h-3.5 w-3.5" /> Bulk (Class/Section)
               </Button>
-              <Button size="sm" variant={genMode === 'specific' ? 'default' : 'outline'} onClick={() => setGenMode('specific')}>
+              <Button size="sm" className="w-full" variant={genMode === 'specific' ? 'default' : 'outline'} onClick={() => { setGenMode('specific'); setSelectedFamily(null); }}>
                 <UserPlus className="mr-1 h-3.5 w-3.5" /> Specific Students
+              </Button>
+              <Button size="sm" className="w-full" variant={genMode === 'family' ? 'default' : 'outline'} onClick={() => { setGenMode('family'); setSelectedStudents([]); }}>
+                <Users className="mr-1 h-3.5 w-3.5" /> Single Family
               </Button>
             </div>
 
@@ -193,7 +208,7 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
                   </div>
                 )}
               </div>
-            ) : (
+            ) : genMode === 'specific' ? (
               <div className="space-y-3">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -201,7 +216,7 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
                     placeholder="Search students by name, roll#, reg#..."
                     value={studentSearch}
                     onChange={(e) => setStudentSearch(e.target.value)}
-                    disabled={isPending}
+                    disabled={isGenerating}
                     className="pl-9"
                   />
                   {isSearching && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />}
@@ -236,12 +251,60 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
                   <p className="text-xs text-muted-foreground">Search and select specific students (e.g. late admissions) to generate fees only for them.</p>
                 )}
               </div>
+            ) : (
+              <div className="space-y-3">
+                <FamilySearchCombobox
+                  value={selectedFamily?.id ?? ''}
+                  selectedLabel={selectedFamily?.label}
+                  disabled={isGenerating}
+                  onSelect={(family) => {
+                    setSelectedFamily({
+                      id: family.familyProfileId,
+                      label: `${family.parentName} (${family.relationship}) — ${family.childrenCount} child(ren)`,
+                    });
+                  }}
+                  onClear={() => setSelectedFamily(null)}
+                />
+                {!selectedFamily && (
+                  <p className="text-xs text-muted-foreground">Select one family to generate fees only for that family.</p>
+                )}
+              </div>
             )}
+
+            <div className="space-y-2">
+              <Label>Categories (optional)</Label>
+              <p className="text-xs text-muted-foreground">Leave empty to include all active categories. Use this to generate only annual fund/term/selected categories.</p>
+              <div className="max-h-36 overflow-y-auto rounded-md border p-2 grid gap-1">
+                {categories.map((category) => {
+                  const checked = selectedCategoryIds.includes(category.id);
+                  return (
+                    <label key={category.id} className="flex items-center justify-between rounded px-2 py-1 text-sm hover:bg-muted/40">
+                      <span>{category.name} <span className="text-xs text-muted-foreground">({category.frequency})</span></span>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={isGenerating}
+                        onChange={(event) => {
+                          const isChecked = event.target.checked;
+                          setSelectedCategoryIds((prev) => {
+                            if (isChecked) return [...prev, category.id];
+                            return prev.filter((id) => id !== category.id);
+                          });
+                        }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
 
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button disabled={isPending || (genMode === 'specific' && selectedStudents.length === 0)} className="w-full">
-                  {isPending && <Spinner size="sm" className="mr-2" />}
+                <Button
+                  disabled={isGenerating || (genMode === 'specific' && selectedStudents.length === 0) || (genMode === 'family' && !selectedFamily)}
+                  className="w-full"
+                >
+                  {isGenerating && <Spinner size="sm" className="mr-2" />}
                   Generate Fees
                 </Button>
               </AlertDialogTrigger>
@@ -251,7 +314,9 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
                   <AlertDialogDescription>
                     {genMode === 'specific'
                       ? `This will create fee assignments for ${selectedStudents.length} selected student(s). Students who already have fees for this month will be skipped.`
-                      : `This will create fee assignments for all active students${selectedClass !== 'all' ? ` in ${selectedClassObj?.name ?? 'the selected class'}` : ''}${selectedSection !== 'all' ? ` (${sections.find((s) => s.id === selectedSection)?.name ?? 'selected section'})` : ''}. Students who already have fees for this month will be skipped.`}
+                      : genMode === 'family'
+                        ? `This will generate fees only for the selected family. Students already generated for this month will be skipped.`
+                        : `This will create fee assignments for all active students${selectedClass !== 'all' ? ` in ${selectedClassObj?.name ?? 'the selected class'}` : ''}${selectedSection !== 'all' ? ` (${sections.find((s) => s.id === selectedSection)?.name ?? 'selected section'})` : ''}. Students who already have fees for this month will be skipped.`}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -281,11 +346,11 @@ export function GenerateFeesView({ classes, dueDayOfMonth }: Props) {
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
-                  disabled={isPending}
+                  disabled={isApplyingLateFees}
                   variant="outline"
                   className="w-full"
                 >
-                  {isPending && <Spinner size="sm" className="mr-2" />}
+                  {isApplyingLateFees && <Spinner size="sm" className="mr-2" />}
                   Apply Late Fees Now
                 </Button>
               </AlertDialogTrigger>

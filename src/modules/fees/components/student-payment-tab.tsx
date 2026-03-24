@@ -18,7 +18,7 @@ import { StudentLedgerDialog } from './student-ledger-dialog';
 import { StudentAssignmentList } from './student-assignment-list';
 import { fetchPendingAssignmentsAction } from '@/modules/fees/fee-client-core-fetch-actions';
 import { fetchStudentCreditsAction } from '@/modules/fees/fee-student-ledger-fetch-actions';
-import { collectStudentFeeAction } from '@/modules/fees/fee-collection-actions';
+import { collectStudentFeeAction, applyAssignmentCreditsAction } from '@/modules/fees/fee-collection-actions';
 import { toast } from 'sonner';
 import type { SerializedFeeAssignment } from '@/modules/fees/fee.types';
 
@@ -172,6 +172,28 @@ export function StudentPaymentTab() {
                 >
                   Pay Full Balance ({formatCurrency(selected.balanceAmount)})
                 </Button>
+                {creditBalance > 0 && selected.balanceAmount > 0 && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    disabled={isPending}
+                    className="text-xs"
+                    onClick={() => {
+                      startTransition(async () => {
+                        const result = await applyAssignmentCreditsAction({ feeAssignmentId: selected.id });
+                        if (result.success) {
+                          toast.success(`Credit applied: ${formatCurrency(result.data?.appliedAmount ?? 0)}`);
+                          await invalidate.afterFeePayment();
+                          loadAssignments(studentId);
+                        } else {
+                          toast.error(result.error ?? 'Failed to apply credit');
+                        }
+                      });
+                    }}
+                  >
+                    Apply Credit
+                  </Button>
+                )}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

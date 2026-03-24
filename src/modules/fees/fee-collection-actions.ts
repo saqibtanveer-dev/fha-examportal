@@ -12,11 +12,13 @@ import { runSerializableTransaction, lockTransactionKeys } from '@/lib/transacti
 import {
   collectStudentFeeSchema,
   collectFamilyFeeSchema,
+  applyAssignmentCreditsSchema,
   type CollectStudentFeeInput,
   type CollectFamilyFeeInput,
 } from '@/validations/fee-schemas';
 import { getCurrentAcademicSessionId, findFeeSettings } from './fee-queries';
 import { generateReceiptNumber, generateFamilyReceiptNumber } from './receipt-generator';
+import { applyCreditsToAssignment } from './fee-credit-utils';
 
 const FEE_PATHS = ['/admin/fees', '/student/fees', '/family/fees'];
 const revalidateFeePaths = () => FEE_PATHS.forEach((p) => revalidatePath(p));
@@ -267,5 +269,52 @@ export const collectFamilyFeeAction = safeAction(
 
     revalidateFeePaths();
     return actionSuccess({ masterReceiptNumber, totalPayment: result.totalPayment, totalDiscount: result.totalDiscount });
+  },
+);
+
+export const applyAssignmentCreditsAction = safeAction(
+  async function applyAssignmentCreditsAction(
+    input: { feeAssignmentId: string },
+  ): Promise<ActionResult<{ appliedAmount: number }>> {
+    const session = await requireRole('ADMIN');
+    const parsed = applyAssignmentCreditsSchema.safeParse(input);
+    if (!parsed.success) return actionError(parsed.error.issues[0]?.message ?? 'Validation failed');
+
+    const { feeAssignmentId } = parsed.data;
+    const academicSessionId = await getCurrentAcademicSessionId();
+    if (!academicSessionId) return actionError('No active academic session');
+
+    const assignment = await prisma.feeAssignment.findUnique({
+      where: { id: feeAssignmentId },
+      select: {
+        id: true,
+        studentProfileId: true,
+        status: true,
+        balanceAmount: true,
+      },
+    });
+
+    if (!assignment) return actionError('Fee assignment not found');
+    if (assignment.status === 'CANCELLED' || assignment.status === 'WAIVED') {
+      return actionError('Credits cannot be applied on this assignment status');
+    }
+
+    const balance = Number(assignment.balanceAmount);
+    if (balance <= 0) return actionError('No balance left on this assignment');
+
+    const appliedAmount = await applyCreditsToAssignment(
+      assignment.studentProfileId,
+      assignment.id,
+      balance,
+    );
+
+    if (appliedAmount <= 0) return actionError('No available credit found for this student');
+
+    createAuditLog(session.user.id, 'APPLY_ASSIGNMENT_CREDITS', 'FEE_ASSIGNMENT', feeAssignmentId, {
+      appliedAmount,
+    }).catch((err: unknown) => logger.error({ err }, 'Audit log failed'));
+
+    revalidateFeePaths();
+    return actionSuccess({ appliedAmount });
   },
 );

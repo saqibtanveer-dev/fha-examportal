@@ -245,6 +245,7 @@ export async function upsertFeeSettings(
   data: {
     dueDayOfMonth?: number; lateFeePerDay?: number; maxLateFee?: number;
     receiptPrefix?: string; familyReceiptPrefix?: string; gracePeriodDays?: number;
+    autoApplyCreditsOnGeneration?: boolean;
   },
 ) {
   return prisma.feeSettings.upsert({
