@@ -30,6 +30,9 @@ Detailed report dekhein: 05-workbook-profile-student-record-mar-2026.md
 - 04-runbook-validation-and-rollout.md
 - 05-workbook-profile-student-record-mar-2026.md
 - 06-execution-task-board.md
+- 07-two-file-import-format-and-command.md
+- 08-import-script-compatibility-audit-mar-24.md
+- 09-importer-v2-dry-run-result-mar-24.md
 
 ## Scope Boundaries
 - Is migration se existing runtime user flows break nahi hone chahiye

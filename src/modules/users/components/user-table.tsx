@@ -291,6 +291,7 @@ export function UserTable({ users, allSubjects = [], allClasses = [], subjectCla
         open
         onOpenChange={(open) => !open && setEditingUser(null)}
         user={editingUser}
+        classes={allClasses}
       />
     )}
 

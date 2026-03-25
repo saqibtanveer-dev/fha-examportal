@@ -12,6 +12,7 @@ export function useUsersList(params?: {
   pageSize?: number;
   search?: string;
   role?: UserRole;
+  classId?: string;
 }) {
   return useQuery({
     queryKey: queryKeys.users.list(params ?? {}),

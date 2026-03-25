@@ -16,12 +16,14 @@ export function UsersPageClient() {
   
   const search = searchParams.get('search') ?? '';
   const role = (searchParams.get('role') as UserRole) || undefined;
+  const classId = searchParams.get('classId') ?? undefined;
   const page = Number(searchParams.get('page')) || 1;
   const pageSize = Number(searchParams.get('pageSize')) || 20;
 
   const { data: usersResult, isLoading: usersLoading } = useUsersList({
     search: search || undefined,
     role,
+    classId,
     page,
     pageSize: Math.min(50, Math.max(1, pageSize)),
   });

@@ -4,7 +4,7 @@
 // Manage Family Links Dialog — Link/Unlink Students
 // ============================================
 
-import { useState, useTransition, useCallback, useEffect, useRef } from 'react';
+import { useState, useTransition, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -65,7 +65,10 @@ export function ManageFamilyLinksDialog({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const invalidate = useInvalidateCache();
 
-  const alreadyLinkedIds = new Set(linkedStudents.map((s) => s.studentProfileId));
+  const alreadyLinkedIds = useMemo(
+    () => new Set(linkedStudents.map((s) => s.studentProfileId)),
+    [linkedStudents],
+  );
 
   const doSearch = useCallback(async (query: string) => {
     if (query.trim().length < 2) {
@@ -86,7 +89,7 @@ export function ManageFamilyLinksDialog({
     if (searchQuery.trim().length >= 2) {
       debounceRef.current = setTimeout(() => doSearch(searchQuery), 400);
     } else {
-      setSearchResults([]);
+      setSearchResults((prev) => (prev.length > 0 ? [] : prev));
     }
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [searchQuery, doSearch]);

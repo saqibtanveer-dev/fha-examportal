@@ -43,6 +43,7 @@ export type UserListFilters = {
   search?: string;
   role?: UserRole;
   isActive?: boolean;
+  classId?: string;
 };
 
 // ============================================
@@ -54,6 +55,9 @@ export async function listUsers(params: PaginationParams, filters: UserListFilte
 
   if (filters.role) where.role = filters.role;
   if (filters.isActive !== undefined) where.isActive = filters.isActive;
+  if (filters.classId) {
+    where.studentProfile = { classId: filters.classId };
+  }
   if (filters.search) {
     where.OR = [
       { firstName: { contains: filters.search, mode: 'insensitive' } },

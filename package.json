@@ -20,7 +20,9 @@
     "db:migrate:prod": "prisma migrate deploy",
     "db:migrate:status": "prisma migrate status",
     "db:studio": "prisma studio",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "import:students-families": "tsx scripts/import-students-families.ts",
+    "import:financial-continuity": "tsx scripts/import-financial-continuity.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.26",
@@ -61,6 +63,7 @@
     "tailwind-merge": "^3.4.0",
     "uuid": "^13.0.0",
     "ws": "^8.19.0",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6",
     "zustand": "^5.0.11"
   },

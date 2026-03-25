@@ -14,11 +14,12 @@ export const fetchUsersAction = safeFetchAction(async (params?: {
   pageSize?: number;
   search?: string;
   role?: UserRole;
+  classId?: string;
 }) => {
   await requireRole('ADMIN');
   const result = await listUsers(
     { page: params?.page ?? 1, pageSize: params?.pageSize ?? 20 },
-    { search: params?.search, role: params?.role }
+    { search: params?.search, role: params?.role, classId: params?.classId }
   );
   return serialize(result);
 });

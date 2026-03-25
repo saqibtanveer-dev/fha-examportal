@@ -70,10 +70,29 @@ export const createUserSchema = z.object({
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 export const updateUserSchema = z.object({
+  email: z.string().email('Invalid email address').optional(),
   firstName: z.string().min(1).max(100).optional(),
   lastName: z.string().min(1).max(100).optional(),
   phone: z.string().optional(),
   isActive: z.boolean().optional(),
+  // Student profile fields
+  classId: z.string().uuid('Invalid class').optional(),
+  sectionId: z.string().uuid('Invalid section').optional(),
+  rollNumber: z.string().optional(),
+  registrationNo: z.string().optional(),
+  guardianName: z.string().optional(),
+  guardianPhone: z.string().optional(),
+  dateOfBirth: z.string().optional(),
+  gender: z.enum(['MALE', 'FEMALE', 'OTHER']).optional(),
+  // Teacher profile fields
+  employeeId: z.string().optional(),
+  qualification: z.string().optional(),
+  specialization: z.string().optional(),
+  // Family profile fields
+  relationship: z.string().optional(),
+  occupation: z.string().optional(),
+  address: z.string().optional(),
+  emergencyPhone: z.string().optional(),
 });
 
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;

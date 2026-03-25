@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,11 +48,16 @@ type Props = {
 
 export function UsersView({ result, allSubjects = [], allClasses = [], subjectClassLinks = [] }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState('');
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentSearch = searchParams.get('search') ?? '';
   const currentRole = searchParams.get('role') ?? '';
+  const currentClassId = searchParams.get('classId') ?? '';
+  const [searchValue, setSearchValue] = useState(currentSearch);
+
+  useEffect(() => {
+    setSearchValue(currentSearch);
+  }, [currentSearch]);
 
   function updateFilters(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -61,6 +66,19 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
     } else {
       params.delete(key);
     }
+    params.delete('page');
+    router.push(`/admin/users?${params.toString()}`);
+  }
+
+  function updateManyFilters(updates: Record<string, string>) {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
     params.delete('page');
     router.push(`/admin/users?${params.toString()}`);
   }
@@ -111,7 +129,6 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Search by name or email..."
-              defaultValue={currentSearch}
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
               className="pl-9"
@@ -122,8 +139,14 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
           </Button>
         </form>
         <Select
-          value={currentRole}
-          onValueChange={(val) => updateFilters('role', val === 'ALL' ? '' : val)}
+          value={currentRole || 'ALL'}
+          onValueChange={(val) => {
+            const nextRole = val === 'ALL' ? '' : val;
+            updateManyFilters({
+              role: nextRole,
+              classId: nextRole !== 'STUDENT' ? '' : currentClassId,
+            });
+          }}
         >
           <SelectTrigger className="w-full sm:w-40">
             <SelectValue placeholder="All Roles" />
@@ -135,6 +158,28 @@ export function UsersView({ result, allSubjects = [], allClasses = [], subjectCl
             <SelectItem value="TEACHER">Teacher</SelectItem>
             <SelectItem value="STUDENT">Student</SelectItem>
             <SelectItem value="FAMILY">Family</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select
+          value={currentClassId || 'ALL'}
+          onValueChange={(val) => {
+            const nextClassId = val === 'ALL' ? '' : val;
+            updateManyFilters({
+              classId: nextClassId,
+              role: nextClassId ? 'STUDENT' : currentRole,
+            });
+          }}
+        >
+          <SelectTrigger className="w-full sm:w-56">
+            <SelectValue placeholder="All Classes" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL">All Classes</SelectItem>
+            {allClasses.map((cls) => (
+              <SelectItem key={cls.id} value={cls.id}>
+                {cls.name}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>

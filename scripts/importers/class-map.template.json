@@ -1,0 +1,20 @@
+{
+  "classes": {
+    "g_01": { "name": "Class 1", "grade": 1 },
+    "g_02": { "name": "Class 2", "grade": 2 },
+    "g_03": { "name": "Class 3", "grade": 3 },
+    "g_04": { "name": "Class 4", "grade": 4 },
+    "g_05": { "name": "Class 5", "grade": 5 },
+    "g_06": { "name": "Class 6", "grade": 6 },
+    "g_07": { "name": "Class 7", "grade": 7 },
+    "g_08": { "name": "Class 8", "grade": 8 },
+    "g_09": { "name": "Class 9", "grade": 9 },
+    "kg_01": { "name": "KG 1", "grade": 0 },
+    "kg_02": { "name": "KG 2", "grade": 0 },
+    "kg_03": { "name": "KG 3", "grade": 0 }
+  },
+  "sections": {
+    "boys": "Boys",
+    "girls": "Girls"
+  }
+}
