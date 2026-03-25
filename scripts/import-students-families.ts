@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 import bcrypt from 'bcryptjs';
 import { UserRole, type Class, type Section } from '@prisma/client';
 import { prisma } from '../src/lib/prisma';
@@ -167,7 +169,22 @@ function parseArgs(argv: string[]): Args {
 
 async function loadClassMap(path?: string): Promise<ClassMapConfig> {
   if (!path) return {};
-  const content = await readFile(path, 'utf8');
+
+  const candidates = [
+    path,
+    resolve(process.cwd(), path),
+    resolve(process.cwd(), 'scripts/importers', basename(path)),
+  ];
+
+  const resolvedPath = candidates.find((candidate) => existsSync(candidate));
+  if (!resolvedPath) {
+    throw new Error(
+      `Class map file not found: "${path}". Tried: ${candidates.join(', ')}. ` +
+      'Use --class-map scripts/importers/class-map.template.json'
+    );
+  }
+
+  const content = await readFile(resolvedPath, 'utf8');
   return JSON.parse(content) as ClassMapConfig;
 }
 

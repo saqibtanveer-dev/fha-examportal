@@ -1,0 +1,60 @@
+
+> faith-horizon-portal@0.1.0 import:students-families C:\Users\Tanve\Desktop\Projects\portfolio
+> tsx scripts/import-students-families.ts "--students" "students_normalized.xlsx" "--families" "student_record_mar_2026.xlsx" "--admin-email" "admin@admin.fhsc.edu.pk" "--auto-create-class-section" "--class-map" "class-map.template.json" "--dry-run" "--batch-size" "100" "--concurrency" "8"
+
+prisma:query SELECT "public"."Class"."id", "public"."Class"."name", "public"."Class"."grade" FROM "public"."Class" WHERE 1=1 OFFSET $1
+prisma:query SELECT "public"."Section"."id", "public"."Section"."name", "public"."Section"."classId" FROM "public"."Section" WHERE 1=1 OFFSET $1
+Import completed:
+{
+  "dryRun": true,
+  "studentsSheet": "Students_Normalized",
+  "familiesSheet": "Sheet1",
+  "autoCreateClassSection": true,
+  "studentsTotal": 801,
+  "studentsImported": 801,
+  "studentsFailed": 0,
+  "familiesTotal": 459,
+  "familiesImported": 459,
+  "familiesFailed": 0,
+  "linksCreated": 801,
+  "classesCreated": 11,
+  "sectionsCreated": 11,
+  "warnings": [
+    "Student REG-F026-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F026-003: duplicate formatted email resolved with registration suffix",
+    "Student REG-F026-004: duplicate formatted email resolved with registration suffix",
+    "Student REG-F047-003: duplicate formatted email resolved with registration suffix",
+    "Student REG-F107-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F144-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F144-003: duplicate formatted email resolved with registration suffix",
+    "Student REG-F243-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F272-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F316-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F317-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F330-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F353-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F399-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F399-003: duplicate formatted email resolved with registration suffix",
+    "Family row 205: emergency phone trimmed to 20 chars"
+  ],
+  "batchSize": 100,
+  "concurrency": 8,
+  "warningsPreview": [
+    "Student REG-F026-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F026-003: duplicate formatted email resolved with registration suffix",
+    "Student REG-F026-004: duplicate formatted email resolved with registration suffix",
+    "Student REG-F047-003: duplicate formatted email resolved with registration suffix",
+    "Student REG-F107-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F144-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F144-003: duplicate formatted email resolved with registration suffix",
+    "Student REG-F243-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F272-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F316-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F317-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F330-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F353-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F399-002: duplicate formatted email resolved with registration suffix",
+    "Student REG-F399-003: duplicate formatted email resolved with registration suffix",
+    "Family row 205: emergency phone trimmed to 20 chars"
+  ]
+}

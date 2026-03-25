@@ -158,11 +158,11 @@ export function GenerateFeesView({ classes, categories, dueDayOfMonth }: Props) 
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Month</Label>
-                <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} disabled={isPending} />
+                <Input type="month" value={month} onChange={(e) => setMonth(e.target.value)} disabled={isGenerating} />
               </div>
               <div className="space-y-2">
                 <Label>Due Date</Label>
-                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isPending} />
+                <Input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} disabled={isGenerating} />
               </div>
             </div>
 
@@ -183,7 +183,7 @@ export function GenerateFeesView({ classes, categories, dueDayOfMonth }: Props) 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Class Filter</Label>
-                  <Select value={selectedClass} onValueChange={handleClassChange} disabled={isPending}>
+                  <Select value={selectedClass} onValueChange={handleClassChange} disabled={isGenerating}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Classes</SelectItem>
@@ -196,7 +196,7 @@ export function GenerateFeesView({ classes, categories, dueDayOfMonth }: Props) 
                 {selectedClass !== 'all' && sections.length > 0 && (
                   <div className="space-y-2">
                     <Label>Section Filter</Label>
-                    <Select value={selectedSection} onValueChange={setSelectedSection} disabled={isPending}>
+                    <Select value={selectedSection} onValueChange={setSelectedSection} disabled={isGenerating}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">All Sections</SelectItem>
