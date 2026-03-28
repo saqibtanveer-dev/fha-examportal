@@ -22,7 +22,8 @@
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
     "import:students-families": "tsx scripts/import-students-families.ts",
-    "import:financial-continuity": "tsx scripts/import-financial-continuity.ts"
+    "import:financial-continuity": "tsx scripts/import-financial-continuity.ts",
+    "export:grade-9-10-logins": "tsx scripts/export-grade-9-10-login-sheets.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.26",
