@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, useTransition } from 'react';
+import { useCallback, useEffect, useMemo, useState, useTransition } from 'react';
 import { useInvalidateCache } from '@/lib/cache-utils';
 import {
   executeYearTransitionAction,
@@ -81,35 +81,35 @@ export function useYearTransition({
     return Math.round((summary.total / activeStudentsTotal) * 100);
   }, [activeStudentsTotal, summary.total]);
 
-  function updateStudentAction(classIdx: number, studentIdx: number, action: StudentAction) {
+  const updateStudentAction = useCallback((classIdx: number, studentIdx: number, action: StudentAction) => {
     setConfigs((prev) => updateStudentActionInConfigs(prev, classIdx, studentIdx, action, classById));
-  }
+  }, [classById]);
 
-  function updateStudentSelected(classIdx: number, studentIdx: number, selected: boolean) {
+  const updateStudentSelected = useCallback((classIdx: number, studentIdx: number, selected: boolean) => {
     setConfigs((prev) => updateStudentSelectedInConfigs(prev, classIdx, studentIdx, selected));
-  }
+  }, []);
 
-  function setAllStudentsSelected(classIdx: number, selected: boolean) {
+  const setAllStudentsSelected = useCallback((classIdx: number, selected: boolean) => {
     setConfigs((prev) => setAllStudentsSelectedInConfigs(prev, classIdx, selected));
-  }
+  }, []);
 
-  function updateStudentTargetClass(classIdx: number, studentIdx: number, toClassId: string) {
+  const updateStudentTargetClass = useCallback((classIdx: number, studentIdx: number, toClassId: string) => {
     setConfigs((prev) => updateStudentTargetClassInConfigs(prev, classIdx, studentIdx, toClassId, classById));
-  }
+  }, [classById]);
 
-  function updateStudentSection(classIdx: number, studentIdx: number, sectionId: string) {
+  const updateStudentSection = useCallback((classIdx: number, studentIdx: number, sectionId: string) => {
     setConfigs((prev) => updateStudentSectionInConfigs(prev, classIdx, studentIdx, sectionId));
-  }
+  }, []);
 
-  function updateDefaultSection(classIdx: number, sectionId: string) {
+  const updateDefaultSection = useCallback((classIdx: number, sectionId: string) => {
     setConfigs((prev) => updateDefaultSectionInConfigs(prev, classIdx, sectionId));
-  }
+  }, []);
 
-  function setAllStudentsAction(classIdx: number, action: StudentAction) {
+  const setAllStudentsAction = useCallback((classIdx: number, action: StudentAction) => {
     setConfigs((prev) => setAllStudentsActionInConfigs(prev, classIdx, action));
-  }
+  }, []);
 
-  function selectOnlyClass(classIdx: number) {
+  const selectOnlyClass = useCallback((classIdx: number) => {
     let targetClassId = '';
     setConfigs((prev) => {
       const next = selectOnlyClassInConfigs(prev, classIdx);
@@ -119,7 +119,7 @@ export function useYearTransition({
     if (targetClassId) {
       setSelectedClassId(targetClassId);
     }
-  }
+  }, []);
 
   useEffect(() => {
     if (!selectedSessionId) return;

@@ -1,5 +1,6 @@
 'use client';
 
+import { memo, useCallback, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,16 +21,134 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { AlertTriangle, ArrowRight, GraduationCap } from 'lucide-react';
-import type { ClassConfig, StudentAction } from './year-transition-types';
+import type { ClassConfig, StudentAction, StudentEntry } from './year-transition-types';
+
+type ClassOption = {
+  id: string;
+  name: string;
+  grade: number;
+  sections: Array<{ id: string; name: string }>;
+};
+
+type StudentConfigRowProps = {
+  student: StudentEntry;
+  studentIdx: number;
+  classIdx: number;
+  allClasses: ClassOption[];
+  sectionsByClassId: Map<string, Array<{ id: string; name: string }>>;
+  onStudentSelected: (classIdx: number, studentIdx: number, selected: boolean) => void;
+  onStudentAction: (classIdx: number, studentIdx: number, action: StudentAction) => void;
+  onStudentTargetClass: (classIdx: number, studentIdx: number, toClassId: string) => void;
+  onStudentSection: (classIdx: number, studentIdx: number, sectionId: string) => void;
+};
+
+const StudentConfigRow = memo(function StudentConfigRow({
+  student,
+  studentIdx,
+  classIdx,
+  allClasses,
+  sectionsByClassId,
+  onStudentSelected,
+  onStudentAction,
+  onStudentTargetClass,
+  onStudentSection,
+}: StudentConfigRowProps) {
+  const targetSections = sectionsByClassId.get(student.toClassId ?? '') ?? [];
+
+  const handleSelected = useCallback(
+    (value: boolean | 'indeterminate') => {
+      onStudentSelected(classIdx, studentIdx, value === true);
+    },
+    [classIdx, onStudentSelected, studentIdx],
+  );
+
+  const handleAction = useCallback(
+    (value: string) => {
+      onStudentAction(classIdx, studentIdx, value as StudentAction);
+    },
+    [classIdx, onStudentAction, studentIdx],
+  );
+
+  const handleTargetClass = useCallback(
+    (value: string) => {
+      onStudentTargetClass(classIdx, studentIdx, value);
+    },
+    [classIdx, onStudentTargetClass, studentIdx],
+  );
+
+  const handleSection = useCallback(
+    (value: string) => {
+      onStudentSection(classIdx, studentIdx, value);
+    },
+    [classIdx, onStudentSection, studentIdx],
+  );
+
+  return (
+    <TableRow className={!student.selected ? 'opacity-70' : ''}>
+      <TableCell className="text-xs text-muted-foreground">{studentIdx + 1}</TableCell>
+      <TableCell>
+        <Checkbox checked={student.selected} onCheckedChange={handleSelected} />
+      </TableCell>
+      <TableCell className="font-mono text-sm">{student.rollNumber}</TableCell>
+      <TableCell className="font-medium">{student.name}</TableCell>
+      <TableCell><Badge variant="outline">{student.sectionName}</Badge></TableCell>
+      <TableCell>
+        <Select value={student.action} onValueChange={handleAction} disabled={!student.selected}>
+          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="PROMOTE">Promote</SelectItem>
+            <SelectItem value="HOLD_BACK">Hold Back</SelectItem>
+            <SelectItem value="GRADUATE">Graduate</SelectItem>
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell>
+        {student.action === 'PROMOTE' && student.selected ? (
+          <div className="space-y-1">
+            <Select value={student.toClassId ?? ''} onValueChange={handleTargetClass}>
+              <SelectTrigger className="w-48"><SelectValue placeholder="Select class" /></SelectTrigger>
+              <SelectContent>
+                {allClasses.map((targetClass) => (
+                  <SelectItem key={targetClass.id} value={targetClass.id}>
+                    {targetClass.name} (Grade {targetClass.grade})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!student.toClassId ? (
+              <p className="text-xs text-destructive">Required to process promotion</p>
+            ) : null}
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell>
+        {student.action === 'PROMOTE' && student.selected ? (
+          <div className="space-y-1">
+            <Select value={student.toSectionId ?? ''} onValueChange={handleSection}>
+              <SelectTrigger className="w-32"><SelectValue placeholder="Section" /></SelectTrigger>
+              <SelectContent>
+                {targetSections.map((section) => (
+                  <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {!student.toSectionId ? (
+              <p className="text-xs text-destructive">Required</p>
+            ) : null}
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+});
 
 type Props = {
   cfg: ClassConfig;
-  allClasses: Array<{
-    id: string;
-    name: string;
-    grade: number;
-    sections: Array<{ id: string; name: string }>;
-  }>;
+  allClasses: ClassOption[];
   classIdx: number;
   onStudentSelected: (classIdx: number, studentIdx: number, selected: boolean) => void;
   onSelectAllStudents: (classIdx: number, selected: boolean) => void;
@@ -54,6 +173,11 @@ export function ClassConfigCard({
   onDefaultSection,
   onSetAll,
 }: Props) {
+  const sectionsByClassId = useMemo(
+    () => new Map(allClasses.map((cls) => [cls.id, cls.sections])),
+    [allClasses],
+  );
+
   const selectedCount = cfg.students.filter((student) => student.selected).length;
   const studentsWithMissingPromotionTarget = cfg.students.filter(
     (student) =>
@@ -145,78 +269,18 @@ export function ClassConfigCard({
             </TableHeader>
             <TableBody>
               {cfg.students.map((student, studentIdx) => (
-                <TableRow key={student.profileId} className={!student.selected ? 'opacity-70' : ''}>
-                  <TableCell className="text-xs text-muted-foreground">{studentIdx + 1}</TableCell>
-                  <TableCell>
-                    <Checkbox
-                      checked={student.selected}
-                      onCheckedChange={(value) => onStudentSelected(classIdx, studentIdx, value === true)}
-                    />
-                  </TableCell>
-                  <TableCell className="font-mono text-sm">{student.rollNumber}</TableCell>
-                  <TableCell className="font-medium">{student.name}</TableCell>
-                  <TableCell><Badge variant="outline">{student.sectionName}</Badge></TableCell>
-                  <TableCell>
-                    <Select
-                      value={student.action}
-                      onValueChange={(v) => onStudentAction(classIdx, studentIdx, v as StudentAction)}
-                      disabled={!student.selected}
-                    >
-                      <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="PROMOTE">Promote</SelectItem>
-                        <SelectItem value="HOLD_BACK">Hold Back</SelectItem>
-                        <SelectItem value="GRADUATE">Graduate</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </TableCell>
-                  <TableCell>
-                    {student.action === 'PROMOTE' && student.selected ? (
-                      <div className="space-y-1">
-                        <Select
-                          value={student.toClassId ?? ''}
-                          onValueChange={(value) => onStudentTargetClass(classIdx, studentIdx, value)}
-                        >
-                          <SelectTrigger className="w-48"><SelectValue placeholder="Select class" /></SelectTrigger>
-                          <SelectContent>
-                            {allClasses.map((targetClass) => (
-                              <SelectItem key={targetClass.id} value={targetClass.id}>
-                                {targetClass.name} (Grade {targetClass.grade})
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {!student.toClassId ? (
-                          <p className="text-xs text-destructive">Required to process promotion</p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    {student.action === 'PROMOTE' && student.selected ? (
-                      <div className="space-y-1">
-                        <Select
-                          value={student.toSectionId ?? ''}
-                          onValueChange={(value) => onStudentSection(classIdx, studentIdx, value)}
-                        >
-                          <SelectTrigger className="w-32"><SelectValue placeholder="Section" /></SelectTrigger>
-                          <SelectContent>
-                            {(allClasses.find((targetClass) => targetClass.id === student.toClassId)?.sections ?? []).map((section) => (
-                              <SelectItem key={section.id} value={section.id}>{section.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {!student.toSectionId ? (
-                          <p className="text-xs text-destructive">Required</p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                </TableRow>
+                <StudentConfigRow
+                  key={student.profileId}
+                  student={student}
+                  studentIdx={studentIdx}
+                  classIdx={classIdx}
+                  allClasses={allClasses}
+                  sectionsByClassId={sectionsByClassId}
+                  onStudentSelected={onStudentSelected}
+                  onStudentAction={onStudentAction}
+                  onStudentTargetClass={onStudentTargetClass}
+                  onStudentSection={onStudentSection}
+                />
               ))}
             </TableBody>
           </Table>

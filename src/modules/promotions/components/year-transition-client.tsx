@@ -1,5 +1,6 @@
 ﻿'use client';
 
+import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,6 +35,15 @@ export function YearTransitionClient({
   currentSessionId,
 }: YearTransitionProps) {
   const yt = useYearTransition({ initialClasses, currentSessionId });
+  const allClasses = useMemo(
+    () => initialClasses.map((cls) => ({
+      id: cls.id,
+      name: cls.name,
+      grade: cls.grade,
+      sections: cls.sections,
+    })),
+    [initialClasses],
+  );
 
   const executeDisabled =
     yt.isPending ||
@@ -190,12 +200,7 @@ export function YearTransitionClient({
             <ClassConfigCard
               key={cfg.fromClassId}
               cfg={cfg}
-              allClasses={initialClasses.map((cls) => ({
-                id: cls.id,
-                name: cls.name,
-                grade: cls.grade,
-                sections: cls.sections,
-              }))}
+              allClasses={allClasses}
               classIdx={classIdx}
               onStudentSelected={yt.updateStudentSelected}
               onSelectAllStudents={yt.setAllStudentsSelected}

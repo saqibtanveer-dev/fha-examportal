@@ -20,6 +20,7 @@ import { logger } from '@/lib/logger';
 
 const PROCESS_CHUNK_SIZE = 500;
 const PROFILE_UPDATE_CHUNK_SIZE = 500;
+const PREFETCH_CHUNK_SIZE = 3000;
 const TX_TIMEOUT = 60_000;
 const TX_MAX_WAIT = 20_000;
 
@@ -48,6 +49,13 @@ type ProfileTransitionUpdate = {
   classId: string;
   sectionId: string;
   status: 'ACTIVE' | 'GRADUATED';
+};
+
+type TransitionProfileRow = {
+  id: string;
+  classId: string;
+  sectionId: string;
+  userId: string;
 };
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -109,6 +117,49 @@ async function batchUpdateStudentProfiles(
   }
 }
 
+async function fetchProfilesByIds(profileIds: string[]): Promise<TransitionProfileRow[]> {
+  if (profileIds.length === 0) return [];
+
+  const rows: TransitionProfileRow[] = [];
+  const chunked = chunkArray(profileIds, PREFETCH_CHUNK_SIZE);
+
+  for (const chunk of chunked) {
+    const part = await prisma.studentProfile.findMany({
+      where: { id: { in: chunk } },
+      select: { id: true, classId: true, sectionId: true, userId: true },
+    });
+    rows.push(...part);
+  }
+
+  return rows;
+}
+
+async function fetchProcessedStudentIds(
+  academicSessionId: string,
+  profileIds: string[],
+): Promise<Set<string>> {
+  if (profileIds.length === 0) return new Set();
+
+  const processed = new Set<string>();
+  const chunked = chunkArray(profileIds, PREFETCH_CHUNK_SIZE);
+
+  for (const chunk of chunked) {
+    const rows = await prisma.studentPromotion.findMany({
+      where: {
+        academicSessionId,
+        studentProfileId: { in: chunk },
+      },
+      select: { studentProfileId: true },
+    });
+
+    for (const row of rows) {
+      processed.add(row.studentProfileId);
+    }
+  }
+
+  return processed;
+}
+
 export const executeYearTransitionAction = safeAction(async function executeYearTransitionAction(
   input: YearTransitionInput,
 ): Promise<ActionResult<ExecuteSummary>> {
@@ -148,18 +199,9 @@ export const executeYearTransitionAction = safeAction(async function executeYear
   const totals: ExecuteSummary = { promoted: 0, graduated: 0, heldBack: 0, skipped: 0, processed: 0 };
 
   const allProfileIds = [...new Set(planned.map((item) => item.studentProfileId))];
-  const [allProfiles, existingProcessedRows, targetClasses, targetSections] = await Promise.all([
-    prisma.studentProfile.findMany({
-      where: { id: { in: allProfileIds } },
-      select: { id: true, classId: true, sectionId: true, userId: true },
-    }),
-    prisma.studentPromotion.findMany({
-      where: {
-        academicSessionId,
-        studentProfileId: { in: allProfileIds },
-      },
-      select: { studentProfileId: true },
-    }),
+  const [allProfiles, processedSet, targetClasses, targetSections] = await Promise.all([
+    fetchProfilesByIds(allProfileIds),
+    fetchProcessedStudentIds(academicSessionId, allProfileIds),
     prisma.class.findMany({
       where: {
         id: {
@@ -192,7 +234,6 @@ export const executeYearTransitionAction = safeAction(async function executeYear
   ]);
 
   const profileMap = new Map(allProfiles.map((profile) => [profile.id, profile]));
-  const processedSet = new Set(existingProcessedRows.map((row) => row.studentProfileId));
   const targetClassSet = new Set(targetClasses.map((row) => row.id));
   const targetSectionMap = new Map(targetSections.map((row) => [row.id, row]));
 

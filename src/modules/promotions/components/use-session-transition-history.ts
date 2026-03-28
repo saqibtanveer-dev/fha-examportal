@@ -32,18 +32,18 @@ export function useSessionTransitionHistory() {
     }
   }, []);
 
-  function toggleTransitionSelection(transitionId: string, selected: boolean) {
+  const toggleTransitionSelection = useCallback((transitionId: string, selected: boolean) => {
     setSelectedTransitionIds((prev) => {
       if (selected) {
         return prev.includes(transitionId) ? prev : [...prev, transitionId];
       }
       return prev.filter((id) => id !== transitionId);
     });
-  }
+  }, []);
 
-  function setAllTransitionSelection(selected: boolean) {
+  const setAllTransitionSelection = useCallback((selected: boolean) => {
     setSelectedTransitionIds(selected ? sessionTransitions.map((row) => row.id) : []);
-  }
+  }, [sessionTransitions]);
 
   return {
     isLoadingTransitions,
