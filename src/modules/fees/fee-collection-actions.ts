@@ -17,7 +17,11 @@ import {
   type CollectFamilyFeeInput,
 } from '@/validations/fee-schemas';
 import { getCurrentAcademicSessionId, findFeeSettings } from './fee-queries';
-import { generateReceiptNumber, generateFamilyReceiptNumber } from './receipt-generator';
+import {
+  generateReceiptNumber,
+  generateFamilyReceiptNumber,
+  generateReceiptNumbers,
+} from './receipt-generator';
 import { applyCreditsToAssignment } from './fee-credit-utils';
 
 const FEE_PATHS = ['/admin/fees', '/student/fees', '/family/fees'];
@@ -169,10 +173,10 @@ export const collectFamilyFeeAction = safeAction(
       : undefined;
 
     const paymentItems = activeItems.filter((i) => i.paymentAmount > 0);
-    const childReceipts: string[] = [];
-    for (let i = 0; i < paymentItems.length; i += 1) {
-      childReceipts.push(await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP'));
-    }
+    const childReceipts = await generateReceiptNumbers(
+      settings?.receiptPrefix ?? 'FRCP',
+      paymentItems.length,
+    );
 
     // Run read + compute + write inside a serializable transaction with advisory locks
     const assignmentIds = activeItems.map((i) => i.feeAssignmentId);

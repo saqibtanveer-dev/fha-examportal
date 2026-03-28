@@ -1,4 +1,4 @@
-iss whole project ko brutally deeply analyze kro expecially fee module ko 
+iss whole project ko brutally deeply analyze kro expecially year transition module ko 
 -----
 ik senior level backend expert developer ki tra kam kro 
 ik senior level forntend expert developer ki tra kam kro 

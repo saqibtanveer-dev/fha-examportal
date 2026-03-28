@@ -4,7 +4,17 @@
 const CACHE_NAME = 'examcore-v1';
 
 // Assets to pre-cache on install
-const PRECACHE_ASSETS = ['/', '/offline'];
+const PRECACHE_ASSETS = ['/'];
+
+function isDashboardPath(pathname) {
+  return (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/principal') ||
+    pathname.startsWith('/teacher') ||
+    pathname.startsWith('/student') ||
+    pathname.startsWith('/family')
+  );
+}
 
 // Install — pre-cache critical assets
 self.addEventListener('install', (event) => {
@@ -48,19 +58,23 @@ self.addEventListener('fetch', (event) => {
 
   // Navigation requests — network-first, fallback to cache then offline page
   if (request.mode === 'navigate') {
+    if (isDashboardPath(url.pathname)) {
+      // Never cache authenticated dashboard HTML to avoid stale route 404s.
+      event.respondWith(fetch(request));
+      return;
+    }
+
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful navigations
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          // Cache only successful same-origin navigations.
+          if (response && response.ok && response.type === 'basic') {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
           return response;
         })
-        .catch(() =>
-          caches
-            .match(request)
-            .then((cached) => cached || caches.match('/offline')),
-        ),
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('/'))),
     );
     return;
   }
@@ -77,8 +91,10 @@ self.addEventListener('fetch', (event) => {
         (cached) =>
           cached ||
           fetch(request).then((response) => {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            if (response && response.ok && response.type === 'basic') {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+            }
             return response;
           }),
       ),

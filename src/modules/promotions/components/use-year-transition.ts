@@ -1,112 +1,130 @@
 'use client';
 
-import { useState, useTransition, useMemo } from 'react';
+import { useEffect, useMemo, useState, useTransition } from 'react';
 import { useInvalidateCache } from '@/lib/cache-utils';
-import { executeYearTransitionAction, undoYearTransitionAction } from '@/modules/promotions/promotion-actions';
+import {
+  executeYearTransitionAction,
+  undoSelectedYearTransitionAction,
+  undoYearTransitionAction,
+} from '@/modules/promotions/promotion-actions';
 import { toast } from 'sonner';
 import type { ClassWithStudents } from '@/modules/promotions/promotion-queries';
-import type { ClassConfig, StudentAction, AcademicSession } from './year-transition-types';
+import type {
+  ClassConfig,
+  StudentAction,
+} from './year-transition-types';
+import { useSessionTransitionHistory } from './use-session-transition-history';
+import {
+  buildClassConfigs,
+  calculateValidationSummary,
+  calculateSummary,
+  getActiveConfigs,
+  selectOnlyClassInConfigs,
+  setAllStudentsActionInConfigs,
+  setAllStudentsSelectedInConfigs,
+  updateDefaultSectionInConfigs,
+  updateStudentActionInConfigs,
+  updateStudentSectionInConfigs,
+  updateStudentSelectedInConfigs,
+  updateStudentTargetClassInConfigs,
+} from './year-transition-config-helpers';
 
 export function useYearTransition({
   initialClasses,
   currentSessionId,
-  transitionDone,
 }: {
   initialClasses: ClassWithStudents[];
   currentSessionId: string | null;
-  transitionDone: boolean;
 }) {
   const invalidate = useInvalidateCache();
   const [isPending, startTransition] = useTransition();
-  const [step, setStep] = useState<'configure' | 'done'>(transitionDone ? 'done' : 'configure');
   const [selectedSessionId, setSelectedSessionId] = useState(currentSessionId ?? '');
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [undoConfirmOpen, setUndoConfirmOpen] = useState(false);
+  const [undoSelectedConfirmOpen, setUndoSelectedConfirmOpen] = useState(false);
+  const history = useSessionTransitionHistory();
 
-  const highestGrade = Math.max(...initialClasses.map((c) => c.grade));
+  const classById = useMemo(
+    () => new Map(initialClasses.map((cls) => [cls.id, cls])),
+    [initialClasses],
+  );
 
-  const classConfigs = useMemo(() => {
-    return initialClasses
-      .filter((cls) => cls.studentCount > 0)
-      .map((cls): ClassConfig => {
-        const isHighest = cls.grade === highestGrade;
-        const nextClass = initialClasses.find((c) => c.grade === cls.grade + 1);
-
-        return {
-          fromClassId: cls.id,
-          fromClassName: cls.name,
-          fromGrade: cls.grade,
-          toClassId: isHighest ? undefined : nextClass?.id,
-          toClassName: isHighest ? undefined : nextClass?.name,
-          toSections: isHighest ? [] : nextClass?.sections ?? [],
-          defaultSectionId: isHighest ? undefined : nextClass?.sections[0]?.id,
-          isHighestGrade: isHighest,
-          students: cls.students.map((s) => ({
-            profileId: s.profileId,
-            name: `${s.firstName} ${s.lastName}`,
-            rollNumber: s.rollNumber,
-            sectionName: s.sectionName,
-            sectionId: s.sectionId,
-            action: isHighest ? ('GRADUATE' as const) : ('PROMOTE' as const),
-          })),
-        };
-      });
-  }, [initialClasses, highestGrade]);
+  const classConfigs = useMemo(() => buildClassConfigs(initialClasses), [initialClasses]);
 
   const [configs, setConfigs] = useState<ClassConfig[]>(classConfigs);
+  const [selectedClassId, setSelectedClassId] = useState(classConfigs[0]?.fromClassId ?? '');
 
-  const summary = useMemo(() => {
-    const s = { promote: 0, graduate: 0, holdBack: 0, total: 0 };
-    for (const cfg of configs) {
-      for (const st of cfg.students) {
-        if (st.action === 'PROMOTE') s.promote++;
-        else if (st.action === 'GRADUATE') s.graduate++;
-        else if (st.action === 'HOLD_BACK') s.holdBack++;
-        s.total++;
-      }
-    }
-    return s;
-  }, [configs]);
+  const resolvedSelectedClassId = useMemo(() => {
+    if (configs.length === 0) return '';
+    if (configs.some((cfg) => cfg.fromClassId === selectedClassId)) return selectedClassId;
+    return configs[0]!.fromClassId;
+  }, [configs, selectedClassId]);
+
+  const activeConfigs = useMemo(
+    () => getActiveConfigs(configs, resolvedSelectedClassId),
+    [configs, resolvedSelectedClassId],
+  );
+
+  const summary = useMemo(() => calculateSummary(activeConfigs), [activeConfigs]);
+  const validation = useMemo(
+    () => calculateValidationSummary(activeConfigs, classById),
+    [activeConfigs, classById],
+  );
+
+  const activeStudentsTotal = useMemo(
+    () => activeConfigs.reduce((acc, cfg) => acc + cfg.students.length, 0),
+    [activeConfigs],
+  );
+
+  const reviewProgress = useMemo(() => {
+    if (activeStudentsTotal === 0) return 0;
+    return Math.round((summary.total / activeStudentsTotal) * 100);
+  }, [activeStudentsTotal, summary.total]);
 
   function updateStudentAction(classIdx: number, studentIdx: number, action: StudentAction) {
-    setConfigs((prev) => {
-      const next = [...prev];
-      const cls = { ...next[classIdx]! };
-      cls.students = [...cls.students];
-      cls.students[studentIdx] = { ...cls.students[studentIdx]!, action };
-      next[classIdx] = cls;
-      return next;
-    });
+    setConfigs((prev) => updateStudentActionInConfigs(prev, classIdx, studentIdx, action, classById));
+  }
+
+  function updateStudentSelected(classIdx: number, studentIdx: number, selected: boolean) {
+    setConfigs((prev) => updateStudentSelectedInConfigs(prev, classIdx, studentIdx, selected));
+  }
+
+  function setAllStudentsSelected(classIdx: number, selected: boolean) {
+    setConfigs((prev) => setAllStudentsSelectedInConfigs(prev, classIdx, selected));
+  }
+
+  function updateStudentTargetClass(classIdx: number, studentIdx: number, toClassId: string) {
+    setConfigs((prev) => updateStudentTargetClassInConfigs(prev, classIdx, studentIdx, toClassId, classById));
   }
 
   function updateStudentSection(classIdx: number, studentIdx: number, sectionId: string) {
-    setConfigs((prev) => {
-      const next = [...prev];
-      const cls = { ...next[classIdx]! };
-      cls.students = [...cls.students];
-      cls.students[studentIdx] = { ...cls.students[studentIdx]!, toSectionId: sectionId };
-      next[classIdx] = cls;
-      return next;
-    });
+    setConfigs((prev) => updateStudentSectionInConfigs(prev, classIdx, studentIdx, sectionId));
   }
 
   function updateDefaultSection(classIdx: number, sectionId: string) {
-    setConfigs((prev) => {
-      const next = [...prev];
-      next[classIdx] = { ...next[classIdx]!, defaultSectionId: sectionId };
-      return next;
-    });
+    setConfigs((prev) => updateDefaultSectionInConfigs(prev, classIdx, sectionId));
   }
 
   function setAllStudentsAction(classIdx: number, action: StudentAction) {
-    setConfigs((prev) => {
-      const next = [...prev];
-      const cls = { ...next[classIdx]! };
-      cls.students = cls.students.map((s) => ({ ...s, action }));
-      next[classIdx] = cls;
-      return next;
-    });
+    setConfigs((prev) => setAllStudentsActionInConfigs(prev, classIdx, action));
   }
+
+  function selectOnlyClass(classIdx: number) {
+    let targetClassId = '';
+    setConfigs((prev) => {
+      const next = selectOnlyClassInConfigs(prev, classIdx);
+      targetClassId = next.targetClassId;
+      return next.configs;
+    });
+    if (targetClassId) {
+      setSelectedClassId(targetClassId);
+    }
+  }
+
+  useEffect(() => {
+    if (!selectedSessionId) return;
+    void history.loadSessionTransitions(selectedSessionId);
+  }, [history, selectedSessionId]);
 
   function handleExecute() {
     if (!selectedSessionId) {
@@ -114,28 +132,63 @@ export function useYearTransition({
       return;
     }
 
+    if (summary.total === 0) {
+      toast.error('Select at least one student to process');
+      return;
+    }
+
+    if (validation.hasBlockingIssues) {
+      const messages: string[] = [];
+      if (validation.missingTargetClass > 0) {
+        messages.push(`${validation.missingTargetClass} student(s) missing target class`);
+      }
+      if (validation.missingTargetSection > 0) {
+        messages.push(`${validation.missingTargetSection} student(s) missing/invalid target section`);
+      }
+      if (validation.invalidGraduateAction > 0) {
+        messages.push(`${validation.invalidGraduateAction} non-final class student(s) marked as graduate`);
+      }
+
+      toast.error(`Fix before executing: ${messages.join(', ')}`);
+      return;
+    }
+
     startTransition(async () => {
-      const input = {
-        academicSessionId: selectedSessionId,
-        promotions: configs.map((cfg) => ({
+      const promotions = activeConfigs
+        .map((cfg) => ({
           fromClassId: cfg.fromClassId,
           toClassId: cfg.toClassId,
           defaultSectionId: cfg.defaultSectionId,
-          entries: cfg.students.map((s) => ({
-            studentProfileId: s.profileId,
-            action: s.action,
-            toSectionId: s.toSectionId,
-          })),
-        })),
+          entries: cfg.students
+            .filter((student) => student.selected)
+            .map((student) => ({
+              studentProfileId: student.profileId,
+              action: student.action,
+              toClassId: student.toClassId,
+              toSectionId: student.toSectionId,
+            })),
+        }))
+        .filter((cfg) => cfg.entries.length > 0);
+
+      if (promotions.length === 0) {
+        toast.error('No selected students found in this class');
+        setConfirmOpen(false);
+        return;
+      }
+
+      const input = {
+        academicSessionId: selectedSessionId,
+        promotions,
       };
 
       const result = await executeYearTransitionAction(input);
       if (result.success) {
+        const summary = result.data!;
         toast.success(
-          `Year transition complete! ${result.data!.promoted} promoted, ${result.data!.graduated} graduated, ${result.data!.heldBack} held back`,
+          `Processed ${summary.processed} students: ${summary.promoted} promoted, ${summary.graduated} graduated, ${summary.heldBack} held back, ${summary.skipped} skipped.`,
         );
-        setStep('done');
         await invalidate.all();
+        await history.loadSessionTransitions(selectedSessionId);
       } else {
         toast.error(result.error ?? 'Failed to execute transition');
       }
@@ -151,8 +204,8 @@ export function useYearTransition({
       const result = await undoYearTransitionAction(sessionId);
       if (result.success) {
         toast.success('Year transition undone successfully');
-        setStep('configure');
         await invalidate.all();
+        await history.loadSessionTransitions(sessionId);
       } else {
         toast.error(result.error ?? 'Failed to undo');
       }
@@ -160,22 +213,67 @@ export function useYearTransition({
     });
   }
 
+  function handleUndoSelected() {
+    if (!selectedSessionId) {
+      toast.error('Select an academic session first');
+      return;
+    }
+    if (history.selectedTransitionIds.length === 0) {
+      toast.error('Select at least one transitioned student to undo');
+      return;
+    }
+
+    startTransition(async () => {
+      const result = await undoSelectedYearTransitionAction({
+        academicSessionId: selectedSessionId,
+        promotionIds: history.selectedTransitionIds,
+      });
+
+      if (result.success) {
+        toast.success(`Undid ${result.data?.undone ?? 0} selected transition(s)`);
+        await invalidate.all();
+        await history.loadSessionTransitions(selectedSessionId);
+      } else {
+        toast.error(result.error ?? 'Failed to undo selected transitions');
+      }
+      setUndoSelectedConfirmOpen(false);
+    });
+  }
+
   return {
-    step,
     isPending,
+    isLoadingTransitions: history.isLoadingTransitions,
     configs,
+    activeConfigs,
     summary,
+    validation,
+    activeStudentsTotal,
+    reviewProgress,
+    classById,
+    selectedClassId: resolvedSelectedClassId,
+    setSelectedClassId,
     selectedSessionId,
     setSelectedSessionId,
     confirmOpen,
     setConfirmOpen,
     undoConfirmOpen,
     setUndoConfirmOpen,
+    undoSelectedConfirmOpen,
+    setUndoSelectedConfirmOpen,
+    sessionTransitions: history.sessionTransitions,
+    selectedTransitionIds: history.selectedTransitionIds,
+    toggleTransitionSelection: history.toggleTransitionSelection,
+    setAllTransitionSelection: history.setAllTransitionSelection,
     updateStudentAction,
+    updateStudentSelected,
+    setAllStudentsSelected,
+    selectOnlyClass,
+    updateStudentTargetClass,
     updateStudentSection,
     updateDefaultSection,
     setAllStudentsAction,
     handleExecute,
     handleUndo,
+    handleUndoSelected,
   };
 }

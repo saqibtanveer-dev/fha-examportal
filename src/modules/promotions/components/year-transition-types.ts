@@ -17,7 +17,9 @@ export type StudentEntry = {
   rollNumber: string;
   sectionName: string;
   sectionId: string;
+  selected: boolean;
   action: StudentAction;
+  toClassId?: string;
   toSectionId?: string;
 };
 
@@ -31,6 +33,19 @@ export type ClassConfig = {
   defaultSectionId?: string;
   isHighestGrade: boolean;
   students: StudentEntry[];
+};
+
+export type SessionTransitionRecord = {
+  id: string;
+  studentProfileId: string;
+  studentName: string;
+  rollNumber: string;
+  fromClassName: string;
+  fromSectionName: string;
+  toClassName: string | null;
+  toSectionName: string | null;
+  status: string;
+  promotedAt: Date;
 };
 
 export type YearTransitionProps = {

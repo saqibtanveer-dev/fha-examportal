@@ -27,6 +27,8 @@ type ExportRow = {
   studentStatus: string;
 };
 
+type BucketName = 'Grade 10 Girls' | 'Grade 10 Boys' | 'Grade 9 Girls' | 'Grade 9 Boys';
+
 const EMPTY_PASSWORD = 'RESET_REQUIRED';
 
 function parseArgs(argv: string[]): Args {
@@ -48,7 +50,7 @@ function parseFamilyCodeFromEmail(email?: string | null): string {
   return local.toUpperCase();
 }
 
-function classifyGroup(grade: number, sectionName: string, gender: string): string | null {
+function classifyGroup(grade: number, sectionName: string, gender: string): BucketName | null {
   const section = sectionName.toLowerCase();
   const g = gender.toUpperCase();
 
@@ -111,7 +113,7 @@ async function main() {
     orderBy: [{ class: { grade: 'desc' } }, { section: { name: 'asc' } }, { rollNumber: 'asc' }],
   });
 
-  const buckets: Record<string, ExportRow[]> = {
+  const buckets: Record<BucketName, ExportRow[]> = {
     'Grade 10 Girls': [],
     'Grade 10 Boys': [],
     'Grade 9 Girls': [],
@@ -166,7 +168,7 @@ async function main() {
 
   const wb = XLSX.utils.book_new();
 
-  const orderedSheets = ['Grade 10 Girls', 'Grade 10 Boys', 'Grade 9 Girls', 'Grade 9 Boys'];
+  const orderedSheets: BucketName[] = ['Grade 10 Girls', 'Grade 10 Boys', 'Grade 9 Girls', 'Grade 9 Boys'];
   for (const name of orderedSheets) {
     const rows = toSheetRows(buckets[name]);
     const ws = XLSX.utils.json_to_sheet(rows);

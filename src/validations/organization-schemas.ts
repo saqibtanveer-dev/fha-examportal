@@ -136,6 +136,7 @@ export type CreateSectionInput = z.infer<typeof createSectionSchema>;
 export const studentPromotionEntrySchema = z.object({
   studentProfileId: z.string().uuid(),
   action: z.enum(['PROMOTE', 'HOLD_BACK', 'GRADUATE']),
+  toClassId: z.string().uuid().optional(),
   toSectionId: z.string().uuid().optional(),
 });
 
@@ -158,7 +159,14 @@ export const yearTransitionSchema = z.object({
     toClassId: z.string().uuid().optional(),
     defaultSectionId: z.string().uuid().optional(),
     entries: z.array(studentPromotionEntrySchema),
-  })),
+  })).min(1, 'Select at least one class to process'),
 });
 
 export type YearTransitionInput = z.infer<typeof yearTransitionSchema>;
+
+export const undoYearTransitionSchema = z.object({
+  academicSessionId: z.string().uuid('Select an academic session'),
+  promotionIds: z.array(z.string().uuid()).min(1, 'Select at least one student transition to undo'),
+});
+
+export type UndoYearTransitionInput = z.infer<typeof undoYearTransitionSchema>;

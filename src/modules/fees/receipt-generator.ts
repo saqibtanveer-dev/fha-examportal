@@ -48,6 +48,61 @@ export async function generateReceiptNumber(
   return `${basePrefix}-${randomSuffix()}`;
 }
 
+export async function generateReceiptNumbers(
+  prefix: string,
+  count: number,
+  tx: DbClient = prisma,
+): Promise<string[]> {
+  if (count <= 0) return [];
+
+  const basePrefix = datePrefix(prefix);
+  const existing = await tx.feePayment.findMany({
+    where: { receiptNumber: { startsWith: basePrefix } },
+    select: { receiptNumber: true },
+    orderBy: { receiptNumber: 'desc' },
+    take: 1,
+  });
+
+  let nextSeq = 1;
+  if (existing.length > 0) {
+    const parsed = parseInt(existing[0]!.receiptNumber.split('-').pop() ?? '', 10);
+    if (!isNaN(parsed)) nextSeq = parsed + 1;
+  }
+
+  const generated = new Set<string>();
+  const receipts: string[] = [];
+
+  for (let index = 0; index < count; index += 1) {
+    let resolved: string | null = null;
+
+    for (let offset = 0; offset < 4; offset += 1) {
+      const candidate = `${basePrefix}-${String(nextSeq + offset).padStart(4, '0')}`;
+      if (generated.has(candidate)) continue;
+
+      const exists = await tx.feePayment.findUnique({
+        where: { receiptNumber: candidate },
+        select: { id: true },
+      });
+      if (!exists) {
+        resolved = candidate;
+        nextSeq += offset + 1;
+        break;
+      }
+    }
+
+    if (!resolved) {
+      do {
+        resolved = `${basePrefix}-${randomSuffix()}`;
+      } while (generated.has(resolved));
+    }
+
+    generated.add(resolved);
+    receipts.push(resolved);
+  }
+
+  return receipts;
+}
+
 export async function generateFamilyReceiptNumber(
   prefix: string,
   tx: DbClient = prisma,

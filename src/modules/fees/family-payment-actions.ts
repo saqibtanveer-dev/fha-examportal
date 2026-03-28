@@ -17,7 +17,7 @@ import {
   getCurrentAcademicSessionId,
   findFeeSettings,
 } from './fee-queries';
-import { generateFamilyReceiptNumber, generateReceiptNumber } from './receipt-generator';
+import { generateFamilyReceiptNumber, generateReceiptNumbers } from './receipt-generator';
 import { computeAllocation } from './allocation-engine';
 import type { ChildWithAssignments, PendingAssignment } from './fee.types';
 
@@ -159,12 +159,10 @@ export const recordFamilyPaymentAction = safeAction(
       (sum, ca) => sum + ca.assignmentAllocations.filter((a) => a.allocatedAmount > 0).length,
       0,
     );
-    const childReceipts: string[] = [];
-    for (let i = 0; i < receiptCount; i++) {
-      childReceipts.push(
-        await generateReceiptNumber(settings?.receiptPrefix ?? 'FRCP'),
-      );
-    }
+    const childReceipts = await generateReceiptNumbers(
+      settings?.receiptPrefix ?? 'FRCP',
+      receiptCount,
+    );
 
     // Collect all assignment IDs for advisory locks
     const allAssignmentIds = allocation.allocations

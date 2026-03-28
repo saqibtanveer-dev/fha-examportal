@@ -2,20 +2,116 @@
 
 import { prisma } from '@/lib/prisma';
 import { requireRole } from '@/lib/auth-utils';
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import {
+  undoYearTransitionSchema,
   yearTransitionSchema,
+  type UndoYearTransitionInput,
   type YearTransitionInput,
 } from '@/validations/organization-schemas';
 import { revalidatePath } from 'next/cache';
 import { createAuditLog } from '@/modules/audit/audit-queries';
 import { safeAction } from '@/lib/safe-action';
 import type { ActionResult } from '@/types/action-result';
+import { lockTransactionKeys, runSerializableTransaction } from '@/lib/transaction-locks';
+import { z } from 'zod';
 
 import { logger } from '@/lib/logger';
+
+const PROCESS_CHUNK_SIZE = 500;
+const PROFILE_UPDATE_CHUNK_SIZE = 500;
+const TX_TIMEOUT = 60_000;
+const TX_MAX_WAIT = 20_000;
+
+type TransitionStatus = 'PROMOTED' | 'GRADUATED' | 'HELD_BACK';
+
+type PlannedTransition = {
+  fromClassId: string;
+  defaultToClassId?: string;
+  defaultSectionId?: string;
+  studentProfileId: string;
+  action: 'PROMOTE' | 'HOLD_BACK' | 'GRADUATE';
+  entryToClassId?: string;
+  entryToSectionId?: string;
+};
+
+type ExecuteSummary = {
+  promoted: number;
+  graduated: number;
+  heldBack: number;
+  skipped: number;
+  processed: number;
+};
+
+type ProfileTransitionUpdate = {
+  studentProfileId: string;
+  classId: string;
+  sectionId: string;
+  status: 'ACTIVE' | 'GRADUATED';
+};
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function getNotificationCopy(status: TransitionStatus, sessionName: string): { title: string; message: string } {
+  if (status === 'GRADUATED') {
+    return {
+      title: 'Year transition updated: graduated',
+      message: `You have been marked as graduated for academic session ${sessionName}.`,
+    };
+  }
+  if (status === 'PROMOTED') {
+    return {
+      title: 'Year transition updated: promoted',
+      message: `You have been promoted for academic session ${sessionName}.`,
+    };
+  }
+  return {
+    title: 'Year transition updated: held back',
+    message: `You will repeat the current class for academic session ${sessionName}.`,
+  };
+}
+
+async function batchUpdateStudentProfiles(
+  tx: Prisma.TransactionClient,
+  updates: ProfileTransitionUpdate[],
+): Promise<void> {
+  if (updates.length === 0) return;
+
+  const chunked = chunkArray(updates, PROFILE_UPDATE_CHUNK_SIZE);
+  for (const chunk of chunked) {
+    const rows = chunk.map((entry) => Prisma.sql`
+      (
+        ${entry.studentProfileId}::uuid,
+        ${entry.classId}::uuid,
+        ${entry.sectionId}::uuid,
+        ${entry.status}::"StudentStatus"
+      )
+    `);
+
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE "StudentProfile" AS sp
+      SET
+        "classId" = v."classId",
+        "sectionId" = v."sectionId",
+        "status" = v."status",
+        "updatedAt" = NOW()
+      FROM (
+        VALUES ${Prisma.join(rows)}
+      ) AS v("id", "classId", "sectionId", "status")
+      WHERE sp."id" = v."id"
+    `);
+  }
+}
+
 export const executeYearTransitionAction = safeAction(async function executeYearTransitionAction(
   input: YearTransitionInput,
-): Promise<ActionResult<{ promoted: number; graduated: number; heldBack: number }>> {
+): Promise<ActionResult<ExecuteSummary>> {
   const session = await requireRole('ADMIN');
   const parsed = yearTransitionSchema.safeParse(input);
   if (!parsed.success) {
@@ -23,6 +119,22 @@ export const executeYearTransitionAction = safeAction(async function executeYear
   }
 
   const { academicSessionId, promotions } = parsed.data;
+
+  const planned: PlannedTransition[] = promotions.flatMap((classPromotion) =>
+    classPromotion.entries.map((entry) => ({
+      fromClassId: classPromotion.fromClassId,
+      defaultToClassId: classPromotion.toClassId,
+      defaultSectionId: classPromotion.defaultSectionId,
+      studentProfileId: entry.studentProfileId,
+      action: entry.action,
+      entryToClassId: entry.toClassId,
+      entryToSectionId: entry.toSectionId,
+    })),
+  );
+
+  if (planned.length === 0) {
+    return { success: false, error: 'No students selected for transition' };
+  }
 
   // Validate academic session exists
   const academicSession = await prisma.academicSession.findUnique({
@@ -32,184 +144,222 @@ export const executeYearTransitionAction = safeAction(async function executeYear
     return { success: false, error: 'Academic session not found' };
   }
 
-  // Check if transition already done for this session
-  const existingCount = await prisma.studentPromotion.count({
-    where: { academicSessionId },
-  });
-  if (existingCount > 0) {
-    return {
-      success: false,
-      error: 'Year transition already executed for this session. Cannot run again.',
-    };
-  }
+  const chunked = chunkArray(planned, PROCESS_CHUNK_SIZE);
+  const totals: ExecuteSummary = { promoted: 0, graduated: 0, heldBack: 0, skipped: 0, processed: 0 };
 
-  let totalPromoted = 0;
-  let totalGraduated = 0;
-  let totalHeldBack = 0;
-
-  // Execute all promotions in a single transaction
-  await prisma.$transaction(async (tx) => {
-    // ── PRE-FETCH PHASE: batch-load all entities (eliminates N+1) ──
-    const allStudentIds = promotions.flatMap((cp) => cp.entries.map((e) => e.studentProfileId));
-    const allStudentProfiles = await tx.studentProfile.findMany({
-      where: { id: { in: allStudentIds } },
+  const allProfileIds = [...new Set(planned.map((item) => item.studentProfileId))];
+  const [allProfiles, existingProcessedRows, targetClasses, targetSections] = await Promise.all([
+    prisma.studentProfile.findMany({
+      where: { id: { in: allProfileIds } },
       select: { id: true, classId: true, sectionId: true, userId: true },
-    });
-    const profileMap = new Map(allStudentProfiles.map((p) => [p.id, p]));
+    }),
+    prisma.studentPromotion.findMany({
+      where: {
+        academicSessionId,
+        studentProfileId: { in: allProfileIds },
+      },
+      select: { studentProfileId: true },
+    }),
+    prisma.class.findMany({
+      where: {
+        id: {
+          in: [
+            ...new Set(
+              planned
+                .flatMap((item) => [item.entryToClassId, item.defaultToClassId])
+                .filter((id): id is string => Boolean(id)),
+            ),
+          ],
+        },
+        isActive: true,
+      },
+      select: { id: true },
+    }),
+    prisma.section.findMany({
+      where: {
+        id: {
+          in: [
+            ...new Set(
+              planned
+                .flatMap((item) => [item.entryToSectionId, item.defaultSectionId])
+                .filter((id): id is string => Boolean(id)),
+            ),
+          ],
+        },
+      },
+      select: { id: true, classId: true, isActive: true },
+    }),
+  ]);
 
-    const allSectionIds = [
-      ...new Set(
-        promotions.flatMap((cp) =>
-          [cp.defaultSectionId, ...cp.entries.map((e) => e.toSectionId)].filter(Boolean),
-        ),
-      ),
-    ] as string[];
-    const allSections = await tx.section.findMany({
-      where: { id: { in: allSectionIds } },
-      select: { id: true, classId: true },
-    });
-    const sectionMap = new Map(allSections.map((s) => [s.id, s]));
+  const profileMap = new Map(allProfiles.map((profile) => [profile.id, profile]));
+  const processedSet = new Set(existingProcessedRows.map((row) => row.studentProfileId));
+  const targetClassSet = new Set(targetClasses.map((row) => row.id));
+  const targetSectionMap = new Map(targetSections.map((row) => [row.id, row]));
 
-    const allClassIds = promotions.map((cp) => cp.fromClassId);
-    const allClasses = await tx.class.findMany({
-      where: { id: { in: allClassIds } },
-      select: { id: true, grade: true, name: true },
-    });
-    const classMap = new Map(allClasses.map((c) => [c.id, c]));
+  for (const chunk of chunked) {
+    const partial = await runSerializableTransaction(
+      async (tx) => {
+        await lockTransactionKeys(tx, [`year-transition:${academicSessionId}`]);
 
-    // ── PROCESSING PHASE: collect all write operations ──
-    const promotionRecords: Prisma.StudentPromotionCreateManyInput[] = [];
-    const profileUpdates: { id: string; data: Record<string, unknown> }[] = [];
-    const graduatedUserIds: string[] = [];
+        const createRecords: Prisma.StudentPromotionCreateManyInput[] = [];
+        const profileUpdates: ProfileTransitionUpdate[] = [];
+        const deactivateUserIds = new Set<string>();
+        const notifications: Prisma.NotificationCreateManyInput[] = [];
 
-    for (const classPromotion of promotions) {
-      const { fromClassId, toClassId, defaultSectionId, entries } = classPromotion;
-      const fromClass = classMap.get(fromClassId);
+        const counters: ExecuteSummary = { promoted: 0, graduated: 0, heldBack: 0, skipped: 0, processed: 0 };
 
-      for (const entry of entries) {
-        const { studentProfileId, action, toSectionId } = entry;
-        const studentProfile = profileMap.get(studentProfileId);
-        if (!studentProfile || studentProfile.classId !== fromClassId) continue;
+        for (const item of chunk) {
+          const profile = profileMap.get(item.studentProfileId);
+          if (!profile) {
+            counters.skipped += 1;
+            continue;
+          }
+          if (processedSet.has(item.studentProfileId)) {
+            counters.skipped += 1;
+            continue;
+          }
+          if (profile.classId !== item.fromClassId) {
+            counters.skipped += 1;
+            continue;
+          }
 
-        if (action === 'PROMOTE' && toClassId) {
-          const targetSectionId = toSectionId || defaultSectionId;
-          if (!targetSectionId) continue;
+          if (item.action === 'GRADUATE') {
+            createRecords.push({
+              studentProfileId: item.studentProfileId,
+              academicSessionId,
+              fromClassId: item.fromClassId,
+              fromSectionId: profile.sectionId,
+              toClassId: null,
+              toSectionId: null,
+              status: 'GRADUATED',
+              remarks: `Graduated (${academicSession.name})`,
+              promotedById: session.user.id,
+            });
 
-          const targetSection = sectionMap.get(targetSectionId);
-          if (!targetSection || targetSection.classId !== toClassId) continue;
+            profileUpdates.push({
+              studentProfileId: item.studentProfileId,
+              classId: profile.classId,
+              sectionId: profile.sectionId,
+              status: 'GRADUATED',
+            });
 
-          promotionRecords.push({
-            studentProfileId,
+            deactivateUserIds.add(profile.userId);
+            processedSet.add(item.studentProfileId);
+            counters.graduated += 1;
+            counters.processed += 1;
+
+            const copy = getNotificationCopy('GRADUATED', academicSession.name);
+            notifications.push({ userId: profile.userId, title: copy.title, message: copy.message, type: 'SYSTEM' });
+            continue;
+          }
+
+          if (item.action === 'HOLD_BACK') {
+            const holdSectionId = item.entryToSectionId ?? profile.sectionId;
+            const holdSection = targetSectionMap.get(holdSectionId);
+            if (holdSection && holdSection.classId !== item.fromClassId) {
+              counters.skipped += 1;
+              continue;
+            }
+
+            createRecords.push({
+              studentProfileId: item.studentProfileId,
+              academicSessionId,
+              fromClassId: item.fromClassId,
+              fromSectionId: profile.sectionId,
+              toClassId: item.fromClassId,
+              toSectionId: holdSectionId,
+              status: 'HELD_BACK',
+              remarks: 'Held back to repeat the same class',
+              promotedById: session.user.id,
+            });
+
+            profileUpdates.push({
+              studentProfileId: item.studentProfileId,
+              classId: item.fromClassId,
+              sectionId: holdSectionId,
+              status: 'ACTIVE',
+            });
+
+            processedSet.add(item.studentProfileId);
+            counters.heldBack += 1;
+            counters.processed += 1;
+            const copy = getNotificationCopy('HELD_BACK', academicSession.name);
+            notifications.push({ userId: profile.userId, title: copy.title, message: copy.message, type: 'SYSTEM' });
+            continue;
+          }
+
+          const targetClassId = item.entryToClassId ?? item.defaultToClassId;
+          if (!targetClassId || !targetClassSet.has(targetClassId)) {
+            counters.skipped += 1;
+            continue;
+          }
+
+          const targetSectionId = item.entryToSectionId ?? item.defaultSectionId;
+          if (!targetSectionId) {
+            counters.skipped += 1;
+            continue;
+          }
+
+          const section = targetSectionMap.get(targetSectionId);
+          if (!section || !section.isActive || section.classId !== targetClassId) {
+            counters.skipped += 1;
+            continue;
+          }
+
+          createRecords.push({
+            studentProfileId: item.studentProfileId,
             academicSessionId,
-            fromClassId,
-            fromSectionId: studentProfile.sectionId,
-            toClassId,
+            fromClassId: item.fromClassId,
+            fromSectionId: profile.sectionId,
+            toClassId: targetClassId,
             toSectionId: targetSectionId,
             status: 'PROMOTED',
             promotedById: session.user.id,
           });
 
           profileUpdates.push({
-            id: studentProfileId,
-            data: { classId: toClassId, sectionId: targetSectionId, status: 'ACTIVE' },
+            studentProfileId: item.studentProfileId,
+            classId: targetClassId,
+            sectionId: targetSectionId,
+            status: 'ACTIVE',
           });
 
-          totalPromoted++;
-        } else if (action === 'GRADUATE') {
-          promotionRecords.push({
-            studentProfileId,
-            academicSessionId,
-            fromClassId,
-            fromSectionId: studentProfile.sectionId,
-            toClassId: null,
-            toSectionId: null,
-            status: 'GRADUATED',
-            remarks: `Graduated from ${fromClass?.name ?? 'Unknown'} (${academicSession.name})`,
-            promotedById: session.user.id,
-          });
-
-          profileUpdates.push({
-            id: studentProfileId,
-            data: { status: 'GRADUATED' },
-          });
-
-          graduatedUserIds.push(studentProfile.userId);
-          totalGraduated++;
-        } else if (action === 'HOLD_BACK') {
-          promotionRecords.push({
-            studentProfileId,
-            academicSessionId,
-            fromClassId,
-            fromSectionId: studentProfile.sectionId,
-            toClassId: fromClassId,
-            toSectionId: toSectionId || studentProfile.sectionId,
-            status: 'HELD_BACK',
-            remarks: 'Held back to repeat the same class',
-            promotedById: session.user.id,
-          });
-
-          profileUpdates.push({
-            id: studentProfileId,
-            data: {
-              sectionId: toSectionId && toSectionId !== studentProfile.sectionId
-                ? toSectionId
-                : studentProfile.sectionId,
-              status: 'ACTIVE',
-            },
-          });
-
-          totalHeldBack++;
+          processedSet.add(item.studentProfileId);
+          counters.promoted += 1;
+          counters.processed += 1;
+          const copy = getNotificationCopy('PROMOTED', academicSession.name);
+          notifications.push({ userId: profile.userId, title: copy.title, message: copy.message, type: 'SYSTEM' });
         }
-      }
-    }
 
-    // ── WRITE PHASE: batch creates, targeted updates ──
-    if (promotionRecords.length > 0) {
-      await tx.studentPromotion.createMany({ data: promotionRecords });
-    }
+        if (createRecords.length > 0) {
+          await tx.studentPromotion.createMany({ data: createRecords });
+        }
 
-    // Profile updates must be individual (different values per student)
-    await Promise.all(
-      profileUpdates.map((u) =>
-        tx.studentProfile.update({ where: { id: u.id }, data: u.data }),
-      ),
+        await batchUpdateStudentProfiles(tx, profileUpdates);
+
+        if (deactivateUserIds.size > 0) {
+          await tx.user.updateMany({
+            where: { id: { in: [...deactivateUserIds] } },
+            data: { isActive: false },
+          });
+        }
+
+        if (notifications.length > 0) {
+          await tx.notification.createMany({ data: notifications });
+        }
+
+        return counters;
+      },
+      2,
+      { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT },
     );
 
-    // Batch deactivate graduated users
-    if (graduatedUserIds.length > 0) {
-      await tx.user.updateMany({
-        where: { id: { in: graduatedUserIds } },
-        data: { isActive: false },
-      });
-    }
-
-    // Send notifications to all promoted/graduated students
-    const allPromos = await tx.studentPromotion.findMany({
-      where: { academicSessionId },
-      include: { studentProfile: { select: { userId: true } } },
-    });
-
-    const notifications = allPromos.map((p) => ({
-      userId: p.studentProfile.userId,
-      title:
-        p.status === 'GRADUATED'
-          ? '🎓 Congratulations! You have graduated!'
-          : p.status === 'PROMOTED'
-            ? '📚 You have been promoted to the next class!'
-            : '📋 You have been assigned to repeat the current class.',
-      message:
-        p.status === 'GRADUATED'
-          ? `You have graduated in academic session ${academicSession.name}. We wish you all the best!`
-          : p.status === 'PROMOTED'
-            ? `You have been promoted for academic session ${academicSession.name}.`
-            : `You will repeat the current class for academic session ${academicSession.name}.`,
-      type: 'SYSTEM' as const,
-    }));
-
-    if (notifications.length > 0) {
-      await tx.notification.createMany({ data: notifications });
-    }
-  });
+    totals.promoted += partial.promoted;
+    totals.graduated += partial.graduated;
+    totals.heldBack += partial.heldBack;
+    totals.skipped += partial.skipped;
+    totals.processed += partial.processed;
+  }
 
   // Audit log
   createAuditLog(
@@ -217,7 +367,13 @@ export const executeYearTransitionAction = safeAction(async function executeYear
     'YEAR_TRANSITION',
     'ACADEMIC_SESSION',
     academicSessionId,
-    { promoted: totalPromoted, graduated: totalGraduated, heldBack: totalHeldBack },
+    {
+      promoted: totals.promoted,
+      graduated: totals.graduated,
+      heldBack: totals.heldBack,
+      skipped: totals.skipped,
+      processed: totals.processed,
+    },
   ).catch((err) => logger.error({ err }, 'Audit log failed'));
 
   revalidatePath('/admin');
@@ -227,7 +383,7 @@ export const executeYearTransitionAction = safeAction(async function executeYear
 
   return {
     success: true,
-    data: { promoted: totalPromoted, graduated: totalGraduated, heldBack: totalHeldBack },
+    data: totals,
   };
 });
 
@@ -245,38 +401,39 @@ export const undoYearTransitionAction = safeAction(async function undoYearTransi
     return { success: false, error: 'No promotions found for this session to undo' };
   }
 
-  await prisma.$transaction(async (tx) => {
-    // Batch revert all student profiles (individual updates — different values per student)
-    await Promise.all(
-      promotions.map((promo) =>
-        tx.studentProfile.update({
-          where: { id: promo.studentProfileId },
-          data: {
-            classId: promo.fromClassId,
-            sectionId: promo.fromSectionId,
-            status: 'ACTIVE',
-          },
-        }),
-      ),
-    );
+  await runSerializableTransaction(
+    async (tx) => {
+      await lockTransactionKeys(tx, [`year-transition:${academicSessionId}`]);
 
-    // Batch re-activate graduated users
-    const graduatedUserIds = promotions
-      .filter((p) => p.status === 'GRADUATED')
-      .map((p) => p.studentProfile.userId);
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE "StudentProfile" AS sp
+        SET
+          "classId" = promo."fromClassId",
+          "sectionId" = promo."fromSectionId",
+          "status" = 'ACTIVE'::"StudentStatus",
+          "updatedAt" = NOW()
+        FROM "StudentPromotion" AS promo
+        WHERE
+          promo."academicSessionId" = ${academicSessionId}
+          AND sp."id" = promo."studentProfileId"
+      `);
 
-    if (graduatedUserIds.length > 0) {
-      await tx.user.updateMany({
-        where: { id: { in: graduatedUserIds } },
-        data: { isActive: true },
-      });
-    }
+      const graduatedUserIds = promotions
+        .filter((promo) => promo.status === 'GRADUATED')
+        .map((promo) => promo.studentProfile.userId);
 
-    // Delete all promotion records for this session
-    await tx.studentPromotion.deleteMany({
-      where: { academicSessionId },
-    });
-  });
+      if (graduatedUserIds.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: graduatedUserIds } },
+          data: { isActive: true },
+        });
+      }
+
+      await tx.studentPromotion.deleteMany({ where: { academicSessionId } });
+    },
+    2,
+    { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT },
+  );
 
   createAuditLog(
     session.user.id,
@@ -291,4 +448,132 @@ export const undoYearTransitionAction = safeAction(async function undoYearTransi
   revalidatePath('/admin/users');
 
   return { success: true };
+});
+
+export const undoSelectedYearTransitionAction = safeAction(async function undoSelectedYearTransitionAction(
+  input: UndoYearTransitionInput,
+): Promise<ActionResult<{ undone: number }>> {
+  const session = await requireRole('ADMIN');
+  const parsed = undoYearTransitionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message };
+  }
+
+  const { academicSessionId, promotionIds } = parsed.data;
+
+  const promotions = await prisma.studentPromotion.findMany({
+    where: { id: { in: promotionIds }, academicSessionId },
+    include: { studentProfile: { select: { userId: true } } },
+  });
+
+  if (promotions.length === 0) {
+    return { success: false, error: 'No matching transitions found to undo' };
+  }
+
+  await runSerializableTransaction(
+    async (tx) => {
+      await lockTransactionKeys(tx, [`year-transition:${academicSessionId}`]);
+
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE "StudentProfile" AS sp
+        SET
+          "classId" = promo."fromClassId",
+          "sectionId" = promo."fromSectionId",
+          "status" = 'ACTIVE'::"StudentStatus",
+          "updatedAt" = NOW()
+        FROM "StudentPromotion" AS promo
+        WHERE
+          promo."id" IN (${Prisma.join(promotions.map((promo) => Prisma.sql`${promo.id}::uuid`))})
+          AND sp."id" = promo."studentProfileId"
+      `);
+
+      const graduatedUserIds = promotions
+        .filter((promo) => promo.status === 'GRADUATED')
+        .map((promo) => promo.studentProfile.userId);
+
+      if (graduatedUserIds.length > 0) {
+        await tx.user.updateMany({
+          where: { id: { in: graduatedUserIds } },
+          data: { isActive: true },
+        });
+      }
+
+      await tx.studentPromotion.deleteMany({ where: { id: { in: promotions.map((promo) => promo.id) } } });
+    },
+    2,
+    { timeout: TX_TIMEOUT, maxWait: TX_MAX_WAIT },
+  );
+
+  createAuditLog(
+    session.user.id,
+    'UNDO_YEAR_TRANSITION_PARTIAL',
+    'ACADEMIC_SESSION',
+    academicSessionId,
+    { undone: promotions.length, promotionIds },
+  ).catch((err) => logger.error({ err }, 'Audit log failed'));
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/year-transition');
+  revalidatePath('/admin/users');
+  revalidatePath('/admin/classes');
+
+  return { success: true, data: { undone: promotions.length } };
+});
+
+const listSessionTransitionsSchema = z.object({
+  academicSessionId: z.string().uuid('Invalid session'),
+});
+
+export const listSessionTransitionsAction = safeAction(async function listSessionTransitionsAction(
+  input: { academicSessionId: string },
+): Promise<ActionResult<Array<{
+  id: string;
+  studentProfileId: string;
+  studentName: string;
+  rollNumber: string;
+  fromClassName: string;
+  fromSectionName: string;
+  toClassName: string | null;
+  toSectionName: string | null;
+  status: string;
+  promotedAt: Date;
+}>>> {
+  await requireRole('ADMIN');
+  const parsed = listSessionTransitionsSchema.safeParse(input);
+  if (!parsed.success) {
+    return { success: false, error: parsed.error.issues[0]?.message };
+  }
+
+  const rows = await prisma.studentPromotion.findMany({
+    where: { academicSessionId: parsed.data.academicSessionId },
+    orderBy: { promotedAt: 'desc' },
+    include: {
+      studentProfile: {
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+        },
+      },
+      fromClass: { select: { name: true } },
+      fromSection: { select: { name: true } },
+      toClass: { select: { name: true } },
+      toSection: { select: { name: true } },
+    },
+    take: 5000,
+  });
+
+  return {
+    success: true,
+    data: rows.map((row) => ({
+      id: row.id,
+      studentProfileId: row.studentProfileId,
+      studentName: `${row.studentProfile.user.firstName} ${row.studentProfile.user.lastName}`,
+      rollNumber: row.studentProfile.rollNumber,
+      fromClassName: row.fromClass.name,
+      fromSectionName: row.fromSection.name,
+      toClassName: row.toClass?.name ?? null,
+      toSectionName: row.toSection?.name ?? null,
+      status: row.status,
+      promotedAt: row.promotedAt,
+    })),
+  };
 });
