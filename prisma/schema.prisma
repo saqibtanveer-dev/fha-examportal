@@ -891,6 +891,8 @@ model StudentPromotion {
 
   @@index([studentProfileId])
   @@index([academicSessionId])
+  @@index([academicSessionId, studentProfileId])
+  @@index([academicSessionId, promotedAt])
   @@index([fromClassId])
   @@index([fromSectionId])
   @@index([toClassId])
